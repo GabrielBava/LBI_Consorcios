@@ -247,3 +247,40 @@ test('diferença de datas em anos, meses e dias', () => {
   assert.equal(d.getMonth(), 1);
   assert.equal(d.getDate(), 28);
 });
+
+test('agrupar avança mesmo com valor não finito e prazo acima do teto invalida a carta', () => {
+  const g = CC.agrupar([{ t: 1, total: Infinity }, { t: 2, total: Infinity }, { t: 3, total: 5 }]);
+  assert.equal(g.length, 3);
+  const s = base([{ credito: 100000, entrada: 0, parcela: 1000, prazo: 200000 }]);
+  assert.equal(CC.resumo(s).ok, false);
+  assert.ok(CC.validar(s).some((v) => v.campo === 'cartas.0.prazo' && v.nivel === 'erro'));
+});
+
+test('reajustes evitados sem reajuste é exatamente zero', () => {
+  const s = base([{ credito: 1200000, entrada: 436800, parcela: 2303.24, prazo: 206 }]);
+  Object.assign(s, { indice: 'outro', indiceTaxa: 0 });
+  Object.assign(s.amortizacao, { ativo: true, valor: 72983.9, mes: 125 });
+  assert.equal(CC.amortizacao(s).economia, 0);
+});
+
+test('1º reajuste só é obrigatório quando algum reajuste está em uso', () => {
+  const s = base();
+  s.reajusteMes = null;
+  assert.ok(!CC.validar(s).some((v) => v.campo === 'reajusteMes'));
+  s.fluxo.reajuste = true;
+  s.indiceTaxa = 5;
+  assert.ok(CC.validar(s).some((v) => v.campo === 'reajusteMes' && v.nivel === 'erro'));
+});
+
+test('idade: limite pelo 65º aniversário, inclusive com fim do contrato em 29/02', () => {
+  const s = base();
+  Object.assign(s.financiamento, { ativo: true, prazo: 352, nascimento: '1991-02-28' });
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 31) }).financiamento;
+  assert.equal(F.dataFim.getMonth(), 1);
+  assert.equal(F.dataFim.getDate(), 29);
+  assert.equal(F.nascimentoMinimo.getDate(), 1, 'nascidos a partir de 01/03/1991');
+  assert.equal(F.nascimentoMinimo.getMonth(), 2);
+  assert.ok(F.cliente.excede, 'faz 65 anos um dia antes do fim');
+  s.financiamento.nascimento = '1991-03-01';
+  assert.ok(!CC.simular(s, { hoje: new Date(2026, 9, 31) }).financiamento.cliente.excede);
+});

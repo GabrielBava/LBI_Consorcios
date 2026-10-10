@@ -383,6 +383,7 @@
       confirmar('Iniciar uma nova proposta? Os campos desta página e os dados do cliente voltarão aos valores iniciais.', 'Nova proposta', () => {
         if (cont) {
           estadoCont = CC.estadoPadrao();
+          aplicarTaxasRef(); // mantém as taxas já atualizadas pelo Banco Central
           Object.assign(estado.plano, { lead: '' });
           estado.contato.cliente = '';
           desenharCartas();
@@ -434,7 +435,7 @@
       escreverCampos(); atualizar();
     },
     restaurarTaxas() {
-      estadoCont.rendimentos.params = Object.assign({}, taxasRef);
+      aplicarTaxasRef();
       escreverCampos(); atualizar();
       avisar('Parâmetros de rentabilidade restaurados.');
     }
@@ -449,9 +450,23 @@
   // Taxas de referência da calculadora de rendimentos (Banco Central, quando há conexão)
   // ---------------------------------------------------------------------------
 
-  const taxasRef = Object.assign({}, CC.PARAMS_RENDIMENTOS);
-  let fonteTaxas = '';
+  const taxasRef = Object.assign({}, CC.PARAMS_RENDIMENTOS); // padrão do simulador, atualizado pelo Banco Central
+  let taxasBcb = null; // valores buscados nesta sessão
+  let dataTaxas = '';
   let taxasBuscadas = false;
+  const CHAVES_BCB = ['selic', 'cdi', 'poupanca', 'ipca'];
+
+  /** "Banco Central, data" só quando Selic, CDI, IPCA e poupança em uso são os buscados. */
+  function fonteTaxas() {
+    const p = estadoCont.rendimentos.params;
+    return taxasBcb && CHAVES_BCB.every((k) => p[k] === taxasBcb[k]) ? 'Banco Central, ' + dataTaxas : '';
+  }
+
+  /** Parâmetros nas taxas de referência atuais (nova proposta, restaurar). */
+  function aplicarTaxasRef() {
+    estadoCont.rendimentos.params = Object.assign({}, taxasRef);
+    estadoCont.rendimentos.ref = Object.assign({}, taxasRef);
+  }
 
   async function lerJson(url) {
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -469,21 +484,22 @@
     taxasBuscadas = true;
     const sgs = (serie) => lerJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.' + serie + '/dados/ultimos/1?formato=json').then((d) => Number(String(d[0].valor).replace(',', '.')));
     const focus = 'https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoInflacao12Meses?$top=1&$format=json&$select=Indicador,Data,Suavizada,Mediana,baseCalculo&$filter=Indicador%20eq%20%27IPCA%27%20and%20baseCalculo%20eq%200%20and%20Suavizada%20eq%20%27S%27&$orderby=Data%20desc';
-    const chaves = ['selic', 'cdi', 'poupanca', 'ipca'];
     const res = await Promise.allSettled([sgs(1178), sgs(4389), sgs(195), lerJson(focus).then((d) => Number(d.value[0].Mediana))]);
-    const p = estadoCont.rendimentos.params;
-    let n = 0;
-    res.forEach((r, i) => {
-      if (r.status !== 'fulfilled' || !C.isNum(r.value)) return;
-      const k = chaves[i];
-      const novo = Math.round(r.value * 10000) / 10000;
-      if (p[k] === taxasRef[k]) p[k] = novo; // só troca o que não foi editado
-      taxasRef[k] = novo;
-      n++;
+    const g = estadoCont.rendimentos;
+    if (!g.ref) g.ref = Object.assign({}, CC.PARAMS_RENDIMENTOS);
+    const novos = {};
+    res.forEach((r, i) => { if (r.status === 'fulfilled' && C.isNum(r.value)) novos[CHAVES_BCB[i]] = Math.round(r.value * 10000) / 10000; });
+    const n = Object.keys(novos).length;
+    Object.keys(novos).forEach((k) => {
+      // Só troca o que o usuário não editou (igual à referência de onde veio)
+      if (g.params[k] === g.ref[k]) { g.params[k] = novos[k]; g.ref[k] = novos[k]; }
+      taxasRef[k] = novos[k];
     });
-    fonteTaxas = n ? 'Banco Central, ' + new Date().toLocaleDateString('pt-BR') : '';
+    if (n === CHAVES_BCB.length) { taxasBcb = novos; dataTaxas = new Date().toLocaleDateString('pt-BR'); }
     const nota = $('#nota-taxas');
-    if (nota) nota.textContent = n ? 'Selic, CDI, IPCA e poupança atualizados pelo Banco Central.' : 'Sem conexão com o Banco Central: usando as taxas de referência do simulador.';
+    if (nota) nota.textContent = n === CHAVES_BCB.length ? 'Selic, CDI, IPCA e poupança atualizados pelo Banco Central.'
+      : n ? 'Parte das taxas foi atualizada pelo Banco Central; as demais seguem a referência do simulador.'
+      : 'Sem conexão com o Banco Central: usando as taxas de referência do simulador.';
     if (n) { escreverCampos(); atualizar(); }
   }
 
@@ -825,7 +841,7 @@
 
   /** Abas das páginas do simulador (mesmo link: #primario e #contemplada). */
   function htmlPaginas() {
-    return Object.entries(PAGINAS).map(([k, p]) => '<a class="pagina-aba" href="#' + k + '"' + (k === modo ? ' aria-current="page"' : '') + '>' +
+    return Object.entries(PAGINAS).map(([k, p]) => '<a class="pagina-aba" href="#' + k + '" data-pagina="' + k + '"' + (k === modo ? ' aria-current="page"' : '') + '>' +
       '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + p.icone + '</svg>' + esc(p.nome) + '</a>').join('');
   }
 
@@ -863,7 +879,7 @@
 
   function desenharCont(rc) {
     textosCopia.fluxo = TC.textoFluxo(rc);
-    pintar(barraTopo() + TC.desenhar(rc, estadoCont, { lead: String(estado.plano.lead || '').trim(), fonteTaxas }));
+    pintar(barraTopo() + TC.desenhar(rc, estadoCont, { lead: String(estado.plano.lead || '').trim(), fonteTaxas: fonteTaxas() }));
   }
 
   /** Valores travados e campos automáticos do menu da carta contemplada. */
@@ -885,25 +901,29 @@
   // Páginas: consórcio primário (1) e carta contemplada (2), no mesmo link
   // ---------------------------------------------------------------------------
 
+  /** Página pedida no link: #contemplada, ou ?pagina=contemplada (também aceito depois do #, como os dados do CRM). */
   function modoDaUrl() {
     const h = String(location.hash || '').replace(/^#/, '');
     if (PAGINAS[h]) return h;
-    try {
-      const q = new URLSearchParams(location.search);
-      const m = q.get('pagina') || q.get('modo');
-      if (PAGINAS[m]) return m;
-    } catch (e) { /* sem parâmetros */ }
+    for (const txt of [location.search, h]) {
+      try {
+        const q = new URLSearchParams(String(txt || '').replace(/^\?/, ''));
+        const m = q.get('pagina') || q.get('modo');
+        if (PAGINAS[m]) return m;
+      } catch (e) { /* sem parâmetros */ }
+    }
     return null;
   }
 
-  function definirModo(m, semHistorico) {
+  function definirModo(m, semHistorico, empilhar) {
     modo = PAGINAS[m] ? m : 'primario';
     document.body.classList.toggle('modo-contemplada', modo === 'contemplada');
     $$('.painel-modo').forEach((el) => { el.hidden = el.dataset.painel !== modo; });
     $$('.paginas-menu').forEach((el) => { el.innerHTML = htmlPaginas(); });
     try { localStorage.setItem(CHAVE_MODO, modo); } catch (e) { /* sem armazenamento */ }
     if (!semHistorico && location.hash !== '#' + modo) {
-      try { history.replaceState(null, '', '#' + modo); } catch (e) { /* arquivo local antigo */ }
+      // Clique nas abas empilha no histórico (voltar retorna à outra página); a abertura só ajusta o link
+      try { history[empilhar ? 'pushState' : 'replaceState'](null, '', '#' + modo); } catch (e) { /* histórico indisponível */ }
     }
     if (modo === 'contemplada' && estadoCont.rendimentos.ativo) buscarTaxasBcb();
     $('#principal').scrollTop = 0;
@@ -1061,7 +1081,7 @@
       // Carta contemplada: páginas montadas conforme as guias habilitadas
       const rc = CC.simular(estadoCont);
       erros = rc.validacoes.filter((v) => v.nivel === 'erro');
-      prop = await TC.montarProposta(rc, estadoCont, lead, { fonteTaxas });
+      prop = await TC.montarProposta(rc, estadoCont, lead, { fonteTaxas: fonteTaxas() });
       mensagem = TC.mensagem(rc, estadoCont, lead);
       prefixo = 'Proposta_Contemplada_';
     } else {
@@ -1283,6 +1303,7 @@
     if (fone) estado.contato.cliente = formatarTelefone(fone);
     return !!(nome || fone || planoCrm);
   })();
+  if (doCrm && !modoDaUrl()) modo = 'primario';
   try { if (localStorage.getItem('simconsorcio.menuOculto') === '1') document.body.classList.add('menu-oculto'); } catch (e) { /* sem armazenamento */ }
   try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => atualizar()); } catch (e) { /* navegador antigo */ }
   const aplicarPlanoCrm = (avisarFalta) => {
@@ -1300,7 +1321,16 @@
   preencherSelects();
   escreverCampos();
   // Navegação entre as páginas pelo link (#primario / #contemplada), inclusive voltar/avançar do navegador
-  window.addEventListener('hashchange', () => { const m = modoDaUrl(); if (m && m !== modo) definirModo(m, true); });
+  const seguirUrl = () => { const m = modoDaUrl(); if (m && m !== modo) definirModo(m, true); };
+  window.addEventListener('hashchange', seguirUrl);
+  window.addEventListener('popstate', seguirUrl);
+  // Abas: troca a página por script, sem navegar (a página pode estar dentro de outra, como na versão on-line)
+  document.addEventListener('click', (ev) => {
+    const aba = ev.target.closest && ev.target.closest('.pagina-aba');
+    if (!aba || ev.button || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+    ev.preventDefault();
+    if (aba.dataset.pagina !== modo) definirModo(aba.dataset.pagina, false, true);
+  });
   definirModo(modo, !!modoDaUrl());
   if (doCrm) avisar(planoAplicado ? 'Cliente e plano preenchidos pelo CRM.' : 'Nome e contato do cliente preenchidos pelo CRM.');
   // Planos do CRM (quando configurado): atualiza a lista e reaplica o plano pedido no link

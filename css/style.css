@@ -686,6 +686,9 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
   .paginas-menu .pagina-aba { padding: 0 10px; }
   .barra-topo { justify-content: flex-end; padding-right: 44px; }
   .barra-topo .paginas { display: none; }
+  /* Menu oculto: as abas voltam ao topo da proposta */
+  .menu-oculto .barra-topo { justify-content: space-between; }
+  .menu-oculto .barra-topo .paginas { display: inline-grid; }
   .botao-sec { position: static; margin-bottom: 10px; }
   .barra-linha { grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) auto; gap: 8px; }
 }

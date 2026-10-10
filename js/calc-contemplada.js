@@ -38,6 +38,7 @@
 
   const REGRAS = {
     transferenciaPct: 1, // estimativa de transferência: 1% sobre o crédito total
+    prazoCartaMax: 600, // prazo restante máximo aceito por carta (meses)
     periodicidadeReajuste: 12, // reajuste anual
     reajusteMesPadrao: 13, // 1º reajuste na 13ª parcela da simulação
     rendaMultiplo: 3, // financiamento: renda comprovada = 3 × parcela
@@ -92,7 +93,8 @@
       // Guias opcionais: todas começam desabilitadas
       amortizacao: { ativo: false, valor: null, mes: 12 },
       evolucao: { ativo: false },
-      rendimentos: { ativo: false, mensal: 0, meses: null, params: Object.assign({}, PARAMS_RENDIMENTOS) },
+      // ref: taxas de referência de onde vieram os parâmetros (o que difere delas foi editado pelo usuário)
+      rendimentos: { ativo: false, mensal: 0, meses: null, params: Object.assign({}, PARAMS_RENDIMENTOS), ref: Object.assign({}, PARAMS_RENDIMENTOS) },
       financiamento: { ativo: false, sistema: 'price', prazo: 420, entradaPct: 20, credito: null, juros: 11.5, nascimento: '' }
     };
   }
@@ -143,7 +145,7 @@
   function lerCartas(s) {
     return (s.cartas || []).map((c, i) => {
       const credito = num(c.credito), entrada = num(c.entrada), parcela = num(c.parcela), prazo = num(c.prazo);
-      const ok = isNum(credito) && credito > 0 && isNum(parcela) && parcela > 0 && inteiro(prazo) && prazo >= 1;
+      const ok = isNum(credito) && credito > 0 && isNum(parcela) && parcela > 0 && inteiro(prazo) && prazo >= 1 && prazo <= REGRAS.prazoCartaMax;
       return { i, ok, credito, entrada: isNum(entrada) && entrada > 0 ? entrada : 0, parcela, prazo, saldo: ok ? parcela * prazo : null };
     });
   }
@@ -224,6 +226,7 @@
     while (i < meses.length) {
       const ini = i;
       const valor = meses[i][k];
+      i++; // cada faixa tem ao menos um mês, mesmo com valor não finito
       while (i < meses.length && Math.abs(meses[i][k] - valor) < 0.005) i++;
       const qtd = i - ini;
       grupos.push({ de: meses[ini].t, ate: meses[i - 1].t, qtd, valor, subtotal: valor * qtd });
@@ -305,7 +308,8 @@
     out.parcelasRestantesSem = somaBase;
     out.parcelasRestantesCom = somaBase * k;
     // Economia: parcelas que deixam de ser pagas (com reajuste) menos o próprio aporte = reajustes evitados
-    out.economia = somaBase - somaBase * k - aporte;
+    const economia = somaBase - somaBase * k - aporte;
+    out.economia = Math.abs(economia) < 0.005 ? 0 : economia;
     out.totalSem = F.total;
     out.totalCom = F.total - somaBase + somaBase * k + aporte;
     out.linhas = mesesAnuais(F.N, [mes]).map((t) => {
@@ -495,7 +499,9 @@
     // Idade: ao fim do contrato a pessoa não pode passar de 65 anos
     const d0 = hojeSemHora(hoje);
     const fim = somarMeses(d0, n);
-    const nascMin = somarMeses(fim, -REGRAS.idadeLimite * 12);
+    // Primeira data de nascimento cujo 65º aniversário não cai antes do fim do contrato
+    let nascMin = somarMeses(fim, -REGRAS.idadeLimite * 12);
+    while (somarMeses(nascMin, REGRAS.idadeLimite * 12) < fim) nascMin = new Date(nascMin.getFullYear(), nascMin.getMonth(), nascMin.getDate() + 1);
     out.hoje = d0;
     out.dataFim = fim;
     out.nascimentoMinimo = nascMin;
@@ -504,7 +510,7 @@
     if (nasc && nasc <= d0) {
       const idade = diferencaData(nasc, d0);
       const aos65 = somarMeses(nasc, REGRAS.idadeLimite * 12);
-      out.cliente = { nascimento: nasc, idade, idadeFim: diferencaData(nasc, fim), excede: nasc < nascMin, prazoMaximo: aos65 > d0 ? mesesEntre(d0, aos65) : 0 };
+      out.cliente = { nascimento: nasc, idade, idadeFim: diferencaData(nasc, fim), excede: aos65 < fim, prazoMaximo: aos65 > d0 ? mesesEntre(d0, aos65) : 0 };
     }
     // Comparação com a carta contemplada (valores nominais, sem reajustes nem TR)
     if (R.ok) {
@@ -527,6 +533,7 @@
       if (!isNum(cr) || cr <= 0) add('erro', 'cartas.' + i + '.credito', rot + 'informe o crédito disponível.');
       if (!isNum(pa) || pa <= 0) add('erro', 'cartas.' + i + '.parcela', rot + 'informe a parcela atual.');
       if (!inteiro(pz) || pz < 1) add('erro', 'cartas.' + i + '.prazo', rot + 'informe o prazo restante (meses).');
+      else if (pz > REGRAS.prazoCartaMax) add('erro', 'cartas.' + i + '.prazo', rot + 'prazo restante acima de ' + REGRAS.prazoCartaMax + ' meses.');
       else if (pz > 420) add('alerta', 'cartas.' + i + '.prazo', rot + 'prazo acima de 420 meses: confirme com a administradora.');
       if (isNum(en) && en < 0) add('erro', 'cartas.' + i + '.entrada', rot + 'a entrada não pode ser negativa.');
       else if (isNum(en) && isNum(cr) && en >= cr) add('alerta', 'cartas.' + i + '.entrada', rot + 'entrada maior ou igual ao crédito.');
@@ -537,7 +544,7 @@
     if (!INDICES[s.indice]) add('erro', 'indice', 'Selecione o índice de reajuste.');
     else if (usaReajuste && !isNum(taxaIndice(s)) && (!R.ok || R.prazoMax >= mesReajuste(s))) add('erro', 'indiceTaxa', 'Índice ' + nomeIndice(s) + ' sem taxa estimada: informe a projeção ao ano para o reajuste.');
     const m1 = num(s.reajusteMes);
-    if (!inteiro(m1) || m1 < 1) add('erro', 'reajusteMes', 'Mês do 1º reajuste: informe um mês (1 ou mais).');
+    if (usaReajuste && (!inteiro(m1) || m1 < 1)) add('erro', 'reajusteMes', 'Mês do 1º reajuste: informe um mês (1 ou mais).');
     const am = s.amortizacao;
     if (am && am.ativo) {
       const v = num(am.valor), m = num(am.mes);

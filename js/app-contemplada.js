@@ -9,7 +9,7 @@
     const CC = window.CalcCont;
     const esc = ui.esc;
     const isNum = CC.isNum;
-    const brl = (x) => (isNum(x) ? CC.fmtBRL(x) : '—');
+    const brl = (x) => (isNum(x) ? CC.fmtBRL(Math.abs(x) < 0.005 ? 0 : x) : '—'); // sem "-R$ 0,00" por resíduo de arredondamento
     const pct = (x, d) => (isNum(x) ? CC.fmtPct(x, d == null ? 2 : d) : '—');
     const nc = '<span class="nc">Não calculado</span>';
     const v = (x) => (isNum(x) ? CC.fmtBRL(x) : nc);
@@ -299,7 +299,7 @@
       if (Fi.cliente) {
         const c = Fi.cliente;
         a.push(c.excede
-          ? { cls: 'alerta', html: '<b>Atenção:</b> o cliente tem ' + textoIdade(c.idade) + ' e, ao fim de ' + Fi.prazo + ' meses, teria ' + c.idadeFim.anos + ' anos. Prazo compatível com o limite de ' + CC.REGRAS.idadeLimite + ' anos: ' + (c.prazoMaximo > 0 ? 'até ' + c.prazoMaximo + ' meses' : 'nenhum') + '.' }
+          ? { cls: 'alerta', html: '<b>Atenção:</b> o cliente tem ' + textoIdade(c.idade) + ' e, ao fim de ' + Fi.prazo + ' meses, teria ' + textoIdade(c.idadeFim) + '. Prazo compatível com o limite de ' + CC.REGRAS.idadeLimite + ' anos: ' + (c.prazoMaximo > 0 ? 'até ' + c.prazoMaximo + ' meses' : 'nenhum') + '.' }
           : { cls: 'info', html: '<b>Cliente:</b> ' + textoIdade(c.idade) + '; dentro do limite de idade para este prazo.' });
       }
       return a;
