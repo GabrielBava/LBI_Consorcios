@@ -20,6 +20,8 @@
       <img class="logo logo-claro" data-logo="claro" alt="Vero Consórcios">
       <span class="marca-modulo">Simulador</span>
     </div>
+    <!-- Páginas do simulador (no celular; na tela larga ficam no topo da proposta) -->
+    <nav class="paginas paginas-menu" aria-label="Páginas do simulador"></nav>
     <div class="toolbar">
       <button type="button" data-acao="pdf" class="primario"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="m9 14 3 3 3-3"/></svg>Gerar proposta (PDF)</button>
       <button type="button" data-acao="nova"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Nova proposta</button>
@@ -30,6 +32,9 @@
       <input type="text" id="f-lead" data-k="plano.lead" maxlength="80" autocomplete="off"></label>
     <label class="f campo-cliente"><span>Contato do cliente (WhatsApp) <em class="req">*</em></span>
       <input type="tel" id="f-contato" data-k="contato.cliente" data-telefone inputmode="tel" placeholder="(11) 99999-9999" autocomplete="off"></label>
+
+    <!-- ===================== PÁGINA 1: CONSÓRCIO PRIMÁRIO ===================== -->
+    <div class="painel-modo" data-painel="primario">
 
     <!-- 1. Dados do plano -->
     <details class="secao" open data-secao="plano">
@@ -226,6 +231,159 @@
         <label class="chk"><input type="checkbox" id="f-projRentabilidade" data-k="projecoes.rentabilidade"> Rentabilidade</label>
       </div>
     </details>
+    </div>
+
+    <!-- ===================== PÁGINA 2: CARTA CONTEMPLADA ===================== -->
+    <div class="painel-modo" data-painel="contemplada" hidden>
+
+    <!-- C1. Dados da proposta -->
+    <details class="secao" open data-secao="c-dados">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h1"/></svg>Dados da proposta</summary>
+      <fieldset class="f segmentado">
+        <legend>Segmento</legend>
+        <div class="seg-opcoes seg3">
+          <label><input type="radio" name="c-segmento" data-k="cont.segmento" value="imovel"><span>Imóvel</span></label>
+          <label><input type="radio" name="c-segmento" data-k="cont.segmento" value="veiculo"><span>Veículo</span></label>
+          <label><input type="radio" name="c-segmento" data-k="cont.segmento" value="servico"><span>Serviço</span></label>
+        </div>
+      </fieldset>
+      <label class="f"><span>Administradora</span>
+        <input type="text" id="c-administradora" data-k="cont.administradora" list="lista-administradoras" maxlength="40" placeholder="Selecione ou digite" autocomplete="off"></label>
+      <datalist id="lista-administradoras"></datalist>
+    </details>
+
+    <!-- C2. Cartas contempladas (uma ou várias: junção) -->
+    <details class="secao" open data-secao="c-cartas">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Cartas contempladas</summary>
+      <div id="cartas-lista"></div>
+      <button type="button" class="mini botao-add" data-acao-cont="addCarta"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Adicionar carta</button>
+      <small class="nota">Junção: as parcelas das cartas são somadas mês a mês.</small>
+    </details>
+
+    <!-- C3. Fluxo de parcelas: indexador e reajuste -->
+    <details class="secao" open data-secao="c-fluxo">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M16 2.5v3"/><path d="M8 2.5v3"/><path d="M3 10h18"/><path d="M17 14h-6"/><path d="M13 17.5H7"/></svg>Fluxo de Parcelas</summary>
+      <div class="grid2">
+        <label class="f"><span>Indexador</span>
+          <select id="c-indice" data-k="cont.indice" class="sel-indice-cont"></select></label>
+        <label class="f" data-show="cont.indice=ipca|incc|inpc|outro"><span>Taxa estimada (% a.a.)</span>
+          <input type="number" id="c-indiceTaxa" data-k="cont.indiceTaxa" step="any"></label>
+      </div>
+      <label class="f" data-show="cont.indice=outro"><span>Nome do índice</span>
+        <input type="text" id="c-indiceNome" data-k="cont.indiceNome" maxlength="30"></label>
+      <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-fluxoReajuste" data-k="cont.fluxo.reajuste"> Habilitar reajuste pelo indexador</label>
+      <div class="sub" data-show="cont.fluxo.reajuste|cont.evolucao.ativo|cont.amortizacao.ativo">
+        <label class="f"><span>1º reajuste (mês)</span>
+          <input type="number" id="c-reajusteMes" data-k="cont.reajusteMes" min="1" step="1"></label>
+      </div>
+      <small class="nota" data-show="!cont.fluxo.reajuste">Desabilitado: o fluxo mostra as parcelas atuais, sem reajuste.</small>
+      <small class="nota" data-show="cont.fluxo.reajuste">Habilitado: reajuste anual pelo indexador a partir do mês informado.</small>
+    </details>
+
+    <!-- C4. Estudo de amortização (opcional) -->
+    <details class="secao" open data-secao="c-amortizacao">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 17-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/></svg>Estudo de Amortização</summary>
+      <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-amortAtivo" data-k="cont.amortizacao.ativo"> Habilitar estudo de amortização</label>
+      <div data-show="cont.amortizacao.ativo">
+        <div class="grid2">
+          <label class="f"><span>Valor do aporte (R$)</span>
+            <input type="text" id="c-amortValor" data-k="cont.amortizacao.valor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+          <label class="f"><span>Mês do aporte</span>
+            <input type="number" id="c-amortMes" data-k="cont.amortizacao.mes" min="1" step="1"></label>
+        </div>
+        <small class="nota">O aporte abate o saldo devedor no mês informado; a parcela é recalculada, mantendo o prazo e os reajustes.</small>
+      </div>
+    </details>
+
+    <!-- C5. Evolução de parcelas (opcional) -->
+    <details class="secao" open data-secao="c-evolucao">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>Evolução de Parcelas</summary>
+      <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-evolucaoAtivo" data-k="cont.evolucao.ativo"> Habilitar evolução de parcelas</label>
+      <small class="nota" data-show="cont.evolucao.ativo">A cada 12 meses: parcela com reajuste pelo indexador, aporte acumulado e saldo devedor.</small>
+    </details>
+
+    <!-- C6. Calculadora de rendimentos (opcional) -->
+    <details class="secao" open data-secao="c-rendimentos">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>Calculadora de Rendimentos</summary>
+      <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-rendAtivo" data-k="cont.rendimentos.ativo"> Habilitar calculadora de rendimentos</label>
+      <div data-show="cont.rendimentos.ativo">
+        <label class="f"><span>Aporte inicial (R$)</span><output class="valor-travado" id="c-rendInicial" data-valor-cont="rendInicial" aria-live="polite">—</output></label>
+        <small class="nota">Crédito − entrada das cartas, aplicado automaticamente.</small>
+        <div class="grid2">
+          <label class="f"><span>Aportes mensais (R$)</span>
+            <input type="text" id="c-rendMensal" data-k="cont.rendimentos.mensal" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+          <label class="f"><span>Período (meses)</span>
+            <input type="number" id="c-rendMeses" data-k="cont.rendimentos.meses" data-auto="prazoMax" min="1" step="1"></label>
+        </div>
+        <small class="nota">Período máximo: maior prazo das cartas (junção).</small>
+        <details class="sub-secao" data-id="c-parametros">
+          <summary>Parâmetros de rentabilidade</summary>
+          <div class="grid2">
+            <label class="f"><span>Selic efetiva (% a.a.)</span><input type="number" id="c-pSelic" data-k="cont.rendimentos.params.selic" step="any" min="0"></label>
+            <label class="f"><span>CDI (% a.a.)</span><input type="number" id="c-pCdi" data-k="cont.rendimentos.params.cdi" step="any" min="0"></label>
+            <label class="f"><span>IPCA (% a.a.)</span><input type="number" id="c-pIpca" data-k="cont.rendimentos.params.ipca" step="any" min="0"></label>
+            <label class="f"><span>Poupança (% a.m.)</span><input type="number" id="c-pPoupanca" data-k="cont.rendimentos.params.poupanca" step="any" min="0"></label>
+            <label class="f"><span>Tesouro Prefixado (% a.a.)</span><input type="number" id="c-pPre" data-k="cont.rendimentos.params.tesouroPre" step="any" min="0"></label>
+            <label class="f"><span>Tesouro IPCA+ (juro real)</span><input type="number" id="c-pIpcaMais" data-k="cont.rendimentos.params.tesouroIpca" step="any" min="0"></label>
+            <label class="f"><span>Custódia B3 (% a.a.)</span><input type="number" id="c-pCustodia" data-k="cont.rendimentos.params.custodia" step="any" min="0"></label>
+            <label class="f"><span>Adm. Fundo DI (% a.a.)</span><input type="number" id="c-pAdm" data-k="cont.rendimentos.params.admFundoDi" step="any" min="0"></label>
+            <label class="f"><span>Rentabilidade do CDB</span><input type="number" id="c-pCdb" data-k="cont.rendimentos.params.cdbPct" step="any" min="0"></label>
+            <label class="f"><span>Tipo</span>
+              <select id="c-pCdbTipo" data-k="cont.rendimentos.params.cdbTipo">
+                <option value="cdi">% do CDI</option>
+                <option value="prefixado">Prefixado (a.a.)</option>
+                <option value="ipca">IPCA+ (a.a.)</option>
+              </select></label>
+            <label class="f"><span>Rentabilidade da LCI/LCA</span><input type="number" id="c-pLci" data-k="cont.rendimentos.params.lciPct" step="any" min="0"></label>
+            <label class="f"><span>Tipo</span>
+              <select id="c-pLciTipo" data-k="cont.rendimentos.params.lciTipo">
+                <option value="cdi">% do CDI</option>
+                <option value="prefixado">Prefixado (a.a.)</option>
+                <option value="ipca">IPCA+ (a.a.)</option>
+              </select></label>
+            <label class="f"><span>Fundo DI (% do CDI)</span><input type="number" id="c-pFundo" data-k="cont.rendimentos.params.fundoDiPct" step="any" min="0"></label>
+          </div>
+          <button type="button" class="mini" data-acao-cont="restaurarTaxas"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Restaurar parâmetros padrões</button>
+          <small class="nota" id="nota-taxas"></small>
+        </details>
+      </div>
+    </details>
+
+    <!-- C7. Consórcio vs Financiamento (opcional) -->
+    <details class="secao" open data-secao="c-financiamento">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18"/><path d="M6 17.5v-7"/><path d="M10 17.5v-7"/><path d="M14 17.5v-7"/><path d="M18 17.5v-7"/><path d="M12 3 20 7.5H4z"/></svg>Consórcio vs Financiamento</summary>
+      <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-finAtivo" data-k="cont.financiamento.ativo"> Habilitar comparativo</label>
+      <div data-show="cont.financiamento.ativo">
+        <fieldset class="f segmentado">
+          <legend>Sistema de amortização</legend>
+          <div class="seg-opcoes">
+            <label><input type="radio" name="c-sistema" data-k="cont.financiamento.sistema" value="price"><span>Tabela Price</span></label>
+            <label><input type="radio" name="c-sistema" data-k="cont.financiamento.sistema" value="sac"><span>Tabela SAC</span></label>
+          </div>
+        </fieldset>
+        <div class="grid2">
+          <label class="f"><span>Prazo (meses)</span>
+            <input type="number" id="c-finPrazo" data-k="cont.financiamento.prazo" min="1" max="420" step="1"></label>
+          <div class="chips" role="group" aria-label="Prazos usuais">
+            <button type="button" class="chip" data-prazo-fin="360">360</button>
+            <button type="button" class="chip" data-prazo-fin="420">420</button>
+          </div>
+        </div>
+        <div class="grid2">
+          <label class="f"><span>Entrada (%)</span>
+            <input type="number" id="c-finEntrada" data-k="cont.financiamento.entradaPct" min="0" max="99" step="any"></label>
+          <label class="f"><span>Juros (% a.a.)</span>
+            <input type="number" id="c-finJuros" data-k="cont.financiamento.juros" min="0" step="any"></label>
+        </div>
+        <label class="f"><span>Crédito necessário (R$)</span>
+          <input type="text" id="c-finCredito" data-k="cont.financiamento.credito" data-moeda data-auto="credTotal" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+        <small class="nota">Pré-preenchido com o crédito das cartas; apague para voltar ao valor da carta.</small>
+        <label class="f"><span>Nascimento do cliente (opcional)</span>
+          <input type="date" id="c-finNascimento" data-k="cont.financiamento.nascimento"></label>
+        <small class="nota">Usado só para o alerta de idade (65 anos ao fim do contrato).</small>
+      </div>
+    </details>
+    </div>
   </aside>
 
   <button type="button" class="botao-menu" id="botaoMenu" aria-controls="sidebar" aria-label="Ocultar menu" title="Ocultar menu">
@@ -242,6 +400,8 @@
 <script src="js/config.js"></script>
 <script src="js/logos.js"></script>
 <script src="js/calc.js"></script>
+<script src="js/calc-contemplada.js"></script>
+<script src="js/app-contemplada.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

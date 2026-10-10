@@ -2,6 +2,8 @@
 
 Versão 2.8 · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo) e `js/app.js` (interface).
 
+> **v3.0 — plataforma única:** este simulador é a **página 1 (Consórcio)**, no mesmo link da **página 2 (Carta Contemplada)**, especificada em [`ESPECIFICACAO-CONTEMPLADA.md`](ESPECIFICACAO-CONTEMPLADA.md). As abas no topo da proposta alternam entre as páginas (`#primario` / `#contemplada`); nome e contato do cliente, tema e menu oculto são compartilhados. O seletor de tema saiu do topo da proposta e foi para a barra das abas. As regras desta página não mudaram.
+
 > **Observação obrigatória:** a simulação depende dos dados do grupo, do contrato, das regras da administradora e das premissas inseridas. Nenhum valor é contratual. Não há garantia de contemplação, venda, lucro, valorização ou rentabilidade.
 
 ---

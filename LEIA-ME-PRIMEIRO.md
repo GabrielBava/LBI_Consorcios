@@ -1,6 +1,6 @@
 # Simulador de Consórcio — Vero Consórcios
 
-Pacote completo do simulador (cartas primárias), com código, logos, manual de identidade visual e um exemplo de proposta em PDF. Serve para criar uma cópia de teste em outro chat, por exemplo para incluir o **modelo de carta contemplada**.
+Pacote completo do simulador, com código, logos, manual de identidade visual e um exemplo de proposta em PDF. É uma plataforma única com duas páginas no mesmo link: **Consórcio** (cartas primárias, `#primario`) e **Carta Contemplada** (`#contemplada`).
 
 ## Como abrir
 
@@ -13,16 +13,20 @@ Pacote completo do simulador (cartas primárias), com código, logos, manual de 
 
 | Caminho | Conteúdo |
 |---|---|
-| `index.html` | Tela: menu lateral (dados do plano, lances, fidelidade, mecanismo) e área da proposta |
-| `js/calc.js` | Motor de cálculo puro, sem interface: parcelas, reajuste, redutor, lances, venda, alavancagem, CET, fidelidade, mecanismo, planos |
-| `js/app.js` | Interface: campos, desenho da proposta, PDF, mensagem do WhatsApp, temas, link do CRM |
+| `index.html` | Tela: menu lateral com os campos das duas páginas e área da proposta |
+| `js/calc.js` | Página 1 — motor de cálculo puro, sem interface: parcelas, reajuste, redutor, lances, venda, alavancagem, CET, fidelidade, mecanismo, planos |
+| `js/calc-contemplada.js` | Página 2 — motor de cálculo puro: cartas e junção, CET aproximado, fluxo de parcelas, amortização, evolução, rendimentos e financiamento |
+| `js/app-contemplada.js` | Página 2 — proposta na tela, mensagem do WhatsApp e PDF |
+| `js/app.js` | Interface: abas entre as páginas, campos, desenho da proposta, PDF, mensagem do WhatsApp, temas, link do CRM |
 | `js/config.js` | WhatsApp do especialista, endereço do CRM (`planosUrl`) e planos cadastrados |
 | `js/logos.js` | Logos da Vero embutidos (versão clara e escura) |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
 | `css/tokens.css` | Tokens oficiais da identidade (cores, fontes, raios, sombras; temas escuro e claro) |
 | `css/style.css` | Componentes da tela e layout das 3 páginas do PDF |
-| `tests/calc.test.js` | 27 testes do motor de cálculo |
-| `docs/ESPECIFICACAO.md` | Especificação completa: campos, regras, fórmulas e histórico de versões (até 2.8) |
+| `tests/calc.test.js` | 27 testes do motor de cálculo da página 1 |
+| `tests/contemplada.test.js` | 18 testes do motor de cálculo da página 2 |
+| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 2.8) |
+| `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.0): campos, regras, fórmulas e validações |
 | `marca/` | Logos com fundo transparente (`vero-logo-claro.png`, `vero-logo-escuro.png`) e os originais |
 | `marca/manual-identidade/` | Os 4 PDFs do manual (paleta, tipografia, elementos, aplicações) e o `design-tokens.css` original |
 | `exemplos/proposta-exemplo.pdf` | Exemplo do PDF gerado pelo botão "Gerar proposta" |
@@ -41,7 +45,14 @@ Pacote completo do simulador (cartas primárias), com código, logos, manual de 
 - **Lance Fidelidade (opcional):** 6ª parcela/30%, 12ª/27% e 18ª/25%, 100% embutido.
 - **Mecanismo de Alavancagem (opcional):** reaplica a venda (ou o lucro) em novas cartas do mesmo plano, em até 4 cenários.
 - **PDF:** 3 páginas A4 no tema escuro da marca, com logo; o botão "Gerar proposta" baixa o arquivo e prepara a mensagem do WhatsApp.
-- **CRM:** o link aceita `?nome=...&contato=...&plano=<id>`.
+- **CRM:** o link aceita `?nome=...&contato=...&plano=<id>` e `pagina=contemplada` para abrir direto na página 2.
+
+### Página 2 · Carta Contemplada
+
+- **Resumo:** crédito contrato, parcela atual, CET mensal e CET anual + indexador (CET aproximado, como no simulador de cartas contempladas).
+- **Características:** crédito total e líquido, entrada (ágio), custo da operação (R$ e %), saldo devedor e estimativa de transferência (1%).
+- **Fluxo de parcelas (sempre):** agrupado por faixa de meses; o reajuste pelo indexador começa desabilitado.
+- **Guias opcionais (desabilitadas ao iniciar):** Estudo de Amortização (aporte no mês informado, parcela recalculada e tabela a cada 12 meses), Evolução de Parcelas (a cada 12 meses, com reajuste, aporte acumulado e saldo devedor), Calculadora de Rendimentos (mecanismo da calculadora de renda fixa; aplicação inicial = crédito − entrada; período = maior prazo; o aporte da amortização entra só no mês dele) e Consórcio vs Financiamento (Price/SAC, 420 meses, entrada de 20%, renda mínima 3× a parcela e idade máxima de 65 anos ao fim do contrato).
 
 Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 
@@ -52,7 +63,7 @@ Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 - Fonte Famels: comercial. Para usar, coloque os arquivos em `css/fonts/`; até lá, a Manrope é usada.
 - Mecanismo de Alavancagem ainda não entra no PDF.
 
-## Como começar no outro chat
+## Como começar em outro chat
 
 1. Envie este arquivo zip (ou os arquivos descompactados) no novo chat.
 2. Cole uma mensagem como esta, ajustando o que for preciso:

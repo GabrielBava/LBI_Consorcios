@@ -192,6 +192,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .f small, small.nota, p.nota { display: block; margin: 5px 0 6px; font-size: var(--fs-xs); font-weight: 300; line-height: 1.45; color: var(--text-muted); }
 .nota-lado { align-self: end; margin-bottom: 11px !important; }
+.secao > small.nota, .secao > p.nota { margin-left: 14px; margin-right: 14px; }
 .req { color: var(--primary-bright); font-style: normal; }
 .campo-erro { border-color: var(--danger) !important; background: var(--perigo-suave) !important; }
 .campo-alerta { border-color: var(--warning) !important; }
@@ -419,6 +420,83 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .multiplos-bloco { margin-bottom: 16px; }
 
 /* =========================================================================
+   Páginas do simulador: Consórcio (1) e Carta Contemplada (2), no mesmo link
+   ========================================================================= */
+.barra-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+.paginas {
+  display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 3px;
+  border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--pill-bg);
+}
+.pagina-aba {
+  display: flex; align-items: center; justify-content: center; gap: 7px; height: 32px; padding: 0 16px;
+  border-radius: var(--radius-pill); color: var(--text-muted); text-decoration: none;
+  font-size: var(--fs-sm); white-space: nowrap; transition: background .2s, color .2s, box-shadow .2s;
+}
+.pagina-aba:hover { color: var(--text); }
+.pagina-aba[aria-current="page"] { background: var(--pill-active); color: var(--text); font-weight: 500; box-shadow: var(--shadow-sm); }
+.pagina-aba .ic { width: 15px; height: 15px; }
+.paginas-menu { display: none; }
+
+/* Menu da carta contemplada */
+.seg-opcoes.seg3 { grid-template-columns: repeat(3, 1fr); }
+.seg-opcoes.seg3 span { padding: 0 8px; }
+.bloco-carta:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.carta-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 26px; }
+.mini-x {
+  min-height: 26px; padding: 2px 10px; border-radius: var(--radius-pill); border: 1px solid var(--border);
+  background: transparent; color: var(--text-muted); font-size: var(--fs-xs); cursor: pointer; transition: color .2s, border-color .2s;
+}
+.mini-x:hover { color: var(--danger); border-color: var(--perigo-borda); }
+.secao > .botao-add { display: flex; margin-top: 12px; }
+.f input[type=date] {
+  width: 100%; height: 38px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--bg-card-2); color: var(--text); font-size: var(--fs-sm);
+}
+.f input[type=date]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--foco); }
+.f input.auto { color: var(--primary-bright); }
+.chips { display: flex; gap: 6px; margin: 10px 0; }
+.chip {
+  flex: 1; height: 38px; padding: 0 10px; border-radius: var(--radius-pill); border: 1px solid var(--border);
+  background: var(--pill-bg); color: var(--text-muted); cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-variant-numeric: tabular-nums; transition: background .2s, color .2s;
+}
+.chip:hover { color: var(--text); background: var(--pill-active); }
+.sub-secao { margin: 8px 0 4px; padding: 0 0 4px; border-top: 1px solid var(--border-soft); }
+.sub-secao > summary { padding: 10px 0 4px; cursor: pointer; font-size: var(--fs-sm); font-weight: 500; color: var(--primary); }
+.sub-secao .mini { margin-top: 6px; }
+
+/* Proposta da carta contemplada */
+.kpi-extra { font-size: var(--fs-sm); font-weight: 500; color: var(--primary-bright); }
+.kpis-msg { margin: 14px 0 0; }
+.sub-titulo { margin: 22px 0 10px; font-weight: 600; font-size: var(--fs-lg); letter-spacing: -0.01em; }
+.botao-sec { position: absolute; top: 22px; right: 22px; min-height: 32px; padding: 5px 12px; }
+.tab-dir th:not(:first-child), .tab-dir td:not(:first-child) { text-align: right; }
+.tab-alav tfoot td { padding: 11px 12px; border-top: 1px solid var(--border); white-space: nowrap; font-family: var(--font-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tab-alav tr.linha-aporte td { background: var(--bg-active); }
+.tag { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: var(--radius-pill); background: var(--pill-active); font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text); vertical-align: 1px; }
+.destaques b { font-size: 1.35rem; white-space: nowrap; }
+.destaques > div.realce { border-color: var(--glass-border); background: linear-gradient(160deg, var(--bg-active), var(--bg-card-2) 70%); }
+.tab-rend th, .tab-rend td { padding: 9px 8px; font-size: var(--fs-xs); }
+.tab-rend th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
+.tab-rend td:first-child { font-family: var(--font); font-weight: 400; color: var(--text-muted); }
+.tab-rend th.melhor, .tab-rend td.melhor { background: var(--bg-active); color: var(--text); }
+.comparativo { margin-top: 16px; }
+.avisos-fin { display: grid; gap: 8px; margin-top: 14px; }
+.aviso-fin { margin: 0; padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--pill-bg); font-size: var(--fs-sm); line-height: 1.5; }
+.aviso-fin b { font-weight: 600; }
+.aviso-fin.alerta { border-color: var(--atencao-borda); background: var(--atencao-suave); }
+
+/* Barras: valor líquido de resgate (uma série; a correção pelo IPCA é a referência hachurada) */
+.barras { display: grid; gap: 8px; margin: 4px 0 6px; }
+.barra-linha { display: grid; grid-template-columns: minmax(110px, 170px) minmax(0, 1fr) auto; align-items: center; gap: 12px; font-size: var(--fs-sm); }
+.barra-rot { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.barra-rot small { font-size: var(--fs-xs); color: var(--text-muted); }
+.barra-trilho { height: 14px; border-radius: 0 4px 4px 0; background: var(--track); overflow: hidden; }
+.barra-fill { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--chart-3); }
+.barra-linha.ref .barra-fill { background: repeating-linear-gradient(135deg, var(--chart-3) 0 3px, transparent 3px 7px); }
+.barra-num { min-width: 10ch; text-align: right; font-family: var(--font-display); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* =========================================================================
    Janelas, avisos e envio da proposta
    ========================================================================= */
 .sobreposicao {
@@ -432,7 +510,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background: linear-gradient(160deg, var(--card-top) 0%, var(--bg-card) 55%); box-shadow: var(--shadow-float);
 }
 .janela.larga { max-width: 1000px; }
-.janela h2 { font-size: var(--fs-h1); margin-bottom: 12px; }
+.janela > h2 { font-size: var(--fs-h1); margin-bottom: 12px; }
 .janela > p { font-size: var(--fs-sm); }
 .janela-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .janela textarea { width: 100%; min-height: 260px; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card-2); color: var(--text); font-size: var(--fs-xs); }
@@ -554,6 +632,36 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .pdf-disclaimer b { font-size: calc(9.5px * var(--k)); font-weight: 600; color: var(--text); }
 .pdf-disclaimer p { margin: calc(3px * var(--k)) 0 0; }
 
+/* Proposta da carta contemplada: blocos distribuídos nas páginas conforme a altura medida */
+.pdf-medida .pdf-corpo { height: auto; }
+.pdf-item { flex: none; min-width: 0; }
+.pdf-fim { margin-top: auto; display: flex; flex-direction: column; gap: calc(13px * var(--k)); }
+.pdf-sub-bloco { margin: calc(-4px * var(--k)) 0 calc(9px * var(--k)); }
+.pdf-tab-dir th:not(:first-child), .pdf-tab-dir td:not(:first-child) { text-align: right; }
+.pdf-tab tfoot td { padding: calc(5px * var(--k)) calc(8px * var(--k)); border-top: calc(1px * var(--k)) solid var(--border); white-space: nowrap; font-family: var(--font-display); font-weight: 600; font-size: calc(9.4px * var(--k)); }
+.pdf-tab tr.linha-aporte td { background: var(--bg-active); }
+.pdf-tab .tag { margin-left: calc(4px * var(--k)); padding: calc(1px * var(--k)) calc(6px * var(--k)); font-size: calc(7.8px * var(--k)); background: rgba(224, 225, 221, .10); color: var(--text); }
+.pdf-tab-rend th, .pdf-tab-rend td { padding: calc(4px * var(--k)) calc(5px * var(--k)); font-size: calc(8.3px * var(--k)); }
+.pdf-tab-rend th { white-space: normal; line-height: 1.2; }
+.pdf-tab-rend td:first-child { font-family: var(--font); font-weight: 400; color: var(--text-muted); }
+.pdf-tab-rend .melhor { background: var(--bg-active); }
+.pdf-destaques { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(150px * var(--k)), 1fr)); gap: calc(7px * var(--k)); margin: 0 0 calc(10px * var(--k)); }
+.pdf-destaques > div { display: flex; flex-direction: column; gap: calc(2px * var(--k)); padding: calc(8px * var(--k)) calc(10px * var(--k)); border-radius: calc(10px * var(--k)); border: calc(1px * var(--k)) solid var(--border); background: var(--bg-active); }
+.pdf-destaques span { font-size: calc(8.8px * var(--k)); color: var(--text-muted); }
+.pdf-destaques b { font-family: var(--font-display); font-weight: 600; font-size: calc(14px * var(--k)); letter-spacing: -0.02em; white-space: nowrap; }
+.pdf-destaques small { font-size: calc(8.2px * var(--k)); font-weight: 300; color: var(--text-muted); }
+.pdf-barras { display: grid; gap: calc(5px * var(--k)); }
+.pdf-barras .barra-linha { grid-template-columns: calc(118px * var(--k)) minmax(0, 1fr) calc(92px * var(--k)); gap: calc(8px * var(--k)); font-size: calc(9.4px * var(--k)); }
+.pdf-barras .barra-rot small { font-size: calc(8px * var(--k)); }
+.pdf-barras .barra-trilho { height: calc(10px * var(--k)); border-radius: 0 calc(3px * var(--k)) calc(3px * var(--k)) 0; background: rgba(224, 225, 221, .08); }
+.pdf-barras .barra-fill { border-radius: 0 calc(3px * var(--k)) calc(3px * var(--k)) 0; background: #778DA9; }
+.pdf-barras .ref .barra-fill { background: #415A77; }
+.pdf-barras .barra-num { min-width: 0; font-size: calc(9.4px * var(--k)); }
+.pdf-nota { margin: calc(8px * var(--k)) 0 0; font-size: calc(8.4px * var(--k)); font-weight: 300; line-height: 1.4; color: var(--text-muted); }
+.pdf-aviso { margin: calc(6px * var(--k)) 0 0; padding: calc(7px * var(--k)) calc(10px * var(--k)); border-radius: calc(9px * var(--k)); border: calc(1px * var(--k)) solid var(--border); background: var(--pill-bg); font-size: calc(9.4px * var(--k)); line-height: 1.4; }
+.pdf-aviso.alerta { border-color: rgba(227, 190, 118, .30); background: rgba(227, 190, 118, .12); }
+.pdf-bloco .pdf-cet { margin-top: calc(8px * var(--k)); }
+
 /* =========================================================================
    Telas estreitas, movimento reduzido e impressão
    ========================================================================= */
@@ -573,6 +681,13 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
   .cenarios { grid-template-columns: 1fr; }
   .titulo-proposta { font-size: var(--fs-h1); }
   .titulo-vitrine { font-size: 1.4rem; }
+  /* Páginas: no celular as abas ficam no topo do menu */
+  .paginas-menu { display: grid; margin: 0 0 14px; }
+  .paginas-menu .pagina-aba { padding: 0 10px; }
+  .barra-topo { justify-content: flex-end; padding-right: 44px; }
+  .barra-topo .paginas { display: none; }
+  .botao-sec { position: static; margin-bottom: 10px; }
+  .barra-linha { grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) auto; gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

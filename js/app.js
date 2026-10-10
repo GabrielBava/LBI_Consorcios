@@ -4,7 +4,15 @@
   'use strict';
 
   const C = window.Calc;
+  const CC = window.CalcCont;
   const CHAVE_ATUAL = 'simconsorcio.v2.atual';
+  const CHAVE_CONT = 'simconsorcio.v2.contemplada';
+  const CHAVE_MODO = 'simconsorcio.modo';
+  // Páginas do simulador no mesmo link: #primario e #contemplada
+  const PAGINAS = {
+    primario: { nome: 'Consórcio', icone: '<path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 3v5h5"/><path d="M12 11.5v6"/><path d="M9 14.5h6"/>' },
+    contemplada: { nome: 'Carta Contemplada', icone: '<circle cx="12" cy="8" r="6"/><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"/>' }
+  };
   const $ = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 
@@ -32,15 +40,23 @@
   }
 
   const salvo = ler(CHAVE_ATUAL);
-  let estado = null; // definido na inicialização (exemplo ilustrativo na primeira visita)
+  const salvoCont = ler(CHAVE_CONT);
+  let estado = null; // página 1 (consórcio primário); definido na inicialização (exemplo ilustrativo na primeira visita)
+  let estadoCont = null; // página 2 (carta contemplada)
+  let modo = 'primario'; // página exibida
+  let TC = null; // interface da página da carta contemplada (js/app-contemplada.js)
   const abertos = new Set();
   const revelados = new Set(); // lances e tabelas de venda exibidos ao cliente (começam ocultos)
   const graficos = new Map(); // dados dos gráficos exibidos, para o tooltip
 
-  function obter(caminho) { return caminho.split('.').reduce((o, k) => (o == null ? o : o[k]), estado); }
+  // Campos "cont.*" pertencem à página da carta contemplada; os demais, à página do consórcio primário.
+  // Nome e contato do cliente ficam na página 1 e são compartilhados pelas duas páginas.
+  function raiz(caminho) { return caminho.startsWith('cont.') ? [estadoCont, caminho.slice(5)] : [estado, caminho]; }
+  function obter(caminho) { const [o, c] = raiz(caminho); return c.split('.').reduce((x, k) => (x == null ? x : x[k]), o); }
   function definir(caminho, valor) {
-    const ks = caminho.split('.');
-    let o = estado;
+    const [raizObj, c] = raiz(caminho);
+    const ks = c.split('.');
+    let o = raizObj;
     for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]];
     o[ks[ks.length - 1]] = valor;
   }
@@ -113,6 +129,10 @@
     const atual = estado && estado.plano.administradora;
     if (atual && !adms.includes(atual)) adms.push(atual);
     $$('.sel-administradora').forEach((s) => { s.innerHTML = '<option value="">Selecione</option>' + adms.map((a) => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join(''); });
+    // Página da carta contemplada: indexador e sugestões de administradora (aceita texto livre)
+    $$('.sel-indice-cont').forEach((s) => { s.innerHTML = Object.entries(CC.INDICES).map(([k, v]) => '<option value="' + k + '">' + esc(v.nome) + '</option>').join(''); });
+    const lista = $('#lista-administradoras');
+    if (lista) lista.innerHTML = adms.map((a) => '<option value="' + esc(a) + '"></option>').join('');
     preencherPlanos();
   }
 
@@ -206,6 +226,8 @@
 
   function avaliarCondicao(expr) {
     if (expr.includes('&')) return expr.split('&').every(avaliarCondicao);
+    // "a|b" sem comparação: basta um dos campos estar marcado
+    if (!expr.includes('=') && expr.includes('|')) return expr.split('|').some(avaliarCondicao);
     if (expr.startsWith('!')) return !obter(expr.slice(1));
     const m = expr.match(/^([\w.]+)(!=|=)(.+)$/);
     if (!m) return !!obter(expr);
@@ -242,15 +264,27 @@
         if (selecionarPlano(estado.plano.planoId)) avisar('Plano aplicado: crédito, prazo, taxas, lances e índice atualizados.');
         escreverCampos();
         preencherPlanos();
+      } else if (el.dataset.k === 'cont.segmento') {
+        // Segmento sugere o indexador (Imóvel → INCC; Veículo e Serviço → IPCA), editável depois
+        estadoCont.indice = (CC.SEGMENTOS[estadoCont.segmento] || CC.SEGMENTOS.imovel).indice;
+        escreverCampos();
+      } else if (el.dataset.k === 'cont.rendimentos.ativo' && estadoCont.rendimentos.ativo) {
+        buscarTaxasBcb();
       }
       aplicarVisibilidade();
       atualizar();
     };
     sb.addEventListener('input', aoAlterar);
     sb.addEventListener('change', aoAlterar);
+    // Campos automáticos (crédito do financiamento, período da aplicação): ao sair vazio, voltam ao valor da carta
+    sb.addEventListener('focusout', (ev) => { if (ev.target.dataset && ev.target.dataset.auto) atualizar(); });
     sb.addEventListener('click', (ev) => {
       const b = ev.target.closest('button');
-      if (b && b.dataset.acao) acoes[b.dataset.acao]();
+      if (!b) return;
+      if (b.dataset.acao) Promise.resolve(acoes[b.dataset.acao]()).catch(() => avisar('Não foi possível montar a proposta. Confira os campos e tente de novo.'));
+      else if (b.dataset.acaoCont) acoesCont[b.dataset.acaoCont]();
+      else if (b.dataset.removerCarta) acoesCont.removerCarta(Number(b.dataset.removerCarta));
+      else if (b.dataset.prazoFin) { estadoCont.financiamento.prazo = Number(b.dataset.prazoFin); escreverCampos(); atualizar(); }
     });
     document.addEventListener('toggle', (ev) => {
       const d = ev.target;
@@ -261,6 +295,8 @@
     pr.addEventListener('click', (ev) => {
       const tema = ev.target.closest('[data-tema]');
       if (tema) { definirTema(tema.dataset.tema); atualizar(); return; }
+      const copiar = ev.target.closest('[data-copiar]');
+      if (copiar) { copiarTexto(textosCopia[copiar.dataset.copiar] || '', 'Fluxo de parcelas copiado. É só colar no WhatsApp.'); return; }
       const olho = ev.target.closest('[data-olho]');
       if (!olho) return;
       const id = olho.dataset.olho;
@@ -333,17 +369,34 @@
     return s;
   }
 
+  /** Carta contemplada de exemplo (valores fictícios, do simulador de cartas contempladas). */
+  function exemploCont() {
+    const s = CC.estadoPadrao();
+    s.cartas = [{ credito: 1200000, entrada: 436800, parcela: 6165.6, prazo: 233 }];
+    s.indiceTaxa = 5;
+    return s;
+  }
+
   const acoes = {
     nova() {
-      confirmar('Iniciar uma nova proposta? Os campos voltarão aos valores iniciais.', 'Nova proposta', () => {
-        estado = C.estadoPadrao();
-        revelados.clear();
+      const cont = modo === 'contemplada';
+      confirmar('Iniciar uma nova proposta? Os campos desta página e os dados do cliente voltarão aos valores iniciais.', 'Nova proposta', () => {
+        if (cont) {
+          estadoCont = CC.estadoPadrao();
+          Object.assign(estado.plano, { lead: '' });
+          estado.contato.cliente = '';
+          desenharCartas();
+        } else {
+          estado = C.estadoPadrao();
+          revelados.clear();
+        }
         escreverCampos(); atualizar();
         $('#f-lead').focus();
       });
     },
     salvar() {
-      const json = JSON.stringify({ versao: 2, gerado: new Date().toISOString(), estado }, null, 2);
+      // Um arquivo com as duas páginas: consórcio primário (estado) e carta contemplada (contemplada)
+      const json = JSON.stringify({ versao: 3, gerado: new Date().toISOString(), pagina: modo, estado, contemplada: estadoCont }, null, 2);
       if (!window.MODO_ARTIFACT) {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
@@ -365,6 +418,74 @@
     },
     pdf: gerarPdf
   };
+
+  const acoesCont = {
+    addCarta() {
+      estadoCont.cartas.push(CC.cartaVazia());
+      desenharCartas();
+      escreverCampos(); atualizar();
+      const ult = $$('#cartas-lista .bloco-carta').pop();
+      if (ult) ult.querySelector('input').focus();
+    },
+    removerCarta(i) {
+      if (estadoCont.cartas.length < 2) return;
+      estadoCont.cartas.splice(i, 1);
+      desenharCartas();
+      escreverCampos(); atualizar();
+    },
+    restaurarTaxas() {
+      estadoCont.rendimentos.params = Object.assign({}, taxasRef);
+      escreverCampos(); atualizar();
+      avisar('Parâmetros de rentabilidade restaurados.');
+    }
+  };
+
+  function desenharCartas() {
+    const el = $('#cartas-lista');
+    if (el) el.innerHTML = TC.htmlCartas(estadoCont);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Taxas de referência da calculadora de rendimentos (Banco Central, quando há conexão)
+  // ---------------------------------------------------------------------------
+
+  const taxasRef = Object.assign({}, CC.PARAMS_RENDIMENTOS);
+  let fonteTaxas = '';
+  let taxasBuscadas = false;
+
+  async function lerJson(url) {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), 7000) : null;
+    try {
+      const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: ctl ? ctl.signal : undefined });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return await r.json();
+    } finally { if (t) clearTimeout(t); }
+  }
+
+  /** Selic, CDI, poupança (SGS) e IPCA esperado em 12 meses (Focus), como na calculadora de renda fixa. */
+  async function buscarTaxasBcb() {
+    if (taxasBuscadas) return;
+    taxasBuscadas = true;
+    const sgs = (serie) => lerJson('https://api.bcb.gov.br/dados/serie/bcdata.sgs.' + serie + '/dados/ultimos/1?formato=json').then((d) => Number(String(d[0].valor).replace(',', '.')));
+    const focus = 'https://olinda.bcb.gov.br/olinda/servico/Expectativas/versao/v1/odata/ExpectativasMercadoInflacao12Meses?$top=1&$format=json&$select=Indicador,Data,Suavizada,Mediana,baseCalculo&$filter=Indicador%20eq%20%27IPCA%27%20and%20baseCalculo%20eq%200%20and%20Suavizada%20eq%20%27S%27&$orderby=Data%20desc';
+    const chaves = ['selic', 'cdi', 'poupanca', 'ipca'];
+    const res = await Promise.allSettled([sgs(1178), sgs(4389), sgs(195), lerJson(focus).then((d) => Number(d.value[0].Mediana))]);
+    const p = estadoCont.rendimentos.params;
+    let n = 0;
+    res.forEach((r, i) => {
+      if (r.status !== 'fulfilled' || !C.isNum(r.value)) return;
+      const k = chaves[i];
+      const novo = Math.round(r.value * 10000) / 10000;
+      if (p[k] === taxasRef[k]) p[k] = novo; // só troca o que não foi editado
+      taxasRef[k] = novo;
+      n++;
+    });
+    fonteTaxas = n ? 'Banco Central, ' + new Date().toLocaleDateString('pt-BR') : '';
+    const nota = $('#nota-taxas');
+    if (nota) nota.textContent = n ? 'Selic, CDI, IPCA e poupança atualizados pelo Banco Central.' : 'Sem conexão com o Banco Central: usando as taxas de referência do simulador.';
+    if (n) { escreverCampos(); atualizar(); }
+  }
 
   // ---------------------------------------------------------------------------
   // Gráficos (SVG simples, com tooltip)
@@ -699,14 +820,24 @@
     const ident = [C.CATEGORIAS[s.plano.categoria].nome, s.plano.administradora].filter(Boolean).map(esc).join(' · ');
     return '<header class="topo' + (pdf ? ' p-topo' : '') + '"><div class="topo-texto">' + (pdf ? '' : '<div class="topo-logo">' + logoPar('') + '</div>') + '<h1 class="titulo-proposta">Proposta de <span class="acento">Consórcio</span></h1>' +
       '<p class="cliente">' + (s.plano.lead ? esc(s.plano.lead) : '<span class="mudo">Nome do cliente</span>') + '</p>' +
-      '<p class="sub-topo">' + ident + (pdf ? ' · Emitida em ' + new Date().toLocaleDateString('pt-BR') : '') + '</p></div>' +
-      (pdf ? '' : seletorTema()) + '</header>';
+      '<p class="sub-topo">' + ident + (pdf ? ' · Emitida em ' + new Date().toLocaleDateString('pt-BR') : '') + '</p></div></header>';
+  }
+
+  /** Abas das páginas do simulador (mesmo link: #primario e #contemplada). */
+  function htmlPaginas() {
+    return Object.entries(PAGINAS).map(([k, p]) => '<a class="pagina-aba" href="#' + k + '"' + (k === modo ? ' aria-current="page"' : '') + '>' +
+      '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + p.icone + '</svg>' + esc(p.nome) + '</a>').join('');
+  }
+
+  /** Barra do topo da proposta: páginas à esquerda e tema à direita. */
+  function barraTopo() {
+    return '<div class="barra-topo"><nav class="paginas" aria-label="Páginas do simulador">' + htmlPaginas() + '</nav>' + seletorTema() + '</div>';
   }
 
   function desenhar(r) {
     const s = estado;
     graficos.clear();
-    let h = cabecalho(s, false);
+    let h = barraTopo() + cabecalho(s, false);
     h += secResumo(s, r);
     h += secCaracteristicas(s, r);
     h += secFormas(s, r, false);
@@ -717,10 +848,66 @@
     const proj = secProjecoes(r, false);
     if (proj) h += '<section class="bloco-res vitrine">' + tituloSecao('Cenários', 'futuros', 'Projeções') + proj + '</section>';
     h += '<footer class="rodape"><p>' + esc(AVISO) + '</p></footer>';
+    pintar(h);
+  }
+
+  function pintar(h) {
     const principal = $('#principal');
     const rolagem = principal.scrollTop;
     principal.innerHTML = h;
     principal.scrollTop = rolagem;
+  }
+
+  // Textos prontos para os botões "Copiar" da página da carta contemplada
+  const textosCopia = {};
+
+  function desenharCont(rc) {
+    textosCopia.fluxo = TC.textoFluxo(rc);
+    pintar(barraTopo() + TC.desenhar(rc, estadoCont, { lead: String(estado.plano.lead || '').trim(), fonteTaxas }));
+  }
+
+  /** Valores travados e campos automáticos do menu da carta contemplada. */
+  function atualizarCamposCont(rc) {
+    const R = rc.resumo;
+    const vals = { rendInicial: R.ok ? R.creditoLiquido : null };
+    $$('[data-valor-cont]').forEach((o) => { const x = vals[o.dataset.valorCont]; o.textContent = C.isNum(x) ? C.fmtBRL(x) : '—'; });
+    const autos = { credTotal: R.ok ? R.credito : null, prazoMax: R.ok ? R.prazoMax : null };
+    $$('[data-auto]').forEach((el) => {
+      const auto = autos[el.dataset.auto];
+      const proprio = obter(el.dataset.k);
+      el.classList.toggle('auto', proprio == null);
+      if (proprio != null || el === document.activeElement) return;
+      el.value = !C.isNum(auto) ? '' : el.hasAttribute('data-moeda') ? C.fmtBRL(auto) : String(auto);
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Páginas: consórcio primário (1) e carta contemplada (2), no mesmo link
+  // ---------------------------------------------------------------------------
+
+  function modoDaUrl() {
+    const h = String(location.hash || '').replace(/^#/, '');
+    if (PAGINAS[h]) return h;
+    try {
+      const q = new URLSearchParams(location.search);
+      const m = q.get('pagina') || q.get('modo');
+      if (PAGINAS[m]) return m;
+    } catch (e) { /* sem parâmetros */ }
+    return null;
+  }
+
+  function definirModo(m, semHistorico) {
+    modo = PAGINAS[m] ? m : 'primario';
+    document.body.classList.toggle('modo-contemplada', modo === 'contemplada');
+    $$('.painel-modo').forEach((el) => { el.hidden = el.dataset.painel !== modo; });
+    $$('.paginas-menu').forEach((el) => { el.innerHTML = htmlPaginas(); });
+    try { localStorage.setItem(CHAVE_MODO, modo); } catch (e) { /* sem armazenamento */ }
+    if (!semHistorico && location.hash !== '#' + modo) {
+      try { history.replaceState(null, '', '#' + modo); } catch (e) { /* arquivo local antigo */ }
+    }
+    if (modo === 'contemplada' && estadoCont.rendimentos.ativo) buscarTaxasBcb();
+    $('#principal').scrollTop = 0;
+    atualizar();
   }
 
   function atualizarValoresTravados(r) {
@@ -862,22 +1049,35 @@
     window.print();
   }
 
-  function gerarPdf() {
+  async function gerarPdf() {
     const s = estado;
-    const r = C.simular(s);
+    const cont = modo === 'contemplada';
     const lead = String(s.plano.lead || '').trim();
     if (!lead) { avisar('Informe o nome completo do cliente antes de gerar a proposta.'); $('#f-lead').focus(); return; }
     const foneCliente = numeroWhatsapp(s.contato && s.contato.cliente);
     if (foneCliente.length < 12) { avisar('Informe o contato (WhatsApp) do cliente com DDD antes de gerar a proposta.'); $('#f-contato').focus(); return; }
-    const erros = r.validacoes.filter((v) => v.nivel === 'erro');
-    const prop = montarProposta(s, r);
+    let erros, prop, mensagem, prefixo;
+    if (cont) {
+      // Carta contemplada: páginas montadas conforme as guias habilitadas
+      const rc = CC.simular(estadoCont);
+      erros = rc.validacoes.filter((v) => v.nivel === 'erro');
+      prop = await TC.montarProposta(rc, estadoCont, lead, { fonteTaxas });
+      mensagem = TC.mensagem(rc, estadoCont, lead);
+      prefixo = 'Proposta_Contemplada_';
+    } else {
+      const r = C.simular(s);
+      erros = r.validacoes.filter((v) => v.nivel === 'erro');
+      prop = montarProposta(s, r);
+      mensagem = mensagemWhatsapp(s, r);
+      prefixo = 'Proposta_';
+    }
     $('#proposta').innerHTML = prop.html;
     const nota = (erros.length ? '<p class="aviso">Há ' + erros.length + ' erro(s) de preenchimento. Os itens afetados aparecem como "Não calculado".</p>' : '') +
-      (prop.semWhatsapp ? '<p class="aviso">O botão "Falar no WhatsApp" da página 3 está sem número: informe o WhatsApp do especialista em js/config.js.</p>' : '');
+      (prop.semWhatsapp ? '<p class="aviso">O botão "Falar no WhatsApp" da ' + (cont ? 'última página' : 'página 3') + ' está sem número: informe o WhatsApp do especialista em js/config.js.</p>' : '');
     const envio = '<div class="envio"><div><b>Enviar ao cliente</b><p>Clique em <b>Gerar proposta</b>: o PDF é baixado e a mensagem para o WhatsApp de ' + esc(s.contato.cliente) + ' fica pronta para copiar.</p></div>' +
       '<button type="button" class="botao-whats" data-gerar-proposta>Gerar proposta</button></div>' +
       '<div class="mensagem-envio" hidden><div class="mensagem-topo"><b>Mensagem para o WhatsApp</b><button type="button" class="botao-copiar" data-copiar-msg>Copiar mensagem</button></div>' +
-      '<textarea readonly rows="12" aria-label="Mensagem para o WhatsApp">' + esc(mensagemWhatsapp(s, r)) + '</textarea></div>';
+      '<textarea readonly rows="12" aria-label="Mensagem para o WhatsApp">' + esc(mensagem) + '</textarea></div>';
     const fundo = janela('<h2>Prévia da proposta</h2>' + nota + envio + '<div class="previa">' + prop.html + '</div>', [{ texto: 'Fechar' }], true);
     const botao = fundo.querySelector('[data-gerar-proposta]');
     const caixa = fundo.querySelector('.mensagem-envio');
@@ -889,7 +1089,7 @@
       botao.textContent = 'Gerando PDF…';
       try {
         const blob = await gerarPdfArquivo(prop.html);
-        await baixarArquivo(blob, 'Proposta_' + nomeArquivo(lead) + '_' + prop.data.replace(/\//g, '-') + '.pdf');
+        await baixarArquivo(blob, prefixo + nomeArquivo(lead) + '_' + prop.data.replace(/\//g, '-') + '.pdf');
         avisar('PDF gerado. Copie a mensagem e envie ao cliente com o arquivo.');
       } catch (e) {
         if (e && e.code === 'declined') avisar('Download cancelado.');
@@ -934,6 +1134,27 @@
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(texto.value).then(ok, manual);
       else { texto.select(); if (document.execCommand('copy')) ok(); else manual(); }
+    } catch (e) { manual(); }
+  }
+
+  /** Copia um texto pronto (botões "Copiar" da proposta). */
+  function copiarTexto(txt, msgOk) {
+    if (!txt) { avisar('Nada para copiar: complete os dados das cartas.'); return; }
+    const manual = () => {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      avisar(ok ? msgOk : 'Não foi possível copiar automaticamente.');
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(() => avisar(msgOk), manual);
+      else manual();
     } catch (e) { manual(); }
   }
 
@@ -1015,23 +1236,37 @@
     if (agendado) cancelAnimationFrame(agendado);
     agendado = requestAnimationFrame(() => {
       agendado = null;
-      const r = C.simular(estado);
-      desenhar(r);
-      atualizarValoresTravados(r);
-      marcarCampos(r);
+      if (modo === 'contemplada') {
+        const rc = CC.simular(estadoCont);
+        desenharCont(rc);
+        atualizarCamposCont(rc);
+        marcarCampos(rc.validacoes, 'cont.');
+      } else {
+        const r = C.simular(estado);
+        desenhar(r);
+        atualizarValoresTravados(r);
+        marcarCampos(r.validacoes, '');
+      }
       gravar(CHAVE_ATUAL, estado);
+      gravar(CHAVE_CONT, estadoCont);
     });
   }
 
-  function marcarCampos(r) {
+  function marcarCampos(validacoes, prefixo) {
     $$('.campo-erro, .campo-alerta').forEach((el) => el.classList.remove('campo-erro', 'campo-alerta'));
-    r.validacoes.forEach((v) => {
+    validacoes.forEach((v) => {
       if (!v.campo || v.nivel === 'info') return;
-      $$('[data-k="' + v.campo + '"]').forEach((el) => el.classList.add(v.nivel === 'erro' ? 'campo-erro' : 'campo-alerta'));
+      $$('[data-k="' + prefixo + v.campo + '"]').forEach((el) => el.classList.add(v.nivel === 'erro' ? 'campo-erro' : 'campo-alerta'));
     });
+    // O nome do cliente é obrigatório nas duas páginas
+    if (prefixo && !String(estado.plano.lead || '').trim()) $$('[data-k="plano.lead"]').forEach((el) => el.classList.add('campo-erro'));
   }
 
   estado = salvo ? mesclar(C.estadoPadrao(), salvo) : exemplo();
+  estadoCont = salvoCont ? mesclar(CC.estadoPadrao(), salvoCont) : exemploCont();
+  if (!Array.isArray(estadoCont.cartas) || !estadoCont.cartas.length) estadoCont.cartas = [CC.cartaVazia()];
+  TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, numeroWhatsapp });
+  modo = modoDaUrl() || (function () { try { return localStorage.getItem(CHAVE_MODO); } catch (e) { return null; } })() || 'primario';
   // Dados enviados pelo CRM no botão "Gerar proposta" (?nome=...&contato=..., também aceitos depois do #).
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.
   let planoCrm = '';
@@ -1061,9 +1296,12 @@
   preencherSelects();
   let planoAplicado = aplicarPlanoCrm(!comUrlCrm);
   ligarMenu();
-  escreverCampos();
+  desenharCartas();
   preencherSelects();
-  atualizar();
+  escreverCampos();
+  // Navegação entre as páginas pelo link (#primario / #contemplada), inclusive voltar/avançar do navegador
+  window.addEventListener('hashchange', () => { const m = modoDaUrl(); if (m && m !== modo) definirModo(m, true); });
+  definirModo(modo, !!modoDaUrl());
   if (doCrm) avisar(planoAplicado ? 'Cliente e plano preenchidos pelo CRM.' : 'Nome e contato do cliente preenchidos pelo CRM.');
   // Planos do CRM (quando configurado): atualiza a lista e reaplica o plano pedido no link
   carregarPlanosCrm().then((ok) => {

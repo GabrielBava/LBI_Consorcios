@@ -23,6 +23,8 @@ const saida = [
   '<script>\n' + semEntidade(ler('js/config.js')) + '\n</script>',
   '<script>\n' + semEntidade(ler('js/logos.js')) + '\n</script>',
   '<script>\n' + semEntidade(ler('js/calc.js')) + '\n</script>',
+  '<script>\n' + semEntidade(ler('js/calc-contemplada.js')) + '\n</script>',
+  '<script>\n' + semEntidade(ler('js/app-contemplada.js')) + '\n</script>',
   '<script>\n' + semEntidade(ler('js/app.js')) + '\n</script>',
   ''
 ].join('\n');
