@@ -533,8 +533,8 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .mensagem-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .mensagem-topo b { font-family: var(--font-display); font-weight: 600; }
 .mensagem-envio textarea { width: 100%; resize: vertical; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font: var(--fs-sm)/1.45 var(--font); }
-.previa { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px; overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-app); }
-.previa .pdf-pagina { flex: none; border: 1px solid var(--glass-border); box-shadow: var(--shadow-lg); }
+.previa { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px; overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-app); }
+.previa .pdf-pagina { flex: none; margin-inline: auto; border: 1px solid var(--glass-border); box-shadow: var(--shadow-lg); }
 
 /* =========================================================================
    Proposta em PDF: 3 páginas A4, sempre no tema escuro da marca
@@ -643,7 +643,7 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .pdf-tab .tag { margin-left: calc(4px * var(--k)); padding: calc(1px * var(--k)) calc(6px * var(--k)); font-size: calc(7.8px * var(--k)); background: rgba(224, 225, 221, .10); color: var(--text); }
 .pdf-tab-rend th, .pdf-tab-rend td { padding: calc(4px * var(--k)) calc(5px * var(--k)); font-size: calc(8.3px * var(--k)); }
 .pdf-tab-rend th { white-space: normal; line-height: 1.2; }
-.pdf-tab-rend td:first-child { font-family: var(--font); font-weight: 400; color: var(--text-muted); }
+.pdf-tab-rend td:first-child { white-space: normal; font-family: var(--font); font-weight: 400; color: var(--text-muted); }
 .pdf-tab-rend .melhor { background: var(--bg-active); }
 .pdf-destaques { display: grid; grid-template-columns: repeat(auto-fit, minmax(calc(150px * var(--k)), 1fr)); gap: calc(7px * var(--k)); margin: 0 0 calc(10px * var(--k)); }
 .pdf-destaques > div { display: flex; flex-direction: column; gap: calc(2px * var(--k)); padding: calc(8px * var(--k)) calc(10px * var(--k)); border-radius: calc(10px * var(--k)); border: calc(1px * var(--k)) solid var(--border); background: var(--bg-active); }
@@ -657,6 +657,10 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .pdf-barras .barra-fill { border-radius: 0 calc(3px * var(--k)) calc(3px * var(--k)) 0; background: #778DA9; }
 .pdf-barras .ref .barra-fill { background: #415A77; }
 .pdf-barras .barra-num { min-width: 0; font-size: calc(9.4px * var(--k)); }
+/* G. nome longo do índice quebra linha no cartão do CET anual */
+.pdf-kpi.cet-indice b { white-space: normal; }
+.pdf-kpi.cet-indice b small { white-space: normal; }
+.pdf-nc { color: var(--danger); font-weight: 500; }
 .pdf-nota { margin: calc(8px * var(--k)) 0 0; font-size: calc(8.4px * var(--k)); font-weight: 300; line-height: 1.4; color: var(--text-muted); }
 .pdf-aviso { margin: calc(6px * var(--k)) 0 0; padding: calc(7px * var(--k)) calc(10px * var(--k)); border-radius: calc(9px * var(--k)); border: calc(1px * var(--k)) solid var(--border); background: var(--pill-bg); font-size: calc(9.4px * var(--k)); line-height: 1.4; }
 .pdf-aviso.alerta { border-color: rgba(227, 190, 118, .30); background: rgba(227, 190, 118, .12); }
