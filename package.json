@@ -1,0 +1,11 @@
+{
+  "name": "simulador-consorcio-primario",
+  "version": "1.0.0",
+  "description": "Simulador de cartas de consórcio primárias para montagem de propostas.",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "build:online": "node scripts/build-artifact.js"
+  },
+  "license": "UNLICENSED"
+}
