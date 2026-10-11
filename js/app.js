@@ -552,12 +552,19 @@
     const sy = (y) => MT + (1 - (y - ymin) / (ymax - ymin)) * (GH - MT - MB);
     const passoX = N > 120 ? 24 : 12;
     let svg = eixoY(yt, sy);
-    // Marcas do eixo X; a que encostaria no rótulo "mês 1" é omitida
-    for (let m = passoX; m <= N; m += passoX) if (sx(m) - ML > 44) svg += '<text class="g-rotulo" x="' + sx(m) + '" y="' + (GH - 12) + '" text-anchor="middle">' + m + '</text>';
+    // Marcas do eixo X; a que encostaria no rótulo "mês 1" é omitida (distância proporcional à fonte do rótulo).
+    // As marcas ímpares levam uma classe para o CSS escondê-las quando a fonte cresce (celular)
+    const folga = (opts.fonteRotulo || 11) * 4;
+    let primeira = true;
+    for (let m = passoX; m <= N; m += passoX) {
+      if (sx(m) - ML <= folga) continue;
+      svg += '<text class="g-rotulo' + ((m / passoX) % 2 ? ' g-tick-impar' : '') + (primeira ? ' g-tick-1' : '') + '" x="' + sx(m) + '" y="' + (GH - 12) + '" text-anchor="middle">' + m + '</text>';
+      primeira = false;
+    }
     svg += '<text class="g-rotulo" x="' + ML + '" y="' + (GH - 12) + '" text-anchor="start">mês 1</text>';
     if (ymin < 0) svg += '<line class="g-zero" x1="' + ML + '" x2="' + (GW - MR) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/>';
     if (C.isNum(opts.marcaX)) {
-      const xm = sx(opts.marcaX), fim = xm > GW * 0.7; // rótulo à esquerda da marca perto da borda direita
+      const xm = sx(opts.marcaX), fim = xm > (ML + GW - MR) / 2; // na metade direita, o rótulo fica à esquerda da marca
       svg += '<line class="g-marca" x1="' + xm + '" x2="' + xm + '" y1="' + MT + '" y2="' + (GH - MB) + '"/><text class="g-rotulo g-rotulo-marca" x="' + (xm + (fim ? -4 : 4)) + '" y="' + (MT + 10) + '" text-anchor="' + (fim ? 'end' : 'start') + '">' + esc(opts.marcaRotulo || '') + '</text>';
     }
     series.forEach((s) => {
@@ -656,7 +663,17 @@
     dica.hidden = false;
     const area = $('.g-area', caixa).getBoundingClientRect();
     const px = ev.clientX - area.left;
-    dica.style.left = Math.min(Math.max(8, px + 12), area.width - dica.offsetWidth - 8) + 'px';
+    // Ao lado do cursor, sem cobrir o mês lido: à direita; se não couber, à esquerda;
+    // se não couber dos dois lados (gráfico estreito), acima da área do gráfico
+    dica.classList.remove('fora');
+    let w = dica.offsetWidth, left = px + 12;
+    if (left + w > area.width) left = px - 12 - w;
+    if (left < 0) {
+      dica.classList.add('fora');
+      w = dica.offsetWidth;
+      left = px - w / 2;
+    }
+    dica.style.left = Math.max(0, Math.min(left, area.width - w)) + 'px';
   }
   function esconderCursor(ev) {
     if (!ev.target.classList || !ev.target.classList.contains('g-alvo')) return;
@@ -671,7 +688,7 @@
     const vals = series.flatMap((s) => s.pontos.map((p) => p.y).filter(C.isNum));
     if (!vals.length) return '<div class="grafico"><h3>' + esc(titulo) + '</h3><p class="nc">Não calculado: complete os dados do plano.</p></div>';
     const yt = ticks(Math.min(0, ...vals), Math.max(...vals), 4);
-    const o = Object.assign({}, opts, { ymin: yt[0], ymax: yt[yt.length - 1] });
+    const o = Object.assign({}, opts, { ymin: yt[0], ymax: yt[yt.length - 1], fonteRotulo: 17 }); // .multiplos .g-rotulo: 17px
     return '<div class="multiplos-bloco"><h3>' + esc(titulo) + '</h3><p class="g-sub">' + esc(subtitulo) + '</p><div class="multiplos">' +
       series.map((s) => graficoLinhas(prefixo + '-' + s.mod, s.nome, '', [s], o, pdf)).join('') + '</div></div>';
   }

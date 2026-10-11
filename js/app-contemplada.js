@@ -303,13 +303,16 @@
     const pctFin = (x) => CC.fmtNum(x, Number.isInteger(x) ? 0 : 2) + '%';
     const nomeTr = (Fi) => 'TR ' + pct(Fi.trAa) + ' a.a.';
 
+    /** "a + b = total a.a.", quebrando a linha só antes do "= total". */
+    const formula = (partes, total) => partes.map((x) => pct(x)).join('&nbsp;+&nbsp;') + ' <span class="sem-quebra">=&nbsp;' + pct(total) + '&nbsp;a.a.</span>';
+
     /**
      * Cartões lado a lado: as mesmas linhas, na mesma ordem, nos dois caminhos.
      * Cada linha: [rótulo, valor, classe, nota].
      */
     function linhasConsorcio(Fi, rc) {
       const K = Fi.consorcio, nome = esc(rc.indice.nome);
-      const custo = isNum(K.cetAno) ? pct(K.cetAno) + ' + ' + (isNum(K.indiceTaxa) ? pct(K.indiceTaxa) + ' = ' + pct(K.custoAa) : nome) + ' a.a.' : '—';
+      const custo = isNum(K.cetAno) ? (isNum(K.indiceTaxa) ? formula([K.cetAno, K.indiceTaxa], K.custoAa) : pct(K.cetAno) + '&nbsp;+&nbsp;' + nome + '&nbsp;a.a.') : '—';
       const reaj = K.semReajuste ? 'sem reajuste do ' + nome + ' no prazo' : null;
       return [
         ['Crédito contratado', brl(K.credito), 'forte'],
@@ -324,7 +327,7 @@
     }
 
     function linhasFinanciamento(Fi) {
-      const custo = isNum(Fi.custoAa) ? pct(Fi.juros) + ' + ' + pct(Fi.trAa) + ' + ' + pct(Fi.cesh) + ' = ' + pct(Fi.custoAa) + ' a.a.' : '—';
+      const custo = isNum(Fi.custoAa) ? formula([Fi.juros, Fi.trAa, Fi.cesh], Fi.custoAa) : '—';
       return [
         ['Crédito contratado', brl(Fi.credito), 'forte'],
         ['Entrada', brl(Fi.entrada), '', pctFin(Fi.entradaPct) + ' do valor do imóvel'],
