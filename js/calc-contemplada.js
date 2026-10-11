@@ -41,7 +41,7 @@
     prazoCartaMax: 600, // prazo restante máximo aceito por carta (meses)
     periodicidadeReajuste: 12, // reajuste anual
     reajusteMesPadrao: 13, // 1º reajuste na 13ª parcela da simulação
-    rendaMultiplo: 3, // financiamento: renda comprovada = 3 × parcela
+    comprometimentoRenda: 30, // financiamento: a parcela não pode passar de 30% da renda
     idadeLimite: 65, // financiamento: idade máxima ao fim do contrato
     prazoFinanciamentoMax: 420,
     prazosFinanciamento: [360, 420]
@@ -95,7 +95,9 @@
       evolucao: { ativo: false },
       // ref: taxas de referência de onde vieram os parâmetros (o que difere delas foi editado pelo usuário)
       rendimentos: { ativo: false, mensal: 0, meses: null, params: Object.assign({}, PARAMS_RENDIMENTOS), ref: Object.assign({}, PARAMS_RENDIMENTOS) },
-      financiamento: { ativo: false, sistema: 'price', prazo: 420, entradaPct: 20, credito: null, juros: 11.5, nascimento: '' }
+      // Financiamento: TR (% a.a.) corrige o saldo; MIP (% a.m. do saldo), DFI/DFC (% a.m. do valor do bem),
+      // outros seguros e taxa de administração (R$/mês) são os custos além dos juros
+      financiamento: { ativo: false, sistema: 'price', prazo: 420, entradaPct: 20, credito: null, juros: 11.5, tr: 2, mip: 0.03, dfi: 0.008, seguros: 0, ta: 25 }
     };
   }
 
@@ -152,8 +154,10 @@
 
   /**
    * Resultado total da operação (mesmas fórmulas do simulador de cartas contempladas):
-   * saldo devedor = parcela × prazo; custo = entrada + saldo − crédito; custo % = custo ÷ crédito líquido;
-   * CET mensal = custo % ÷ prazo ponderado pelo saldo; CET anual = CET mensal × 12 (+ indexador).
+   * saldo devedor = parcela × prazo; custo da operação = saldo devedor + entrada (ágio);
+   * custo da operação (%) = custo ÷ crédito − 100%.
+   * CET (mesmo do simulador original): custo efetivo = entrada + saldo − crédito, sobre o crédito líquido;
+   * CET mensal = custo efetivo % ÷ prazo ponderado pelo saldo; CET anual = CET mensal × 12 (+ indexador).
    */
   function resumo(s) {
     const cartas = lerCartas(s);
@@ -166,10 +170,12 @@
     out.saldoDevedor = soma('saldo');
     out.parcelaAtual = soma('parcela');
     out.creditoLiquido = out.credito - out.entrada;
-    out.custo = out.entrada + out.saldoDevedor - out.credito;
-    out.custoPct = out.creditoLiquido > 0 ? (out.custo / out.creditoLiquido) * 100 : null;
+    out.custo = out.saldoDevedor + out.entrada;
+    out.custoPct = out.credito > 0 ? (out.custo / out.credito) * 100 - 100 : null;
+    out.custoEfetivo = out.custo - out.credito;
+    out.custoEfetivoPct = out.creditoLiquido > 0 ? (out.custoEfetivo / out.creditoLiquido) * 100 : null;
     out.prazoPonderado = out.saldoDevedor > 0 ? validas.reduce((a, c) => a + c.prazo * c.saldo, 0) / out.saldoDevedor : null;
-    out.cetMes = isNum(out.custoPct) && out.prazoPonderado ? out.custoPct / out.prazoPonderado : null;
+    out.cetMes = isNum(out.custoEfetivoPct) && out.prazoPonderado ? out.custoEfetivoPct / out.prazoPonderado : null;
     out.cetAno = isNum(out.cetMes) ? out.cetMes * 12 : null;
     out.entradaPct = out.credito > 0 ? (out.entrada / out.credito) * 100 : null;
     out.transferencia = (REGRAS.transferenciaPct / 100) * out.credito;
@@ -473,8 +479,41 @@
   }
 
   /**
-   * Comparativo com o financiamento: entrada (padrão 20%), prazo (padrão 420 meses), Price ou SAC.
-   * Renda mínima = 3 × maior parcela; idade máxima na assinatura = 65 anos − prazo (a partir de hoje).
+   * Financiamento mês a mês. A cada mês o saldo é corrigido pela TR, os juros incidem sobre o saldo corrigido e a
+   * prestação é recalculada pelo prazo restante (Price) ou amortiza saldo ÷ meses restantes (SAC). Encargos do mês:
+   * MIP (% do saldo corrigido), DFI/DFC (% do valor do bem), outros seguros e taxa de administração (R$).
+   */
+  function cronogramaFinanciamento(pv, jurosAa, n, sistema, opcoes) {
+    const o = opcoes || {};
+    const i = Math.pow(1 + jurosAa / 100, 1 / 12) - 1;
+    const tr = Math.pow(1 + (num(o.trAa) || 0) / 100, 1 / 12) - 1;
+    const mip = (num(o.mipPct) || 0) / 100;
+    const dfi = ((num(o.dfiPct) || 0) / 100) * (num(o.valorBem) || 0);
+    const seguros = num(o.seguros) || 0, ta = num(o.ta) || 0;
+    const meses = [];
+    const tot = { prestacoes: 0, juros: 0, correcao: 0, mip: 0, dfi: 0, seguros: 0, ta: 0, total: 0 };
+    let saldo = pv;
+    for (let t = 1; t <= n; t++) {
+      const restantes = n - t + 1;
+      const corrigido = saldo * (1 + tr);
+      const juros = corrigido * i;
+      const amort = sistema === 'sac' ? corrigido / restantes
+        : (i > 0 ? (corrigido * i) / (1 - Math.pow(1 + i, -restantes)) : corrigido / restantes) - juros;
+      const l = { t, correcao: corrigido - saldo, juros, amort, prestacao: amort + juros, mip: corrigido * mip, dfi, seguros, ta };
+      l.total = l.prestacao + l.mip + l.dfi + l.seguros + l.ta;
+      saldo = Math.max(0, corrigido - amort);
+      l.saldo = saldo;
+      meses.push(l);
+      tot.prestacoes += l.prestacao; tot.juros += juros; tot.correcao += l.correcao;
+      tot.mip += l.mip; tot.dfi += dfi; tot.seguros += seguros; tot.ta += ta; tot.total += l.total;
+    }
+    return { i, tr, meses, tot };
+  }
+
+  /**
+   * Comparativo com o financiamento: entrada (padrão 20%), prazo (padrão 420 meses), Price ou SAC, TR e encargos.
+   * Renda mínima = 1ª parcela ÷ 30% (a parcela não pode comprometer mais de 30% da renda);
+   * idade máxima na assinatura = 65 anos − prazo (a partir de hoje).
    */
   function financiamento(s, R, hoje) {
     const f = s.financiamento;
@@ -489,13 +528,21 @@
     if (out.pend.length) return out;
     const entrada = credito * pct / 100;
     const financiado = credito - entrada;
-    const T = tabelaFinanciamento(financiado, juros, n, out.sistema);
+    const premissas = { trAa: num(f.tr) || 0, mipPct: num(f.mip) || 0, dfiPct: num(f.dfi) || 0, seguros: num(f.seguros) || 0, ta: num(f.ta) || 0 };
+    const C = cronogramaFinanciamento(financiado, juros, n, out.sistema, Object.assign({ valorBem: credito }, premissas));
+    const m1 = C.meses[0], mN = C.meses[n - 1];
+    const custos = { mip: C.tot.mip, dfi: C.tot.dfi, seguros: C.tot.seguros, ta: C.tot.ta };
+    custos.total = custos.mip + custos.dfi + custos.seguros + custos.ta;
     Object.assign(out, {
       ok: true, credito, creditoAuto: !isNum(num(f.credito)), prazo: n, entradaPct: pct, entrada, financiado, juros,
-      jurosMes: T.i * 100, primeira: T.primeira, ultima: T.ultima, totalParcelas: T.total, totalJuros: T.total - financiado,
-      totalPago: entrada + T.total
+      jurosMes: C.i * 100, trAa: premissas.trAa, premissas, meses: C.meses,
+      // Prestação = amortização + juros; parcela = prestação + seguros e taxa (o que o cliente paga)
+      primeiraPrestacao: m1.prestacao, ultimaPrestacao: mN.prestacao, primeira: m1.total, ultima: mN.total,
+      totalPrestacoes: C.tot.prestacoes, totalJuros: C.tot.juros, totalCorrecao: C.tot.correcao, totalParcelas: C.tot.total,
+      custos, custosPct: (custos.total / credito) * 100,
+      totalPago: entrada + C.tot.total
     });
-    out.rendaMinima = REGRAS.rendaMultiplo * Math.max(T.primeira, T.ultima);
+    out.rendaMinima = m1.total / (REGRAS.comprometimentoRenda / 100);
     // Idade: ao fim do contrato a pessoa não pode passar de 65 anos
     const d0 = hojeSemHora(hoje);
     const fim = somarMeses(d0, n);
@@ -506,18 +553,42 @@
     out.dataFim = fim;
     out.nascimentoMinimo = nascMin;
     out.idadeMaxima = diferencaData(nascMin, d0);
-    const nasc = lerData(f.nascimento);
-    if (nasc && nasc <= d0) {
-      const idade = diferencaData(nasc, d0);
-      const aos65 = somarMeses(nasc, REGRAS.idadeLimite * 12);
-      out.cliente = { nascimento: nasc, idade, idadeFim: diferencaData(nasc, fim), excede: aos65 < fim, prazoMaximo: aos65 > d0 ? mesesEntre(d0, aos65) : 0 };
-    }
-    // Comparação com a carta contemplada (valores nominais, sem reajustes nem TR)
+    // Comparação com a carta contemplada: parcelas reajustadas pelo indexador × financiamento com TR e encargos
     if (R.ok) {
-      out.consorcio = { credito: R.credito, entrada: R.entrada, parcela: R.parcelaAtual, prazo: R.prazoMax, totalPago: R.totalPago, custo: R.custo };
-      out.diferenca = out.totalPago - R.totalPago;
+      out.consorcio = { credito: R.credito, entrada: R.entrada, parcela: R.parcelaAtual, prazo: R.prazoMax, totalSemReajuste: R.totalPago };
+      const Fc = fluxoMensal(s, true);
+      out.comparativo = comparativo(s, Fc, out);
+      if (Fc.ok) {
+        out.consorcio.totalPago = R.entrada + Fc.total;
+        out.diferenca = out.totalPago - out.consorcio.totalPago;
+      }
     }
     return out;
+  }
+
+  /**
+   * A cada 12 meses: parcela do consórcio (reajustada pelo indexador) × parcela do financiamento (TR, seguros e taxa),
+   * economia de parcela, economia acumulada guardada (orgânico) ou aplicada no CDB da calculadora, e os saldos devedores.
+   */
+  function comparativo(s, Fc, Fi) {
+    if (!Fc.ok) return { ok: false, pend: Fc.pend, linhas: [] };
+    const P = Object.assign({}, PARAMS_RENDIMENTOS, (s.rendimentos && s.rendimentos.params) || {});
+    ['cdi', 'ipca', 'cdbPct'].forEach((k) => { P[k] = num(P[k]) || 0; });
+    const taxa = taxaTipo(P, P.cdbPct, P.cdbTipo);
+    const f = fatorMensal(taxa);
+    const T = Math.max(Fc.N, Fi.prazo);
+    let organico = 0, aplicado = 0;
+    const linhas = [];
+    for (let t = 1; t <= T; t++) {
+      const c = t <= Fc.N ? Fc.meses[t - 1] : null;
+      const b = t <= Fi.prazo ? Fi.meses[t - 1] : null;
+      const pc = c ? c.total : 0, pf = b ? b.total : 0;
+      const economia = pf - pc;
+      organico += economia;
+      aplicado = aplicado * f + economia;
+      if (t % 12 === 0 || t === T) linhas.push({ t, consorcio: pc, financiamento: pf, economia, organico, aplicado, saldoFin: b ? b.saldo : 0, saldoCons: c ? c.saldo : 0 });
+    }
+    return { ok: true, taxaAplicacao: taxa, T, linhas, organico, aplicado };
   }
 
   // ---------------------------------------------------------------------------
@@ -540,7 +611,7 @@
     });
     if (!s.cartas || !s.cartas.length) add('erro', 'cartas', 'Inclua ao menos uma carta.');
     const R = resumo(s);
-    const usaReajuste = (s.fluxo && s.fluxo.reajuste) || (s.evolucao && s.evolucao.ativo) || (s.amortizacao && s.amortizacao.ativo);
+    const usaReajuste = (s.fluxo && s.fluxo.reajuste) || (s.evolucao && s.evolucao.ativo) || (s.amortizacao && s.amortizacao.ativo) || (s.financiamento && s.financiamento.ativo);
     if (!INDICES[s.indice]) add('erro', 'indice', 'Selecione o índice de reajuste.');
     else if (usaReajuste && !isNum(taxaIndice(s)) && (!R.ok || R.prazoMax >= mesReajuste(s))) add('erro', 'indiceTaxa', 'Índice ' + nomeIndice(s) + ' sem taxa estimada: informe a projeção ao ano para o reajuste.');
     const m1 = num(s.reajusteMes);
@@ -567,6 +638,10 @@
       if (!isNum(j) || j < 0) add('erro', 'financiamento.juros', 'Financiamento: informe a taxa de juros ao ano.');
       const c = num(fi.credito);
       if (c !== null && c <= 0) add('erro', 'financiamento.credito', 'Financiamento: crédito necessário deve ser maior que zero.');
+      [['tr', 'TR'], ['mip', 'MIP'], ['dfi', 'DFI/DFC'], ['seguros', 'outros seguros'], ['ta', 'taxa de administração']].forEach(([k, rot]) => {
+        const x = num(fi[k]);
+        if (x !== null && x < 0) add('erro', 'financiamento.' + k, 'Financiamento: ' + rot + ' não pode ser negativo.');
+      });
     }
     return a;
   }
@@ -595,7 +670,7 @@
   return {
     INDICES, SEGMENTOS, REGRAS, PARAMS_RENDIMENTOS, PRODUTOS,
     estadoPadrao, cartaVazia, simular, resumo, fluxo, fluxoMensal, agrupar, rotuloPeriodo, evolucao, amortizacao,
-    calcularRendimentos, rendimentos, aliquotaIR, financiamento, tabelaFinanciamento, validar,
+    calcularRendimentos, rendimentos, aliquotaIR, financiamento, tabelaFinanciamento, cronogramaFinanciamento, comparativo, validar,
     taxaIndice, nomeIndice, indiceEstimado, qtdReajustes, somarMeses, diferencaData, mesesEntre, lerData,
     fmtBRL, fmtPct, fmtNum, num, isNum
   };

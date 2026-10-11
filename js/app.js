@@ -295,6 +295,14 @@
     pr.addEventListener('click', (ev) => {
       const tema = ev.target.closest('[data-tema]');
       if (tema) { definirTema(tema.dataset.tema); atualizar(); return; }
+      const recolher = ev.target.closest('[data-recolher]');
+      if (recolher) {
+        const id = recolher.dataset.recolher;
+        if (recolhidos.has(id)) recolhidos.delete(id); else recolhidos.add(id);
+        try { localStorage.setItem(CHAVE_RECOLHIDOS, JSON.stringify(Array.from(recolhidos))); } catch (e) { /* sem armazenamento */ }
+        atualizar();
+        return;
+      }
       const copiar = ev.target.closest('[data-copiar]');
       if (copiar) { copiarTexto(textosCopia[copiar.dataset.copiar] || '', 'Fluxo de parcelas copiado. É só colar no WhatsApp.'); return; }
       const olho = ev.target.closest('[data-olho]');
@@ -876,10 +884,15 @@
 
   // Textos prontos para os botões "Copiar" da página da carta contemplada
   const textosCopia = {};
+  // Tabelas recolhidas pela seta na página 2 (só na tela; lembrado neste navegador)
+  const CHAVE_RECOLHIDOS = 'simconsorcio.recolhidos';
+  const recolhidos = new Set((function () {
+    try { const l = JSON.parse(localStorage.getItem(CHAVE_RECOLHIDOS) || '[]'); return Array.isArray(l) ? l : []; } catch (e) { return []; }
+  })());
 
   function desenharCont(rc) {
     textosCopia.fluxo = TC.textoFluxo(rc);
-    pintar(barraTopo() + TC.desenhar(rc, estadoCont, { lead: String(estado.plano.lead || '').trim(), fonteTaxas: fonteTaxas() }));
+    pintar(barraTopo() + TC.desenhar(rc, estadoCont, { lead: String(estado.plano.lead || '').trim(), fonteTaxas: fonteTaxas(), recolhidos }));
   }
 
   /** Valores travados e campos automáticos do menu da carta contemplada. */

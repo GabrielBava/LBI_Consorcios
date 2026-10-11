@@ -29,8 +29,10 @@ test('resumo reproduz o exemplo do simulador de cartas contempladas', () => {
   near(R.credito, 1200000);
   near(R.creditoLiquido, 763200);
   near(R.saldoDevedor, 1436584.8);
-  near(R.custo, 673384.8);
-  near(R.custoPct, 88.2318, '', 0.001);
+  near(R.custo, 1873384.8, 'custo da operação = saldo devedor + ágio');
+  near(R.custoPct, 1873384.8 / 1200000 * 100 - 100, 'custo % = custo ÷ crédito − 100%', 0.0001);
+  near(R.custoEfetivo, 673384.8);
+  near(R.custoEfetivoPct, 88.2318, '', 0.001);
   near(R.cetMes, 0.37868, '', 0.0001);
   near(R.cetAno, 4.5442, '', 0.001);
   near(R.entradaPct, 36.4);
@@ -46,7 +48,7 @@ test('junção: prazo ponderado pelo saldo de cada carta', () => {
   ]));
   near(R.saldoDevedor, 800000);
   near(R.prazoPonderado, (200 * 600000 + 100 * 200000) / 800000);
-  near(R.custo, 250000 + 800000 - 800000);
+  near(R.custo, 800000 + 250000);
   near(R.parcelaAtual, 5000);
   assert.equal(R.prazoMax, 200);
 });
@@ -215,8 +217,9 @@ test('financiamento Price e SAC', () => {
   near(S.total, pv + S.i * pv * (n + 1) / 2);
 });
 
-test('consórcio × financiamento: entrada 20%, renda 3× parcela e idade máxima', () => {
+test('consórcio × financiamento: entrada 20%, renda pela regra dos 30% e idade máxima', () => {
   const s = base();
+  s.indiceTaxa = 5;
   s.financiamento.ativo = true;
   const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
   assert.ok(F.ok);
@@ -224,20 +227,77 @@ test('consórcio × financiamento: entrada 20%, renda 3× parcela e idade máxim
   near(F.credito, 1200000);
   near(F.entrada, 240000);
   near(F.financiado, 960000);
-  near(F.rendaMinima, 3 * F.primeira);
+  near(F.rendaMinima, F.primeira / 0.3, 'a 1ª parcela compromete no máximo 30% da renda');
+  near(F.primeira, F.primeiraPrestacao + F.meses[0].mip + F.meses[0].dfi + F.meses[0].seguros + F.meses[0].ta);
   assert.deepEqual(F.idadeMaxima, { anos: 30, meses: 0, dias: 0 });
   assert.equal(F.nascimentoMinimo.getFullYear(), 1996);
-  near(F.diferenca, F.totalPago - (436800 + 1436584.8));
-  // Cliente mais velho que o permitido: apenas alerta, com o prazo compatível
-  s.financiamento.nascimento = '1990-01-15';
-  const F2 = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
-  assert.ok(F2.cliente.excede);
-  assert.equal(F2.cliente.prazoMaximo, 339);
+  assert.equal(F.cliente, undefined, 'sem análise pela data de nascimento');
+  near(F.diferenca, F.totalPago - F.consorcio.totalPago);
+  near(F.consorcio.totalPago, 436800 + CC.fluxoMensal(s, true).total, 'consórcio com reajuste pelo indexador');
   s.financiamento.prazo = 360;
   s.financiamento.credito = 900000;
   const F3 = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
   assert.equal(F3.creditoAuto, false);
   assert.deepEqual(F3.idadeMaxima, { anos: 35, meses: 0, dias: 0 });
+});
+
+test('financiamento sem TR e sem encargos reproduz Price e SAC', () => {
+  for (const sis of ['price', 'sac']) {
+    const C = CC.cronogramaFinanciamento(800000, 12, 420, sis, {});
+    const T = CC.tabelaFinanciamento(800000, 12, 420, sis);
+    near(C.meses[0].total, T.primeira);
+    near(C.meses[419].total, T.ultima);
+    near(C.tot.total, T.total);
+    near(C.meses[419].saldo, 0);
+  }
+});
+
+test('TR corrige o saldo e a parcela; MIP, DFI, seguros e taxa somam nos custos', () => {
+  const C = CC.cronogramaFinanciamento(800000, 12, 360, 'price', { trAa: 2, mipPct: 0.03, dfiPct: 0.008, valorBem: 1000000, seguros: 10, ta: 25 });
+  const tr = Math.pow(1.02, 1 / 12) - 1;
+  near(C.meses[0].correcao, 800000 * tr);
+  near(C.meses[0].mip, 800000 * (1 + tr) * 0.0003);
+  near(C.meses[0].dfi, 80);
+  assert.ok(C.meses[120].prestacao > C.meses[0].prestacao, 'Price com TR: prestação cresce');
+  near(C.meses[359].saldo, 0);
+  near(C.tot.ta, 25 * 360);
+  near(C.tot.seguros, 10 * 360);
+  near(C.tot.dfi, 80 * 360);
+  near(C.tot.total, C.tot.prestacoes + C.tot.mip + C.tot.dfi + C.tot.seguros + C.tot.ta);
+});
+
+test('custos invisíveis: total e percentual sobre o crédito', () => {
+  const s = base();
+  s.indiceTaxa = 5;
+  Object.assign(s.financiamento, { ativo: true, tr: 0, mip: 0.03, dfi: 0.008, seguros: 15, ta: 25 });
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
+  near(F.custos.ta, 25 * 420);
+  near(F.custos.seguros, 15 * 420);
+  near(F.custos.dfi, 1200000 * 0.00008 * 420);
+  near(F.custos.total, F.custos.mip + F.custos.dfi + F.custos.seguros + F.custos.ta);
+  near(F.custosPct, F.custos.total / 1200000 * 100);
+});
+
+test('comparativo a cada 12 meses: economia de parcela, acumulados e saldos', () => {
+  const s = base([{ credito: 100000, entrada: 20000, parcela: 1000, prazo: 30 }]);
+  Object.assign(s, { indice: 'outro', indiceTaxa: 0 });
+  Object.assign(s.financiamento, { ativo: true, prazo: 36, tr: 0, mip: 0, dfi: 0, seguros: 0, ta: 0 });
+  s.rendimentos.params = Object.assign({}, CC.PARAMS_RENDIMENTOS, { cdi: 12, cdbPct: 100, cdbTipo: 'cdi' });
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
+  const K = F.comparativo;
+  assert.ok(K.ok);
+  assert.deepEqual(K.linhas.map((l) => l.t), [12, 24, 36]);
+  const pf = F.meses[0].total;
+  near(K.linhas[0].consorcio, 1000);
+  near(K.linhas[0].financiamento, pf);
+  near(K.linhas[0].economia, pf - 1000);
+  near(K.linhas[0].organico, 12 * (pf - 1000));
+  near(K.linhas[0].aplicado, (pf - 1000) * (Math.pow(1.12, 1) - 1) / (Math.pow(1.12, 1 / 12) - 1));
+  near(K.linhas[2].consorcio, 0, 'consórcio já encerrado');
+  near(K.linhas[2].saldoCons, 0);
+  near(K.linhas[2].saldoFin, 0);
+  near(K.linhas[0].saldoCons, 1000 * 18);
+  near(K.organico, 36 * pf - 30 * 1000);
 });
 
 test('diferença de datas em anos, meses e dias', () => {
@@ -274,13 +334,10 @@ test('1º reajuste só é obrigatório quando algum reajuste está em uso', () =
 
 test('idade: limite pelo 65º aniversário, inclusive com fim do contrato em 29/02', () => {
   const s = base();
-  Object.assign(s.financiamento, { ativo: true, prazo: 352, nascimento: '1991-02-28' });
+  Object.assign(s.financiamento, { ativo: true, prazo: 352 });
   const F = CC.simular(s, { hoje: new Date(2026, 9, 31) }).financiamento;
   assert.equal(F.dataFim.getMonth(), 1);
   assert.equal(F.dataFim.getDate(), 29);
   assert.equal(F.nascimentoMinimo.getDate(), 1, 'nascidos a partir de 01/03/1991');
   assert.equal(F.nascimentoMinimo.getMonth(), 2);
-  assert.ok(F.cliente.excede, 'faz 65 anos um dia antes do fim');
-  s.financiamento.nascimento = '1991-03-01';
-  assert.ok(!CC.simular(s, { hoje: new Date(2026, 9, 31) }).financiamento.cliente.excede);
 });

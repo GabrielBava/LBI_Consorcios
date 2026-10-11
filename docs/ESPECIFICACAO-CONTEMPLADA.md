@@ -44,17 +44,19 @@ Cada carta: **Crédito disponível\***, **Entrada / ágio pago**, **Parcela atua
 | Estudo de Amortização | Valor do aporte (R$), Mês do aporte |
 | Evolução de Parcelas | — |
 | Calculadora de Rendimentos | Aporte inicial (travado = crédito − entrada), Aportes mensais (R$), Período (meses; automático = maior prazo), Parâmetros de rentabilidade |
-| Consórcio vs Financiamento | Sistema (Tabela Price/SAC), Prazo (padrão 420; atalhos 360/420), Entrada % (padrão 20), Juros % a.a. (padrão 11,5), Crédito necessário (pré-preenchido com o crédito das cartas, editável), Nascimento do cliente (opcional) |
+| Consórcio vs Financiamento | Sistema (Tabela Price/SAC), Prazo (padrão 420; atalhos 360/420), Entrada % (padrão 20), Juros % a.a. (padrão 11,5), Crédito necessário (pré-preenchido com o crédito das cartas, editável) e, em "Correção e custos do banco": TR (padrão 2% a.a.), MIP (0,03% a.m. do saldo), DFI/DFC (0,008% a.m. do valor do bem), outros seguros (R$/mês, padrão 0) e taxa de administração (R$ 25/mês) |
 
 ## 3. Proposta na tela (e no PDF)
 
-1. **Resumo da Proposta:** Crédito contrato · Parcela atual · CET mensal · CET anual + indexador.
-2. **Características da Proposta:** Crédito total · Crédito líquido · Entrada (ágio) com % · Custo da operação (R$) · Custo total da operação (%) · Saldo devedor (R$) · Estimativa de transferência (1% do crédito). Com duas ou mais cartas, mostra a composição da junção.
-3. **Fluxo de Parcelas (sempre):** faixas de meses com o mesmo valor (período, parcelas, valor, subtotal e total). Botão **Copiar** para o WhatsApp.
+1. **Resumo da Proposta:** Crédito contrato · Parcela atual · CET mensal · CET anual com "a.a. + indexador" na mesma linha.
+2. **Características da Proposta:** Crédito total · Crédito líquido · Entrada (ágio) com % · Custo da operação (saldo devedor + ágio) · Custo total da operação (%) · Saldo devedor (R$). Com duas ou mais cartas, mostra a composição da junção. A estimativa de transferência (1%) saiu do quadro e segue só na mensagem do WhatsApp.
+3. **Fluxo de Parcelas (sempre):** faixas de meses com o mesmo valor (período, parcelas, valor, subtotal e total), com o título "Parcelas a pagar" (ou "Parcelas projetadas" com reajuste). Botão **Copiar** para o WhatsApp.
+
+**Tabelas com seta:** fluxo, amortização, evolução, comparativo e custos invisíveis têm uma seta para mostrar ou ocultar a tabela na tela (lembrado no navegador). O PDF traz sempre todas as tabelas.
 4. **Estudo de Amortização** (se habilitado): saldo antes/depois do aporte, parcela antes/depois, reajustes evitados e tabela a cada 12 meses (mês, parcela sem aporte, parcela com aporte, saldo devedor), com a linha do mês do aporte destacada.
 5. **Evolução das Parcelas** (se habilitada): a cada 12 meses e no último mês — mês, parcela com reajuste, aporte acumulado (parcelas pagas) e saldo devedor, sempre por último.
 6. **Calculadora de Rendimentos** (se habilitada): valor inicial, aportes mensais, período, aporte da amortização (quando houver) e soma investida; barras do valor líquido de resgate (com a correção pelo IPCA como referência); tabela com valor bruto acumulado, rentabilidade bruta, custos, IR, valor líquido acumulado, rentabilidade líquida e ganho líquido; comparação com o custo da operação da carta.
-7. **Consórcio vs Financiamento** (se habilitado): cartões da carta e do financiamento (com o total da carta com reajuste projetado, quando o reajuste está habilitado no fluxo), diferença no total pago e avisos de renda mínima e idade. A diferença "a favor do…" só aparece quando o crédito do financiamento é o mesmo da carta; se ele foi editado, a proposta avisa que os totais não são diretamente comparáveis.
+7. **Consórcio vs Financiamento** (se habilitado): cartões da carta (total pago com reajuste pelo indexador e sem reajuste) e do financiamento (1ª e última parcela com seguros e taxa, juros + TR, total pago, juros totais e custos além dos juros); diferença no total pago com os reajustes de cada um (só com o mesmo crédito da carta); tabela **a cada 12 meses** com parcela do consórcio (reajuste pelo indexador), parcela do financiamento (reajuste TR, com seguros e taxa), economia de parcela, acumulado orgânico, acumulado aplicado (CDB da calculadora, bruto), saldo devedor do financiamento e do consórcio; tabela de **custos invisíveis** (MIP, DFI/DFC, outros seguros, TA: 1º mês, total no contrato e % do crédito, com total geral); avisos de renda mínima (regra dos 30%) e idade máxima na assinatura.
 
 **PDF:** páginas A4 no tema escuro da marca, montadas conforme as guias habilitadas; uma guia habilitada com pendência aparece como "Não calculado" com o motivo. Os blocos são medidos no tamanho final; tabelas longas continuam na página seguinte ("continuação"). A última página traz a chamada para o especialista e o aviso. A mensagem do WhatsApp segue o resumo do simulador de cartas contempladas (cartas, resumo financeiro, CET + indexador, transferência e fluxo das parcelas).
 
@@ -67,12 +69,13 @@ Notação por carta *i*: crédito Cᵢ, entrada Eᵢ, parcela Pᵢ, prazo nᵢ. 
 | Saldo devedor da carta | Sᵢ = Pᵢ × nᵢ |
 | Crédito total / entrada / saldo | C = ΣCᵢ · E = ΣEᵢ · S = ΣSᵢ |
 | Crédito líquido | C − E |
-| Custo da operação | (E + S) − C |
-| Custo total (%) | Custo ÷ Crédito líquido |
+| Custo da operação | S + E (saldo devedor + ágio de entrada) |
+| Custo total da operação (%) | (S + E) ÷ C − 100% |
+| Custo efetivo (base do CET) | (E + S) − C, sobre o crédito líquido (C − E) |
 | Prazo ponderado | Σ(nᵢ × Sᵢ) ÷ S |
 | CET mensal (aprox.) | Custo % ÷ prazo ponderado |
 | CET anual (aprox.) | CET mensal × 12, exibido "+ indexador" |
-| Estimativa de transferência | 1% × C |
+| Estimativa de transferência | 1% × C (só na mensagem do WhatsApp) |
 | Reajustes até o mês t | 0 se t < m₁; senão 1 + ⌊(t − m₁) ÷ 12⌋ |
 | Parcela do mês t (com reajuste) | Σ Pᵢ × (1 + r)^reajustes(t), para as cartas com t ≤ nᵢ |
 | Saldo devedor após o mês t | Σ Pᵢ × (1 + r)^reajustes(t) × (nᵢ − t), a valores do mês |
@@ -81,11 +84,13 @@ Notação por carta *i*: crédito Cᵢ, entrada Eᵢ, parcela Pᵢ, prazo nᵢ. 
 | Reajustes evitados | Σ parcelas após M × (1 − k) − aporte (zero sem reajuste) |
 | Rendimentos (mecanismo da calculadora de renda fixa) | Inicial × f^n + aportes mensais × (fⁿ − 1)/(f − 1), f = (1 + taxa a.a.)^(1/12); custos = bruto × [(1 + custo a.a.)^(n/12) − 1]; IR = ganho × alíquota(n): 22,5% até 6 meses, 20% até 11, 17,5% até 23, 15% depois |
 | Aporte da amortização na aplicação | Entra no mês M (nunca antes): valor × f^(n − M), com custos e IR pelo próprio prazo (n − M) |
-| Price | PMT = PV × i ÷ [1 − (1 + i)^−n], i = (1 + juros a.a.)^(1/12) − 1 |
-| SAC | 1ª = PV/n + PV × i; última = PV/n × (1 + i); total = PV + i × PV × (n + 1)/2 |
-| Renda mínima | 3 × maior parcela do financiamento |
+| Financiamento mês a mês | Saldo corrigido pela TR: S′ = S × (1 + TR)^(1/12); juros = S′ × i; Price: prestação = S′ × i ÷ [1 − (1 + i)^−(meses restantes)]; SAC: amortização = S′ ÷ meses restantes; i = (1 + juros a.a.)^(1/12) − 1 |
+| Encargos do mês | MIP = % × S′; DFI/DFC = % × valor do bem; outros seguros e TA em R$ |
+| Parcela do financiamento | Prestação + MIP + DFI/DFC + outros seguros + TA |
+| Comparativo | Economia = parcela financiamento − parcela consórcio; acumulado orgânico = Σ economia; acumulado aplicado = (acumulado anterior × (1 + taxa CDB)^(1/12)) + economia do mês |
+| Custos invisíveis | Σ MIP, DFI/DFC, outros seguros e TA no contrato; % = total ÷ crédito necessário |
+| Renda mínima | 1ª parcela do financiamento ÷ 30% (a parcela não pode comprometer mais de 30% da renda) |
 | Idade máxima na assinatura | 65 anos − prazo, a partir de hoje (anos, meses e dias); nascidos a partir de (hoje + prazo − 65 anos) |
-| Alerta de idade | Com a data de nascimento: se a idade ao fim do prazo passar de 65 anos, mostra o prazo compatível (sem bloquear nada) |
 
 Produtos da calculadora: Poupança (% a.m., isenta), CDB (% do CDI, prefixado ou IPCA+), LCI/LCA (isenta), Tesouro Selic, Fundo DI (% do CDI, com taxa de administração), Tesouro IPCA+ (IPCA + juro real) e Tesouro Prefixado (com custódia da B3). Selic, CDI, IPCA (Focus, 12 meses) e poupança são buscados no Banco Central quando a calculadora é habilitada e há conexão; sem conexão, valem as taxas de referência do simulador. Os parâmetros são editáveis e "Restaurar parâmetros padrões" volta às taxas de referência; "Nova proposta" mantém as taxas já atualizadas. Só os parâmetros não editados são atualizados pelo Banco Central, e a proposta cita o Banco Central como fonte apenas quando Selic, CDI, IPCA e poupança em uso são os buscados.
 
@@ -106,4 +111,4 @@ Produtos da calculadora: Poupança (% a.m., isenta), CDB (% do CDI, prefixado ou
 ## 6. Rastreabilidade
 
 - Motor puro em `js/calc-contemplada.js`, testado em `tests/contemplada.test.js` (`npm test`), incluindo o exemplo do simulador de cartas contempladas: crédito R$ 1.200.000,00, entrada R$ 436.800,00, parcela R$ 6.165,60 × 233 → custo 88,23%, CET 0,38% a.m. e 4,54% a.a.
-- Regras fixas (transferência 1%, renda 3×, idade 65, prazo máximo 420, reajuste a cada 12 meses) ficam em `REGRAS`; taxas de referência da calculadora em `PARAMS_RENDIMENTOS`.
+- Regras fixas (transferência 1%, comprometimento de 30% da renda, idade 65, prazo máximo 420, reajuste a cada 12 meses) ficam em `REGRAS`; taxas de referência da calculadora em `PARAMS_RENDIMENTOS`.

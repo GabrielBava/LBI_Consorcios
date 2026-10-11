@@ -272,7 +272,7 @@
       <label class="f" data-show="cont.indice=outro"><span>Nome do índice</span>
         <input type="text" id="c-indiceNome" data-k="cont.indiceNome" maxlength="30"></label>
       <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-fluxoReajuste" data-k="cont.fluxo.reajuste"> Habilitar reajuste pelo indexador</label>
-      <div class="sub" data-show="cont.fluxo.reajuste|cont.evolucao.ativo|cont.amortizacao.ativo">
+      <div class="sub" data-show="cont.fluxo.reajuste|cont.evolucao.ativo|cont.amortizacao.ativo|cont.financiamento.ativo">
         <label class="f"><span>1º reajuste (mês)</span>
           <input type="number" id="c-reajusteMes" data-k="cont.reajusteMes" min="1" step="1"></label>
       </div>
@@ -378,9 +378,17 @@
         <label class="f"><span>Crédito necessário (R$)</span>
           <input type="text" id="c-finCredito" data-k="cont.financiamento.credito" data-moeda data-auto="credTotal" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
         <small class="nota">Pré-preenchido com o crédito das cartas; apague para voltar ao valor da carta.</small>
-        <label class="f"><span>Nascimento do cliente (opcional)</span>
-          <input type="date" id="c-finNascimento" data-k="cont.financiamento.nascimento"></label>
-        <small class="nota">Usado só para o alerta de idade (65 anos ao fim do contrato).</small>
+        <details class="sub-secao" data-id="c-custos-fin">
+          <summary>Correção e custos do banco</summary>
+          <div class="grid2">
+            <label class="f"><span>TR (% a.a.)</span><input type="number" id="c-finTr" data-k="cont.financiamento.tr" min="0" step="any"></label>
+            <label class="f"><span>MIP (% a.m. do saldo)</span><input type="number" id="c-finMip" data-k="cont.financiamento.mip" min="0" step="any"></label>
+            <label class="f"><span>DFI/DFC (% a.m. do bem)</span><input type="number" id="c-finDfi" data-k="cont.financiamento.dfi" min="0" step="any"></label>
+            <label class="f"><span>Outros seguros (R$/mês)</span><input type="text" id="c-finSeguros" data-k="cont.financiamento.seguros" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+            <label class="f"><span>Taxa de adm. (R$/mês)</span><input type="text" id="c-finTa" data-k="cont.financiamento.ta" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+          </div>
+          <small class="nota">Premissas editáveis: confirme com o banco. A TR corrige o saldo todo mês.</small>
+        </details>
       </div>
     </details>
     </div>

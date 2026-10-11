@@ -20,12 +20,17 @@
     const ICONES = {
       carta: '<circle cx="12" cy="8" r="6"/><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"/>',
       banco: '<path d="M3 21h18"/><path d="M6 17.5v-7"/><path d="M10 17.5v-7"/><path d="M14 17.5v-7"/><path d="M18 17.5v-7"/><path d="M12 3 20 7.5H4z"/>',
+      seta: '<path d="m6 9 6 6 6-6"/>',
       copiar: '<rect x="8" y="8" width="13" height="13" rx="2.5"/><path d="M16 8V5.5A2.5 2.5 0 0 0 13.5 3h-8A2.5 2.5 0 0 0 3 5.5v8A2.5 2.5 0 0 0 5.5 16H8"/>'
     };
     const icone = (k, cls) => '<svg class="' + (cls || 'icone') + '" viewBox="0 0 24 24" aria-hidden="true">' + ICONES[k] + '</svg>';
 
     const AVISO = 'Esta simulação usa os valores informados das cartas e as premissas inseridas. Os valores são estimativas e não constituem valores contratuais. ' +
-      'O CET é aproximado (linear, sem capitalização) e não inclui o reajuste do indexador, exibido à parte. Reajustes, rendimentos e financiamento dependem de índices e taxas futuras, sem garantia.';
+      'O CET é aproximado (linear, sem capitalização) e não inclui o reajuste do indexador, exibido à parte. Reajustes, rendimentos e as condições do financiamento ' +
+      '(juros, TR, seguros e taxas) são premissas que variam com o mercado e o banco, sem garantia.';
+
+    // Tabelas que o consultor recolheu na tela (a seta mostra ou oculta; o PDF traz todas)
+    let recolhidos = new Set();
 
     // -------------------------------------------------------------------------
     // Textos de apoio
@@ -74,11 +79,11 @@
         '<div class="kpi-val">' + (val == null ? '<span class="mudo">—</span>' : val + (suf ? '<small class="kpi-suf"> ' + suf + '</small>' : '')) + '</div>' +
         (extra ? '<div class="kpi-extra">' + extra + '</div>' : '') + '</div>';
       const ok = R.ok;
-      return '<section class="bloco-res vitrine">' + ui.tituloSecao('Resumo da', 'Proposta', 'Visão geral') + '<div class="kpis">' +
+      return '<section class="bloco-res vitrine">' + ui.tituloSecao('Resumo da', 'Proposta', 'Visão geral') + '<div class="kpis kpis-cont">' +
         kpi('Crédito contrato', ok ? brl(R.credito) : null, 'kpi-destaque') +
         kpi('Parcela atual', ok ? brl(R.parcelaAtual) : null, 'kpi-destaque') +
         kpi('CET mensal', ok && isNum(R.cetMes) ? pct(R.cetMes) : null, '', 'a.m.') +
-        kpi('CET anual', ok && isNum(R.cetAno) ? pct(R.cetAno) : null, '', 'a.a.', '+ ' + esc(rc.indice.nome)) +
+        kpi('CET anual', ok && isNum(R.cetAno) ? pct(R.cetAno) : null, 'kpi-cet', 'a.a.&nbsp;+&nbsp;' + esc(rc.indice.nome)) +
         '</div>' + (ok ? '' : '<p class="nc kpis-msg">' + MSG_CARTAS + '</p>') + '</section>';
     }
 
@@ -87,10 +92,9 @@
         ['Crédito total', brl(R.credito)],
         ['Crédito líquido', brl(R.creditoLiquido)],
         ['Entrada (ágio)', brl(R.entrada) + (isNum(R.entradaPct) ? ' (' + pct(R.entradaPct) + ')' : '')],
-        ['Custo da operação (R$)', brl(R.custo)],
+        ['Custo da operação (saldo devedor + ágio)', brl(R.custo)],
         ['Custo total da operação (%)', isNum(R.custoPct) ? pct(R.custoPct) : 'N/A'],
-        ['Saldo devedor (R$)', brl(R.saldoDevedor)],
-        ['Estimativa de transferência', brl(R.transferencia) + ' (' + CC.fmtNum(CC.REGRAS.transferenciaPct, 0) + '% do crédito)']
+        ['Saldo devedor (R$)', brl(R.saldoDevedor)]
       ];
     }
 
@@ -112,8 +116,19 @@
     function subFluxo(rc) {
       const F = rc.fluxo;
       return F.comReajuste
-        ? 'Soma das parcelas das cartas mês a mês, com ' + textoReajuste(rc, F.m1) + '.'
-        : 'Soma das parcelas atuais das cartas mês a mês, agrupada por faixa de meses com o mesmo valor, sem reajuste pelo indexador.';
+        ? 'Valor mensal projetado em cada período, somando todas as cartas, com ' + textoReajuste(rc, F.m1) + '.'
+        : 'Valor mensal em cada período, somando as parcelas de todas as cartas.';
+    }
+
+    /** Seta para mostrar ou ocultar uma tabela na tela. */
+    function seta(id, rotulo) {
+      const aberto = !recolhidos.has(id);
+      return '<button type="button" class="seta-tabela" data-recolher="' + id + '" aria-expanded="' + aberto + '" aria-label="' + (aberto ? 'Ocultar ' : 'Mostrar ') + esc(rotulo) + '" title="' + (aberto ? 'Ocultar' : 'Mostrar') + '">' + icone('seta', 'ic') + '</button>';
+    }
+
+    /** Tabela com título e seta; recolhida, mostra só o título. */
+    function recolhivel(id, titulo, conteudo) {
+      return '<div class="tabela-topo"><h3 class="sub-titulo">' + titulo + '</h3>' + seta(id, titulo) + '</div>' + (recolhidos.has(id) ? '' : conteudo);
     }
 
     function linhasFluxo(F) {
@@ -134,10 +149,10 @@
     function secFluxo(rc) {
       const F = rc.fluxo;
       let h = '<section class="bloco-res vitrine">' + (F.ok ? botaoCopiar('fluxo', 'Copiar') : '') +
-        ui.tituloSecao('Fluxo de', 'Parcelas', F.comReajuste ? 'Com reajuste pelo indexador' : 'Sem reajuste');
+        ui.tituloSecao('Fluxo de', 'Parcelas', F.comReajuste ? 'Parcelas projetadas' : 'Parcelas a pagar');
       if (!F.ok) return h + '<p class="nc">Não calculado: ' + esc(F.pend.join('; ')) + '.</p></section>';
       h += '<p class="g-sub">' + esc(subFluxo(rc)) + '</p>';
-      h += tabela(['Período', 'Parcelas', 'Valor da parcela', 'Subtotal'], linhasFluxo(F), { rodape: ['Total em parcelas', F.N + 'x', '', brl(F.total)] });
+      h += recolhivel('fluxo', 'Parcelas por período', tabela(['Período', 'Parcelas', 'Valor da parcela', 'Subtotal'], linhasFluxo(F), { rodape: ['Total em parcelas', F.N + 'x', '', brl(F.total)] }));
       return h + '</section>';
     }
 
@@ -164,15 +179,19 @@
       const A = rc.amortizacao;
       let h = '<section class="bloco-res vitrine">' + ui.tituloSecao('Estudo de', 'Amortização', 'Aporte extraordinário');
       if (!A.ok) return h + '<p class="nc">Não calculado: ' + esc(A.pend.join('; ')) + '.</p></section>';
-      h += '<p class="g-sub">Aporte de ' + brl(A.aporte) + ' no mês ' + A.mes + ' (bonificação, causa trabalhista ou outra fonte) abate o saldo devedor. A parcela é recalculada mantendo o prazo de cada carta e segue com o ' + esc(textoReajuste(rc, A.m1)) + '.</p>';
+      h += '<p class="g-sub">' + subAmortizacao(rc, A) + '</p>';
       if (A.limitado) h += '<p class="aviso">O aporte informado (' + brl(A.valor) + ') é maior que o saldo devedor do mês ' + A.mes + ' e foi limitado a ' + brl(A.aporte) + ': a junção fica quitada.</p>';
       h += destaques(itensAmortizacao(A));
-      h += '<h3 class="sub-titulo">Parcelas a cada 12 meses</h3>';
-      h += tabela(['Mês', 'Parcela sem aporte', 'Parcela com aporte', 'Saldo devedor'], linhasAmortizacao(A));
+      h += recolhivel('amortizacao', 'Parcelas a cada 12 meses', tabela(['Mês', 'Parcela sem aporte', 'Parcela com aporte', 'Saldo devedor'], linhasAmortizacao(A)));
       const Rd = rc.rendimentos;
-      if (Rd && Rd.ok && Rd.extra) h += '<p class="aviso-inline">Na Calculadora de Rendimentos, o mesmo valor entra como aplicação no mês ' + A.mes + ', para comparar amortizar × investir.</p>';
+      if (Rd && Rd.ok && Rd.extra) h += '<p class="aviso-inline">Na Calculadora de Rendimentos, o mesmo valor aparece aplicado a partir do mês ' + A.mes + ': amortizar ou investir.</p>';
       else if (Rd && Rd.aporteForaDoPeriodo) h += '<p class="aviso-inline">O mês do aporte fica depois do período da Calculadora de Rendimentos, que não o considera.</p>';
       return h + '</section>';
+    }
+
+    function subAmortizacao(rc, A) {
+      return 'Com um aporte de ' + brl(A.aporte) + ' no mês ' + A.mes + ' (bônus, causa trabalhista ou outra fonte), o saldo devedor cai e a parcela diminui, mantendo o prazo. ' +
+        'Os reajustes anuais pelo ' + esc(textoIndice(rc)) + ' continuam valendo.';
     }
 
     function linhasEvolucao(E) {
@@ -183,10 +202,14 @@
       const E = rc.evolucao;
       let h = '<section class="bloco-res vitrine">' + ui.tituloSecao('Evolução das', 'Parcelas', 'Projeção a cada 12 meses');
       if (!E.ok) return h + '<p class="nc">Não calculado: ' + esc(E.pend.join('; ')) + '.</p></section>';
-      h += '<p class="g-sub">Parcela com ' + esc(textoReajuste(rc, E.m1)) + ', aporte acumulado em parcelas e saldo devedor ao fim de cada período.</p>';
-      h += tabela(['Mês', 'Parcela', 'Aporte acumulado', 'Saldo devedor'], linhasEvolucao(E));
-      h += '<p class="aviso-inline">Saldo devedor = parcela vigente × parcelas restantes, a valores do mês. Entrada (ágio) paga à parte: ' + brl(rc.resumo.entrada) + '.</p>';
+      h += '<p class="g-sub">' + subEvolucao(rc, E) + '</p>';
+      h += recolhivel('evolucao', 'Parcelas a cada 12 meses', tabela(['Mês', 'Parcela', 'Aporte acumulado', 'Saldo devedor'], linhasEvolucao(E)));
+      h += '<p class="aviso-inline">Saldo devedor: parcela vigente × parcelas restantes. Entrada (ágio) paga à parte: ' + brl(rc.resumo.entrada) + '.</p>';
       return h + '</section>';
+    }
+
+    function subEvolucao(rc, E) {
+      return 'Ano a ano até a última parcela: o valor da parcela com ' + esc(textoReajuste(rc, E.m1)) + ', quanto já foi pago em parcelas e o saldo devedor restante.';
     }
 
     // Calculadora de rendimentos ------------------------------------------------
@@ -233,7 +256,7 @@
     function itensComparativoRend(rc) {
       const Rd = rc.rendimentos, R = rc.resumo, M = Rd.melhor;
       const itens = [
-        ['Custo da operação da carta', brl(R.custo), 'Entrada + saldo devedor − crédito'],
+        ['Custo da operação da carta', brl(R.custo), 'Saldo devedor + ágio de entrada'],
         ['Ganho líquido · ' + esc(M.nome), brl(M.ganho), 'Melhor opção no período de ' + meses(Rd.meses)]
       ];
       if (M.extra) itens.push(['Aporte investido · ' + esc(M.nome), brl(M.extra.liquido), 'Ganho de ' + brl(M.extra.ganho) + ' em ' + meses(M.extra.meses) + ', a partir do mês ' + Rd.extra.mes]);
@@ -241,6 +264,10 @@
     }
 
     const periodoAplicacao = (Rd) => (Rd.meses >= Rd.prazoMax ? 'pelo prazo da junção (' + meses(Rd.meses) + ')' : 'por ' + meses(Rd.meses));
+
+    function subRendimentos(Rd) {
+      return 'Quanto o crédito líquido de ' + brl(Rd.inicial) + ' (crédito menos a entrada) renderia se fosse investido ' + periodoAplicacao(Rd) + '.';
+    }
 
     function notaRendimentos(ctx) {
       const p = ctx.params;
@@ -253,7 +280,7 @@
       const Rd = rc.rendimentos;
       let h = '<section class="bloco-res vitrine">' + ui.tituloSecao('Calculadora de', 'Rendimentos', 'Cenário de investimento');
       if (!Rd.ok) return h + '<p class="nc">Não calculado: ' + esc(Rd.pend.join('; ')) + '.</p></section>';
-      h += '<p class="g-sub">Como ficaria o valor se fosse investido: aplicação inicial igual ao crédito menos a entrada das cartas, ' + periodoAplicacao(Rd) + '.</p>';
+      h += '<p class="g-sub">' + subRendimentos(Rd) + '</p>';
       if (Rd.aporteForaDoPeriodo) h += '<p class="aviso">O aporte da amortização (mês ' + rc.amortizacao.mes + ') fica fora do período da aplicação e não foi considerado.</p>';
       h += destaques(infosRendimentos(Rd));
       h += '<h3 class="sub-titulo">Valor líquido de resgate</h3>' + barras(Rd, false);
@@ -268,6 +295,8 @@
     const textoIdade = (d) => d.anos + ' anos, ' + d.meses + (d.meses === 1 ? ' mês' : ' meses') + ' e ' + d.dias + (d.dias === 1 ? ' dia' : ' dias');
     const data = (d) => d.toLocaleDateString('pt-BR');
     const nomeSistema = (Fi) => (Fi.sistema === 'sac' ? 'Tabela SAC' : 'Tabela Price');
+    const pctFin = (x) => CC.fmtNum(x, Number.isInteger(x) ? 0 : 2) + '%';
+    const nomeTr = (Fi) => 'TR ' + pct(Fi.trAa) + ' a.a.';
 
     function linhasConsorcio(Fi, rc) {
       const K = Fi.consorcio;
@@ -275,51 +304,71 @@
         ['Crédito', brl(K.credito), 'forte'],
         ['Entrada (ágio)', brl(K.entrada)],
         ['Parcela atual', brl(K.parcela), 'acento-valor'],
-        ['Prazo', 'até ' + K.prazo + ' meses'],
-        ['Total pago sem reajuste (entrada + parcelas)', brl(K.totalPago), 'realce']
+        ['Prazo', 'até ' + K.prazo + ' meses']
       ];
-      // Com o reajuste habilitado no fluxo, mostra também o total projetado (o comparativo segue nominal)
-      if (rc.fluxo.ok && rc.fluxo.comReajuste) l.push(['Total com reajuste projetado', brl(K.entrada + rc.fluxo.total)]);
-      l.push(['Custo da operação', brl(K.custo)]);
+      if (isNum(K.totalPago)) l.push(['Total pago com reajuste ' + esc(rc.indice.nome), brl(K.totalPago), 'realce']);
+      l.push(['Total sem reajuste (entrada + parcelas)', brl(K.totalSemReajuste)]);
+      return l;
+    }
+
+    function linhasFinanciamento(Fi) {
+      const l = [
+        ['Crédito necessário', brl(Fi.credito), 'forte'],
+        ['Entrada (' + pctFin(Fi.entradaPct) + ')', brl(Fi.entrada)],
+        ['Valor financiado', brl(Fi.financiado)],
+        ['1ª parcela (com seguros e taxa)', brl(Fi.primeira), 'acento-valor'],
+        ['Última parcela', brl(Fi.ultima)],
+        ['Prazo', Fi.prazo + ' meses'],
+        ['Juros', pct(Fi.juros) + ' a.a. + ' + nomeTr(Fi)],
+        ['Total pago (entrada + parcelas)', brl(Fi.totalPago), 'realce'],
+        ['Juros totais', brl(Fi.totalJuros)],
+        ['Custos além dos juros', brl(Fi.custos.total) + ' (' + pct(Fi.custosPct) + ')']
+      ];
       return l;
     }
 
     /** O veredito só compara totais quando o crédito do financiamento é o mesmo da carta. */
     const mesmoCredito = (Fi) => !!Fi.consorcio && Math.abs(Fi.credito - Fi.consorcio.credito) < 0.005;
 
-    function subFinanciamento(Fi) {
-      const premissa = 'valores nominais, sem reajuste do consórcio, TR ou seguros do financiamento';
-      if (!Fi.consorcio) return 'Financiamento bancário (' + nomeSistema(Fi) + '), em ' + premissa + '.';
-      return mesmoCredito(Fi)
-        ? 'O mesmo crédito pela carta contemplada e por financiamento bancário (' + nomeSistema(Fi) + '), em ' + premissa + '.'
-        : 'Crédito do financiamento (' + brl(Fi.credito) + ') diferente do crédito da carta (' + brl(Fi.consorcio.credito) + '): os totais pagos não são diretamente comparáveis. Em ' + premissa + '.';
-    }
-
-    function linhasFinanciamento(Fi) {
-      const l = [
-        ['Crédito necessário', brl(Fi.credito), 'forte'],
-        ['Entrada (' + CC.fmtNum(Fi.entradaPct, Number.isInteger(Fi.entradaPct) ? 0 : 2) + '%)', brl(Fi.entrada)],
-        ['Valor financiado', brl(Fi.financiado)]
-      ];
-      if (Fi.sistema === 'sac') l.push(['1ª parcela', brl(Fi.primeira), 'acento-valor'], ['Última parcela', brl(Fi.ultima)]);
-      else l.push(['Parcela fixa', brl(Fi.primeira), 'acento-valor']);
-      l.push(['Prazo', Fi.prazo + ' meses'], ['Juros', pct(Fi.juros) + ' a.a. · ' + pct(Fi.jurosMes, 3) + ' a.m.'],
-        ['Total pago (entrada + parcelas)', brl(Fi.totalPago), 'realce'], ['Juros totais', brl(Fi.totalJuros)]);
-      return l;
+    function subFinanciamento(Fi, rc) {
+      const banco = 'no financiamento (' + nomeSistema(Fi) + '), juros de ' + pct(Fi.juros) + ' a.a. mais ' + nomeTr(Fi) + ', seguros e taxa do banco';
+      if (!Fi.consorcio) return 'Financiamento bancário: ' + banco + '.';
+      if (!mesmoCredito(Fi)) return 'Crédito do financiamento (' + brl(Fi.credito) + ') diferente do crédito da carta (' + brl(Fi.consorcio.credito) + '): os totais pagos não são diretamente comparáveis.';
+      return 'O mesmo crédito de ' + brl(Fi.credito) + ' nos dois caminhos: no consórcio, parcelas com reajuste pelo ' + esc(textoIndice(rc)) + '; ' + banco + '.';
     }
 
     function avisosFinanciamento(Fi) {
-      const a = [];
-      a.push({ cls: 'info', html: '<b>Renda mínima a comprovar:</b> ' + brl(Fi.rendaMinima) + ' por mês (' + CC.REGRAS.rendaMultiplo + ' × ' + (Fi.sistema === 'sac' ? 'a 1ª parcela' : 'a parcela') + ' de ' + brl(Math.max(Fi.primeira, Fi.ultima)) + ').' });
-      a.push({ cls: 'info', html: '<b>Idade máxima na assinatura:</b> ' + textoIdade(Fi.idadeMaxima) + ' (nascidos a partir de ' + data(Fi.nascimentoMinimo) + '), para não passar de ' + CC.REGRAS.idadeLimite + ' anos ao fim de ' + Fi.prazo + ' meses, contando de hoje (' + data(Fi.hoje) + ').' });
-      if (Fi.cliente) {
-        const c = Fi.cliente;
-        a.push(c.excede
-          ? { cls: 'alerta', html: '<b>Atenção:</b> o cliente tem ' + textoIdade(c.idade) + ' e, ao fim de ' + Fi.prazo + ' meses, teria ' + textoIdade(c.idadeFim) + '. Prazo compatível com o limite de ' + CC.REGRAS.idadeLimite + ' anos: ' + (c.prazoMaximo > 0 ? 'até ' + c.prazoMaximo + ' meses' : 'nenhum') + '.' }
-          : { cls: 'info', html: '<b>Cliente:</b> ' + textoIdade(c.idade) + '; dentro do limite de idade para este prazo.' });
-      }
-      return a;
+      return [
+        { cls: 'info', html: '<b>Renda mínima a comprovar:</b> ' + brl(Fi.rendaMinima) + ' por mês, para que a 1ª parcela de ' + brl(Fi.primeira) + ' não passe de ' + CC.REGRAS.comprometimentoRenda + '% da renda.' },
+        { cls: 'info', html: '<b>Idade máxima na assinatura:</b> ' + textoIdade(Fi.idadeMaxima) + ' (nascidos a partir de ' + data(Fi.nascimentoMinimo) + '), para não passar de ' + CC.REGRAS.idadeLimite + ' anos ao fim de ' + Fi.prazo + ' meses, contando de hoje (' + data(Fi.hoje) + ').' }
+      ];
     }
+
+    const CAB_COMPARATIVO = (rc, Fi) => ['Mês', 'Parcela consórcio (reajuste ' + esc(rc.indice.nome) + ')', 'Parcela financiamento (reajuste TR)', 'Economia de parcela',
+      'Acumulado orgânico', 'Acumulado aplicado', 'Saldo devedor financiamento', 'Saldo devedor consórcio'];
+
+    function linhasComparativo(K) {
+      const cor = (x) => '<span class="' + (x >= -0.005 ? 'positivo' : 'negativo') + '">' + brl(x) + '</span>';
+      return K.linhas.map((l) => [String(l.t), brl(l.consorcio), brl(l.financiamento), cor(l.economia), cor(l.organico), cor(l.aplicado), brl(l.saldoFin), brl(l.saldoCons)]);
+    }
+
+    function subComparativo(K) {
+      return 'Economia de parcela: quanto a parcela do consórcio fica abaixo da do financiamento. Acumulado orgânico: essa economia guardada mês a mês. ' +
+        'Acumulado aplicado: a mesma economia investida no CDB a ' + pct(K.taxaAplicacao) + ' a.a. (bruto).';
+    }
+
+    function linhasCustos(Fi) {
+      const m = Fi.meses[0];
+      const rot = (r) => r.map(([nome, m1, total]) => [nome, brl(m1), brl(total), pct((total / Fi.credito) * 100)]);
+      return rot([
+        ['MIP (morte e invalidez)', m.mip, Fi.custos.mip],
+        ['DFI/DFC (danos físicos)', m.dfi, Fi.custos.dfi],
+        ['Outros seguros', m.seguros, Fi.custos.seguros],
+        ['TA (taxa de administração)', m.ta, Fi.custos.ta]
+      ]);
+    }
+    const rodapeCustos = (Fi) => ['Total', brl(Fi.meses[0].mip + Fi.meses[0].dfi + Fi.meses[0].seguros + Fi.meses[0].ta), brl(Fi.custos.total), pct(Fi.custosPct)];
+    const subCustos = (Fi) => 'Encargos que o banco cobra além dos juros, somados nos ' + Fi.prazo + ' meses: ' + brl(Fi.custos.total) + ', ou ' + pct(Fi.custosPct) + ' do crédito de ' + brl(Fi.credito) + '.';
 
     function linhaForma(rot, val, cls) {
       return '<div class="forma-linha' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + val + '</b></div>';
@@ -329,20 +378,28 @@
       const Fi = rc.financiamento;
       let h = '<section class="bloco-res vitrine">' + ui.tituloSecao('Consórcio vs', 'Financiamento', 'Comparativo');
       if (!Fi.ok) return h + '<p class="nc">Não calculado: ' + esc(Fi.pend.join('; ')) + '.</p></section>';
-      h += '<p class="g-sub">' + subFinanciamento(Fi) + '</p>';
+      h += '<p class="g-sub">' + subFinanciamento(Fi, rc) + '</p>';
       h += '<div class="formas">';
       if (Fi.consorcio) h += '<article class="forma"><header class="forma-topo"><span class="forma-icone">' + icone('carta') + '</span><h3>Carta contemplada<small class="forma-sub">' + esc(rc.segmento) + '</small></h3></header>' + linhasConsorcio(Fi, rc).map((l) => linhaForma(...l)).join('') + '</article>';
       h += '<article class="forma"><header class="forma-topo"><span class="forma-icone">' + icone('banco') + '</span><h3>Financiamento<small class="forma-sub">' + nomeSistema(Fi) + '</small></h3></header>' + linhasFinanciamento(Fi).map((l) => linhaForma(...l)).join('') + '</article>';
       h += '</div>';
       if (isNum(Fi.diferenca) && mesmoCredito(Fi)) {
         const favor = Fi.diferenca >= 0;
-        h += '<div class="cet comparativo"><span>Diferença no total pago</span><b class="' + (favor ? 'positivo' : 'negativo') + '">' + brl(Math.abs(Fi.diferenca)) + '</b><small>a favor do ' + (favor ? 'consórcio' : 'financiamento') + '</small></div>';
+        h += '<div class="cet comparativo"><span>Diferença no total pago</span><b class="' + (favor ? 'positivo' : 'negativo') + '">' + brl(Math.abs(Fi.diferenca)) + '</b><small>a favor do ' + (favor ? 'consórcio' : 'financiamento') + ', com os reajustes de cada um</small></div>';
       }
+      const K = Fi.comparativo;
+      if (K) {
+        h += K.ok
+          ? recolhivel('comparativo', 'Consórcio × financiamento a cada 12 meses', '<p class="g-sub">' + subComparativo(K) + '</p>' + tabela(CAB_COMPARATIVO(rc, Fi), linhasComparativo(K), { cls: 'tab-comp' }))
+          : '<h3 class="sub-titulo">Consórcio × financiamento a cada 12 meses</h3><p class="nc">Não calculado: ' + esc(K.pend.join('; ')) + '.</p>';
+      }
+      h += recolhivel('custos', 'Custos invisíveis do financiamento', '<p class="g-sub">' + subCustos(Fi) + '</p>' + tabela(['Custo', '1º mês', 'Total no contrato', '% do crédito'], linhasCustos(Fi), { rodape: rodapeCustos(Fi) }));
       h += '<div class="avisos-fin">' + avisosFinanciamento(Fi).map((x) => '<p class="aviso-fin ' + x.cls + '">' + x.html + '</p>').join('') + '</div>';
       return h + '</section>';
     }
 
     function desenhar(rc, s, ctx) {
+      recolhidos = ctx.recolhidos || new Set();
       let h = cabecalho(rc, s, ctx.lead);
       h += secResumo(rc);
       h += secCaracteristicas(rc);
@@ -402,19 +459,19 @@
     const pdfLinhas = (pares) => '<div class="pdf-linhas">' + pares.map(([rot, val, cls]) => '<div class="pdf-linha' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + val + '</b></div>').join('') + '</div>';
     const pdfDestaques = (itens) => '<div class="pdf-destaques c' + itens.length + '">' + itens.map(([rot, val, nota, cls]) => '<div' + (cls ? ' class="' + cls + '"' : '') + '><span>' + rot + '</span><b>' + val + '</b>' + (nota ? '<small>' + nota + '</small>' : '') + '</div>').join('') + '</div>';
 
-    function pdfTabela(cab, linhas, rodape) {
-      return '<table class="pdf-tab pdf-tab-dir"><thead><tr>' + cab.map((c) => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>' +
+    function pdfTabela(cab, linhas, rodape, cls) {
+      return '<table class="pdf-tab pdf-tab-dir' + (cls ? ' ' + cls : '') + '"><thead><tr>' + cab.map((c) => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>' +
         linhas.map((l) => '<tr' + (l.cls ? ' class="' + l.cls + '"' : '') + '>' + (l.cel || l).map((c) => '<td>' + c + '</td>').join('') + '</tr>').join('') + '</tbody>' +
         (rodape ? '<tfoot><tr>' + rodape.map((c) => '<td>' + c + '</td>').join('') + '</tr></tfoot>' : '') + '</table>';
     }
 
     /** Bloco de tabela: no PDF, as linhas que não cabem na página continuam na seguinte. */
-    const blocoTabela = (titulo, sub, cab, linhas, rodape, antes) => ({ tab: { titulo, sub, cab, linhas, rodape, antes } });
+    const blocoTabela = (titulo, sub, cab, linhas, rodape, antes, cls) => ({ tab: { titulo, sub, cab, linhas, rodape, antes, cls } });
 
     function htmlTabela(t, linhas, continuacao, ultimo) {
       return '<div class="pdf-bloco">' + pdfTitulo(t.titulo[0], t.titulo[1] + (continuacao ? ' (continuação)' : '')) +
         (continuacao ? '' : (t.sub ? '<p class="pdf-ident pdf-sub-bloco">' + t.sub + '</p>' : '') + (t.antes || '')) +
-        pdfTabela(t.cab, linhas, ultimo ? t.rodape : null) + '</div>';
+        pdfTabela(t.cab, linhas, ultimo ? t.rodape : null, t.cls) + '</div>';
     }
 
     function pdfPagina(n, total, lead, corpo) {
@@ -438,7 +495,7 @@
         const pg = area.querySelector('.pdf-pagina');
         const corpo = area.querySelector('.pdf-corpo');
         const cs = getComputedStyle(pg);
-        util = pg.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+        util = (pg.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) * 0.994;
         gap = parseFloat(getComputedStyle(corpo).rowGap) || 0;
         medidas = Array.from(corpo.children).map((el, i) => {
           const h = el.getBoundingClientRect().height;
@@ -503,16 +560,15 @@
       const A = rc.amortizacao;
       if (A && !A.ok) blocos.push(pdfNc('Estudo de', 'Amortização', A.pend));
       if (A && A.ok) {
-        const sub = 'Aporte de ' + brl(A.aporte) + ' no mês ' + A.mes + ' abate o saldo devedor; parcela recalculada mantendo o prazo, com ' + esc(textoReajuste(rc, A.m1)) + '.';
-        blocos.push(blocoTabela(['Estudo de', 'Amortização'], sub, ['Mês', 'Parcela sem aporte', 'Parcela com aporte', 'Saldo devedor'], linhasAmortizacao(A), null, pdfDestaques(itensAmortizacao(A))));
+        blocos.push(blocoTabela(['Estudo de', 'Amortização'], subAmortizacao(rc, A), ['Mês', 'Parcela sem aporte', 'Parcela com aporte', 'Saldo devedor'], linhasAmortizacao(A), null, pdfDestaques(itensAmortizacao(A))));
       }
       const E = rc.evolucao;
       if (E && !E.ok) blocos.push(pdfNc('Evolução das', 'Parcelas', E.pend));
-      if (E && E.ok) blocos.push(blocoTabela(['Evolução das', 'Parcelas'], 'Parcela com ' + esc(textoReajuste(rc, E.m1)) + ', aporte acumulado em parcelas e saldo devedor ao fim de cada período.', ['Mês', 'Parcela', 'Aporte acumulado', 'Saldo devedor'], linhasEvolucao(E)));
+      if (E && E.ok) blocos.push(blocoTabela(['Evolução das', 'Parcelas'], subEvolucao(rc, E), ['Mês', 'Parcela', 'Aporte acumulado', 'Saldo devedor'], linhasEvolucao(E)));
       const Rd = rc.rendimentos;
       if (Rd && !Rd.ok) blocos.push(pdfNc('Calculadora de', 'Rendimentos', Rd.pend));
       if (Rd && Rd.ok) {
-        blocos.push('<div class="pdf-bloco">' + pdfTitulo('Calculadora de', 'Rendimentos') + '<p class="pdf-ident pdf-sub-bloco">Como ficaria o valor se fosse investido ' + periodoAplicacao(Rd) + '. Valor líquido de resgate:</p>' +
+        blocos.push('<div class="pdf-bloco">' + pdfTitulo('Calculadora de', 'Rendimentos') + '<p class="pdf-ident pdf-sub-bloco">' + subRendimentos(Rd) + ' Valor líquido de resgate:</p>' +
           pdfDestaques(infosRendimentos(Rd)) + barras(Rd, true) + '</div>');
         blocos.push('<div class="pdf-bloco">' + pdfTitulo('Simulação do', 'Investimento') + tabelaRendimentos(Rd, true) + pdfDestaques(itensComparativoRend(rc)) +
           '<p class="pdf-nota">' + esc(notaRendimentos({ params: Object.assign({}, CC.PARAMS_RENDIMENTOS, s.rendimentos.params), fonteTaxas: ctx.fonteTaxas })) + '</p></div>');
@@ -520,13 +576,17 @@
       const Fi = rc.financiamento;
       if (Fi && !Fi.ok) blocos.push(pdfNc('Consórcio vs', 'Financiamento', Fi.pend));
       if (Fi && Fi.ok) {
-        let h = '<div class="pdf-bloco">' + pdfTitulo('Consórcio vs', 'Financiamento') + '<p class="pdf-ident pdf-sub-bloco">' + subFinanciamento(Fi) + '</p>';
+        let h = '<div class="pdf-bloco">' + pdfTitulo('Consórcio vs', 'Financiamento') + '<p class="pdf-ident pdf-sub-bloco">' + subFinanciamento(Fi, rc) + '</p>';
         h += '<div class="pdf-grade c' + (Fi.consorcio ? 2 : 1) + '">';
         if (Fi.consorcio) h += '<article class="pdf-cartao"><header><span class="forma-icone">' + icone('carta') + '</span><h3>Carta contemplada</h3></header>' + pdfLinhas(linhasConsorcio(Fi, rc)) + '</article>';
         h += '<article class="pdf-cartao"><header><span class="forma-icone">' + icone('banco') + '</span><h3>Financiamento<small class="pdf-sub">' + nomeSistema(Fi) + '</small></h3></header>' + pdfLinhas(linhasFinanciamento(Fi)) + '</article></div>';
-        if (isNum(Fi.diferenca) && mesmoCredito(Fi)) h += '<div class="pdf-cet"><span>Diferença no total pago</span><b>' + brl(Math.abs(Fi.diferenca)) + '</b><em>a favor do ' + (Fi.diferenca >= 0 ? 'consórcio' : 'financiamento') + '</em></div>';
+        if (isNum(Fi.diferenca) && mesmoCredito(Fi)) h += '<div class="pdf-cet"><span>Diferença no total pago</span><b>' + brl(Math.abs(Fi.diferenca)) + '</b><em>a favor do ' + (Fi.diferenca >= 0 ? 'consórcio' : 'financiamento') + ', com os reajustes de cada um</em></div>';
         h += avisosFinanciamento(Fi).map((x) => '<p class="pdf-aviso ' + x.cls + '">' + x.html + '</p>').join('');
         blocos.push(h + '</div>');
+        const K = Fi.comparativo;
+        if (K && !K.ok) blocos.push(pdfNc('Consórcio × financiamento', 'a cada 12 meses', K.pend));
+        if (K && K.ok) blocos.push(blocoTabela(['Consórcio × financiamento', 'a cada 12 meses'], subComparativo(K), CAB_COMPARATIVO(rc, Fi), linhasComparativo(K), null, null, 'pdf-tab-comp'));
+        blocos.push(blocoTabela(['Custos invisíveis do', 'financiamento'], subCustos(Fi), ['Custo', '1º mês', 'Total no contrato', '% do crédito'], linhasCustos(Fi), rodapeCustos(Fi)));
       }
       // Chamada para o especialista e avisos
       const wa = ui.numeroWhatsapp((window.CONFIG_SIMULADOR || {}).whatsappEspecialista);

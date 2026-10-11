@@ -50,9 +50,9 @@ Pacote completo do simulador, com código, logos, manual de identidade visual e 
 ### Página 2 · Carta Contemplada
 
 - **Resumo:** crédito contrato, parcela atual, CET mensal e CET anual + indexador (CET aproximado, como no simulador de cartas contempladas).
-- **Características:** crédito total e líquido, entrada (ágio), custo da operação (R$ e %), saldo devedor e estimativa de transferência (1%).
+- **Características:** crédito total e líquido, entrada (ágio), custo da operação (saldo devedor + ágio, em R$ e em % acima do crédito) e saldo devedor.
 - **Fluxo de parcelas (sempre):** agrupado por faixa de meses; o reajuste pelo indexador começa desabilitado.
-- **Guias opcionais (desabilitadas ao iniciar):** Estudo de Amortização (aporte no mês informado, parcela recalculada e tabela a cada 12 meses), Evolução de Parcelas (a cada 12 meses, com reajuste, aporte acumulado e saldo devedor), Calculadora de Rendimentos (mecanismo da calculadora de renda fixa; aplicação inicial = crédito − entrada; período = maior prazo; o aporte da amortização entra só no mês dele) e Consórcio vs Financiamento (Price/SAC, 420 meses, entrada de 20%, renda mínima 3× a parcela e idade máxima de 65 anos ao fim do contrato).
+- **Guias opcionais (desabilitadas ao iniciar):** Estudo de Amortização (aporte no mês informado, parcela recalculada e tabela a cada 12 meses), Evolução de Parcelas (a cada 12 meses, com reajuste, aporte acumulado e saldo devedor), Calculadora de Rendimentos (mecanismo da calculadora de renda fixa; aplicação inicial = crédito − entrada; período = maior prazo; o aporte da amortização entra só no mês dele) e Consórcio vs Financiamento (Price/SAC, 420 meses, entrada de 20%, TR e custos do banco, comparativo a cada 12 meses, custos invisíveis, renda mínima pela regra dos 30% e idade máxima de 65 anos ao fim do contrato).
 
 Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 
