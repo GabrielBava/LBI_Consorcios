@@ -56,7 +56,7 @@ Cada carta: **Crédito disponível\***, **Entrada / ágio pago**, **Parcela atua
 4. **Estudo de Amortização** (se habilitado): saldo antes/depois do aporte, parcela antes/depois, reajustes evitados e tabela a cada 12 meses (mês, parcela sem aporte, parcela com aporte, saldo devedor), com a linha do mês do aporte destacada.
 5. **Evolução das Parcelas** (se habilitada): a cada 12 meses e no último mês — mês, parcela com reajuste, aporte acumulado (parcelas pagas) e saldo devedor, sempre por último.
 6. **Calculadora de Rendimentos** (se habilitada): valor inicial, aportes mensais, período, aporte da amortização (quando houver) e soma investida; barras do valor líquido de resgate (com a correção pelo IPCA como referência); tabela com valor bruto acumulado, rentabilidade bruta, custos, IR, valor líquido acumulado, rentabilidade líquida e ganho líquido; comparação com o custo da operação da carta.
-7. **Consórcio vs Financiamento** (se habilitado): cartões da carta (total pago com reajuste pelo indexador e sem reajuste) e do financiamento (1ª e última parcela com seguros e taxa, juros + TR, total pago, juros totais e custos além dos juros); diferença no total pago com os reajustes de cada um (só com o mesmo crédito da carta); tabela **a cada 12 meses** com parcela do consórcio (reajuste pelo indexador), parcela do financiamento (reajuste TR, com seguros e taxa), economia de parcela, acumulado orgânico, acumulado aplicado (CDB da calculadora, bruto), saldo devedor do financiamento e do consórcio; tabela de **custos invisíveis** (MIP, DFI/DFC, outros seguros, TA: 1º mês, total no contrato e % do crédito, com total geral); avisos de renda mínima (regra dos 30%) e idade máxima na assinatura.
+7. **Consórcio vs Financiamento** (se habilitado): cartões da carta (total pago com reajuste pelo indexador e sem reajuste) e do financiamento (1ª e última parcela com seguros e taxa, juros + TR, total pago, juros totais e custos além dos juros); diferença no total pago com os reajustes de cada um (só com o mesmo crédito da carta); tabela **a cada 12 meses** (só com o mesmo crédito da carta) com parcela do consórcio (reajuste pelo indexador), parcela do financiamento (reajuste TR, com seguros e taxa), economia de parcela, acumulado orgânico, acumulado aplicado (CDB da calculadora, bruto), saldo devedor do financiamento e do consórcio; tabela de **custos invisíveis** (MIP, DFI/DFC, outros seguros, TA: 1º mês, total no contrato e % do crédito, com total geral); avisos de renda mínima (regra dos 30%) e idade máxima na assinatura.
 
 **PDF:** páginas A4 no tema escuro da marca, montadas conforme as guias habilitadas; uma guia habilitada com pendência aparece como "Não calculado" com o motivo. Os blocos são medidos no tamanho final; tabelas longas continuam na página seguinte ("continuação"). A última página traz a chamada para o especialista e o aviso. A mensagem do WhatsApp segue o resumo do simulador de cartas contempladas (cartas, resumo financeiro, CET + indexador, transferência e fluxo das parcelas).
 
@@ -73,7 +73,7 @@ Notação por carta *i*: crédito Cᵢ, entrada Eᵢ, parcela Pᵢ, prazo nᵢ. 
 | Custo total da operação (%) | (S + E) ÷ C − 100% |
 | Custo efetivo (base do CET) | (E + S) − C, sobre o crédito líquido (C − E) |
 | Prazo ponderado | Σ(nᵢ × Sᵢ) ÷ S |
-| CET mensal (aprox.) | Custo % ÷ prazo ponderado |
+| CET mensal (aprox.) | Custo efetivo % ÷ prazo ponderado |
 | CET anual (aprox.) | CET mensal × 12, exibido "+ indexador" |
 | Estimativa de transferência | 1% × C (só na mensagem do WhatsApp) |
 | Reajustes até o mês t | 0 se t < m₁; senão 1 + ⌊(t − m₁) ÷ 12⌋ |
@@ -110,5 +110,5 @@ Produtos da calculadora: Poupança (% a.m., isenta), CDB (% do CDI, prefixado ou
 
 ## 6. Rastreabilidade
 
-- Motor puro em `js/calc-contemplada.js`, testado em `tests/contemplada.test.js` (`npm test`), incluindo o exemplo do simulador de cartas contempladas: crédito R$ 1.200.000,00, entrada R$ 436.800,00, parcela R$ 6.165,60 × 233 → custo 88,23%, CET 0,38% a.m. e 4,54% a.a.
+- Motor puro em `js/calc-contemplada.js`, testado em `tests/contemplada.test.js` (`npm test`), incluindo o exemplo do simulador de cartas contempladas: crédito R$ 1.200.000,00, entrada R$ 436.800,00, parcela R$ 6.165,60 × 233 → custo da operação R$ 1.873.384,80 (56,12%), custo efetivo 88,23% (base do CET), CET 0,38% a.m. e 4,54% a.a.
 - Regras fixas (transferência 1%, comprometimento de 30% da renda, idade 65, prazo máximo 420, reajuste a cada 12 meses) ficam em `REGRAS`; taxas de referência da calculadora em `PARAMS_RENDIMENTOS`.

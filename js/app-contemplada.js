@@ -190,6 +190,7 @@
     }
 
     function subAmortizacao(rc, A) {
+      if (A.saldoDepois < 0.005) return 'Com um aporte de ' + brl(A.aporte) + ' no mês ' + A.mes + ' (bônus, causa trabalhista ou outra fonte), o saldo devedor é quitado: não há mais parcelas a pagar a partir do mês ' + (A.mes + 1) + '.';
       return 'Com um aporte de ' + brl(A.aporte) + ' no mês ' + A.mes + ' (bônus, causa trabalhista ou outra fonte), o saldo devedor cai e a parcela diminui, mantendo o prazo. ' +
         'Os reajustes anuais pelo ' + esc(textoIndice(rc)) + ' continuam valendo.';
     }
@@ -266,7 +267,11 @@
     const periodoAplicacao = (Rd) => (Rd.meses >= Rd.prazoMax ? 'pelo prazo da junção (' + meses(Rd.meses) + ')' : 'por ' + meses(Rd.meses));
 
     function subRendimentos(Rd) {
-      return 'Quanto o crédito líquido de ' + brl(Rd.inicial) + ' (crédito menos a entrada) renderia se fosse investido ' + periodoAplicacao(Rd) + '.';
+      const somas = [];
+      if (Rd.mensal > 0) somas.push(brl(Rd.mensal) + ' por mês');
+      if (Rd.extra) somas.push('o aporte de ' + brl(Rd.extra.valor) + ' no mês ' + Rd.extra.mes);
+      return 'Quanto o crédito líquido de ' + brl(Rd.inicial) + ' (crédito menos a entrada)' + (somas.length ? ', mais ' + somas.join(' e ') + ',' : '') +
+        ' renderia se fosse investido ' + periodoAplicacao(Rd) + '.';
     }
 
     function notaRendimentos(ctx) {
@@ -545,8 +550,8 @@
       blocos.push('<header class="pdf-topo">' + (ui.LOGO.escuro ? '<img class="pdf-logo" src="' + ui.LOGO.escuro + '" alt="Vero Consórcios">' : '') +
         '<p class="eyebrow">Emitida em ' + hoje + '</p><h1>Proposta de <span class="acento">Carta Contemplada</span></h1>' +
         '<p class="pdf-cliente">' + esc(lead) + '</p><p class="pdf-ident">' + identificacao(rc, s) + '</p></header>' +
-        '<div class="pdf-kpis">' + kpi('Crédito contrato', R.ok ? brl(R.credito) : '—', 'destaque') + kpi('Parcela atual', R.ok ? brl(R.parcelaAtual) : '—', 'destaque') +
-        kpi('CET mensal', R.ok ? pct(R.cetMes) : '—', '', 'a.m.') + kpi('CET anual', R.ok ? pct(R.cetAno) : '—', 'cet-indice', 'a.a. + ' + esc(rc.indice.nome)) + '</div>');
+        '<div class="pdf-kpis pdf-kpis-cont">' + kpi('Crédito contrato', R.ok ? brl(R.credito) : '—', 'destaque') + kpi('Parcela atual', R.ok ? brl(R.parcelaAtual) : '—', 'destaque') +
+        kpi('CET mensal', R.ok ? pct(R.cetMes) : '—', '', 'a.m.') + kpi('CET anual', R.ok ? pct(R.cetAno) : '—', 'cet-indice', 'a.a.&nbsp;+&nbsp;' + esc(rc.indice.nome)) + '</div>');
       // Seção habilitada com pendência: aparece como "Não calculado", como diz a prévia
       const pdfNc = (a, b, pend) => '<div class="pdf-bloco">' + pdfTitulo(a, b) + '<p class="pdf-ident pdf-nc">Não calculado: ' + esc(pend.join('; ')) + '.</p></div>';
       if (!R.ok) blocos.push(pdfNc('Características da', 'Proposta', ['preencha crédito, parcela e prazo de todas as cartas']));

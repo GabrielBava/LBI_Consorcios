@@ -525,6 +525,10 @@
     if (!inteiro(n) || n < 1 || n > REGRAS.prazoFinanciamentoMax) out.pend.push('Prazo do financiamento entre 1 e ' + REGRAS.prazoFinanciamentoMax + ' meses');
     if (!isNum(pct) || pct < 0 || pct >= 100) out.pend.push('Entrada entre 0% e 100%');
     if (!isNum(juros) || juros < 0) out.pend.push('Informe a taxa de juros do financiamento');
+    [['tr', 'TR'], ['mip', 'MIP'], ['dfi', 'DFI/DFC'], ['seguros', 'outros seguros'], ['ta', 'taxa de administração']].forEach(([k, rot]) => {
+      const x = num(f[k]);
+      if (isNum(x) && x < 0) out.pend.push(rot + ' não pode ser negativo');
+    });
     if (out.pend.length) return out;
     const entrada = credito * pct / 100;
     const financiado = credito - entrada;
@@ -557,7 +561,8 @@
     if (R.ok) {
       out.consorcio = { credito: R.credito, entrada: R.entrada, parcela: R.parcelaAtual, prazo: R.prazoMax, totalSemReajuste: R.totalPago };
       const Fc = fluxoMensal(s, true);
-      out.comparativo = comparativo(s, Fc, out);
+      out.comparativo = Math.abs(credito - R.credito) < 0.005 ? comparativo(s, Fc, out)
+        : { ok: false, pend: ['comparação feita só com o mesmo crédito da carta (' + fmtBRL(R.credito) + ')'], linhas: [] };
       if (Fc.ok) {
         out.consorcio.totalPago = R.entrada + Fc.total;
         out.diferenca = out.totalPago - out.consorcio.totalPago;

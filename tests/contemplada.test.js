@@ -341,3 +341,25 @@ test('idade: limite pelo 65º aniversário, inclusive com fim do contrato em 29/
   assert.equal(F.nascimentoMinimo.getDate(), 1, 'nascidos a partir de 01/03/1991');
   assert.equal(F.nascimentoMinimo.getMonth(), 2);
 });
+
+test('financiamento: premissas negativas ficam pendentes (não entram no cálculo)', () => {
+  const s = base();
+  s.indiceTaxa = 5;
+  Object.assign(s.financiamento, { ativo: true, mip: -0.03, tr: -2 });
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
+  assert.equal(F.ok, false);
+  assert.ok(F.pend.some((p) => /MIP não pode ser negativo/.test(p)));
+  assert.ok(F.pend.some((p) => /TR não pode ser negativo/.test(p)));
+});
+
+test('comparativo a cada 12 meses só com o mesmo crédito da carta', () => {
+  const s = base();
+  s.indiceTaxa = 5;
+  Object.assign(s.financiamento, { ativo: true, credito: 2500000 });
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
+  assert.ok(F.ok);
+  assert.equal(F.comparativo.ok, false);
+  assert.match(F.comparativo.pend[0], /mesmo crédito da carta/);
+  s.financiamento.credito = null;
+  assert.ok(CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.comparativo.ok);
+});

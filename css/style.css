@@ -470,7 +470,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Página 2: larguras pelo conteúdo, para "CET anual a.a. + índice" caber numa linha */
 .kpis-cont { grid-template-columns: repeat(4, auto); }
 .kpis-cont .kpi-val { font-size: clamp(1.2rem, 1.7vw, var(--fs-kpi)); }
-@media (min-width: 901px) and (max-width: 1240px) { .kpis-cont { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 901px) and (max-width: 1340px) { .kpis-cont { grid-template-columns: 1fr 1fr; } }
 .kpi-cet .kpi-val { white-space: normal; }
 /* Tabelas com seta para mostrar ou ocultar */
 .tabela-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 0 10px; }
@@ -678,6 +678,7 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .pdf-barras .ref .barra-fill { background: #415A77; }
 .pdf-barras .barra-num { min-width: 0; font-size: calc(9.4px * var(--k)); }
 /* G. nome longo do índice quebra linha no cartão do CET anual */
+.pdf-kpis.pdf-kpis-cont { grid-template-columns: 1.2fr 1.2fr .85fr 1.35fr; } /* só a página 2: mais espaço para "a.a. + índice" */
 .pdf-kpi.cet-indice b { white-space: normal; }
 .pdf-kpi.cet-indice b small { white-space: normal; }
 .pdf-nc { color: var(--danger); font-weight: 500; }
