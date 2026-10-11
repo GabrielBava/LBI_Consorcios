@@ -407,12 +407,9 @@ test('pontos de equilíbrio: parcelas que se igualam e economia aplicada que cob
   assert.ok(E.t > 1);
   assert.ok(K.meses[E.t - 1].consorcio >= K.meses[E.t - 1].financiamento - 0.005);
   assert.ok(K.meses[E.t - 2].consorcio < K.meses[E.t - 2].financiamento);
-  // Economia aplicada × saldo do consórcio
-  const I = K.equilibrioInvestido;
-  if (I.t) {
-    assert.ok(K.meses[I.t - 1].aplicado >= K.meses[I.t - 1].saldoCons);
-    if (I.t > 1) assert.ok(K.meses[I.t - 2].aplicado < K.meses[I.t - 2].saldoCons);
-  }
+  // Economia aplicada × saldo do consórcio: aqui a economia nunca alcança o saldo antes do fim
+  assert.equal(K.equilibrioInvestido.t, null);
+  assert.ok(K.meses.slice(0, 199).every((l) => l.aplicado < l.saldoCons));
   // Parcelas que nunca se igualam
   s.indiceTaxa = 0;
   const K2 = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.comparativo;
@@ -429,4 +426,62 @@ test('economia aplicada cobre o saldo do consórcio antes do fim', () => {
   assert.ok(I.t > 1 && I.t < 120);
   assert.ok(I.aplicado >= I.saldoCons);
   assert.ok(K.meses[I.t - 2].aplicado < K.meses[I.t - 2].saldoCons);
+});
+
+test('junção: o fim de uma carta derruba a parcela, mas não é ponto de equilíbrio', () => {
+  const s = base([{ credito: 600000, entrada: 100000, parcela: 8000, prazo: 60 }, { credito: 600000, entrada: 100000, parcela: 3000, prazo: 200 }]);
+  s.indiceTaxa = 5;
+  Object.assign(s.financiamento, { ativo: true });
+  const K = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.comparativo;
+  const E = K.equilibrioParcela;
+  assert.equal(E.salto.t, 61, 'a carta #1 termina no mês 60');
+  assert.ok(E.salto.consorcio < E.salto.financiamento);
+  assert.equal(E.inicio, 'consorcio', 'depois da queda, o consórcio fica com a parcela menor');
+  assert.equal(E.t, null, 'a queda não é equilíbrio e as parcelas não se cruzam depois');
+  // Com reajuste forte, a parcela da carta restante volta a alcançar a do financiamento: esse é o equilíbrio
+  s.indiceTaxa = 20;
+  const E2 = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.comparativo.equilibrioParcela;
+  assert.equal(E2.salto.t, 61);
+  assert.ok(E2.t > 61);
+  assert.equal(E2.inicio, 'consorcio');
+});
+
+test('CET + indexador: sem reajuste dentro do prazo, o indexador não entra', () => {
+  const s = base([{ credito: 300000, entrada: 50000, parcela: 30000, prazo: 10 }]);
+  s.indiceTaxa = 5;
+  Object.assign(s.financiamento, { ativo: true });
+  const K = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.consorcio;
+  assert.equal(K.semReajuste, true);
+  near(K.custoAa, K.cetAno);
+  near(K.primeira, K.ultima);
+  s.cartas[0].prazo = 24;
+  const K2 = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.consorcio;
+  assert.equal(K2.semReajuste, false);
+  near(K2.custoAa, K2.cetAno + 5);
+});
+
+test('gráficos sem o comparativo: o financiamento é calculado e validado só para eles', () => {
+  const s = base();
+  s.indiceTaxa = 5;
+  s.graficos.ativo = true;
+  assert.equal(s.financiamento.ativo, false);
+  const rc = CC.simular(s, { hoje: new Date(2026, 9, 10) });
+  assert.ok(rc.financiamento.ok);
+  assert.ok(rc.financiamento.comparativo.ok);
+  s.financiamento.juros = null;
+  assert.ok(CC.validar(s).some((v) => v.campo === 'financiamento.juros' && v.nivel === 'erro'));
+  s.graficos.ativo = false;
+  assert.equal(CC.simular(s).financiamento, null);
+  assert.ok(!CC.validar(s).some((v) => /^financiamento\./.test(v.campo)));
+});
+
+test('financiamento com crédito automático e carta incompleta pede as cartas, não o crédito', () => {
+  const s = base([{ credito: 1200000, entrada: 0, parcela: null, prazo: 100 }]);
+  s.indiceTaxa = 5;
+  s.financiamento.ativo = true;
+  const F = CC.simular(s).financiamento;
+  assert.equal(F.ok, false);
+  assert.match(F.pend[0], /todas as cartas/);
+  s.financiamento.credito = 0;
+  assert.match(CC.simular(s).financiamento.pend[0], /crédito necessário/);
 });

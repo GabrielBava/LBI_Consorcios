@@ -552,7 +552,7 @@
     const out = { ok: false, pend: [], sistema: f.sistema === 'sac' ? 'sac' : 'price' };
     const credito = isNum(num(f.credito)) ? num(f.credito) : R.ok ? R.credito : null;
     const n = num(f.prazo), pct = num(f.entradaPct), juros = num(f.juros);
-    if (!isNum(credito) || credito <= 0) out.pend.push('Informe o crédito necessário');
+    if (!isNum(credito) || credito <= 0) out.pend.push(isNum(num(f.credito)) || R.ok ? 'Informe o crédito necessário' : 'preencha crédito, parcela e prazo de todas as cartas');
     if (!inteiro(n) || n < 1 || n > REGRAS.prazoFinanciamentoMax) out.pend.push('Prazo do financiamento entre 1 e ' + REGRAS.prazoFinanciamentoMax + ' meses');
     if (!isNum(pct) || pct < 0 || pct >= 100) out.pend.push('Entrada entre 0% e 100%');
     if (!isNum(juros) || juros < 0) out.pend.push('Informe a taxa de juros do financiamento');
@@ -594,10 +594,12 @@
     // Comparação com a carta contemplada: parcelas reajustadas pelo indexador × financiamento com TR e encargos
     if (R.ok) {
       const taxa = taxaIndice(s);
+      // Sem nenhum reajuste dentro do prazo, o indexador não entra no custo da carta
+      const semReajuste = R.prazoMax < mesReajuste(s);
       out.consorcio = {
         credito: R.credito, entrada: R.entrada, creditoLiquido: R.creditoLiquido, parcela: R.parcelaAtual, prazo: R.prazoMax,
-        totalSemReajuste: R.totalPago, cetAno: R.cetAno, indiceTaxa: isNum(taxa) ? taxa : null,
-        custoAa: isNum(R.cetAno) && isNum(taxa) ? R.cetAno + taxa : null
+        totalSemReajuste: R.totalPago, cetAno: R.cetAno, semReajuste, indiceTaxa: semReajuste ? 0 : isNum(taxa) ? taxa : null,
+        custoAa: isNum(R.cetAno) && (semReajuste || isNum(taxa)) ? R.cetAno + (semReajuste ? 0 : taxa) : null
       };
       const Fc = fluxoMensal(s, true);
       out.comparativo = Math.abs(credito - R.credito) < 0.005 ? comparativo(s, Fc, out)
@@ -645,19 +647,29 @@
   }
 
   /**
-   * Ponto de equilíbrio das parcelas: primeiro mês em que a diferença (financiamento − consórcio) muda de lado ou
-   * zera, enquanto os dois ainda estão sendo pagos. inicio: quem começa com a parcela menor.
+   * Ponto de equilíbrio das parcelas: primeiro mês em que a parcela de um caminho alcança a do outro (a diferença
+   * financiamento − consórcio zera ou muda de lado), enquanto os dois ainda estão sendo pagos.
+   * Na junção, a parcela do consórcio cai de uma vez quando uma carta termina: essa queda não é um equilíbrio; fica
+   * registrada em "salto" e a busca continua a partir do novo lado. inicio: quem tinha a parcela menor antes do equilíbrio.
    */
   function equilibrioParcela(meses, ate) {
     if (!ate) return null;
     const lado = (l) => { const d = l.financiamento - l.consorcio; return Math.abs(d) < 0.005 ? 0 : d > 0 ? 1 : -1; };
-    const l0 = lado(meses[0]);
-    const inicio = l0 > 0 ? 'consorcio' : l0 < 0 ? 'financiamento' : null;
-    for (let t = 1; t <= ate; t++) {
+    const nome = (x) => (x > 0 ? 'consorcio' : x < 0 ? 'financiamento' : null);
+    let ref = lado(meses[0]);
+    if (ref === 0) return { t: 1, inicio: null, consorcio: meses[0].consorcio, financiamento: meses[0].financiamento };
+    let salto = null;
+    for (let t = 2; t <= ate; t++) {
       const l = meses[t - 1], x = lado(l);
-      if (x === 0 || x !== l0) return { t, inicio, consorcio: l.consorcio, financiamento: l.financiamento };
+      if (x === ref) continue;
+      if (x !== 0 && l.consorcio < meses[t - 2].consorcio - 0.005) { // fim de uma carta: a parcela do consórcio caiu
+        if (!salto) salto = { t, consorcio: l.consorcio, financiamento: l.financiamento };
+        ref = x;
+        continue;
+      }
+      return { t, inicio: nome(ref), consorcio: l.consorcio, financiamento: l.financiamento, salto };
     }
-    return { t: null, inicio };
+    return { t: null, inicio: nome(ref), salto };
   }
 
   /** Primeiro mês, antes da última parcela da carta, em que a economia aplicada cobre o saldo devedor do consórcio. */

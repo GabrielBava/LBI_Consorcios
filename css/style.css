@@ -333,11 +333,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .forma-linha.realce span { color: var(--text); font-weight: 500; }
 .forma-linha.acento-valor b { color: var(--primary-bright); }
 .forma-linha.negativo-valor b { color: var(--danger); }
-/* Consórcio vs financiamento lado a lado: as linhas dos dois cartões dividem a mesma grade (alinhadas) */
-.formas.lado { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Consórcio vs financiamento lado a lado: as linhas dos dois cartões dividem a mesma grade (alinhadas);
+   sem espaço para os dois (menu aberto em tela estreita, celular), um fica abaixo do outro */
+.formas.lado { grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
 .formas.lado > .forma { display: grid; grid-row: span 9; grid-template-rows: subgrid; align-content: start; }
 .formas.lado .forma-linha { align-items: center; }
-@media (max-width: 640px) { .formas.lado { grid-template-columns: minmax(0, 1fr); } }
 .forma-linha-nota { display: block; margin-top: 2px; font-size: var(--fs-xs); font-weight: 300; color: var(--text-muted); }
 .forma-linha.realce .forma-linha-nota, .forma-linha.forte .forma-linha-nota { font-weight: 300; }
 .forma-msg { margin: 8px; }

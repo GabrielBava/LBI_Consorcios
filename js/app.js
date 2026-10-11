@@ -639,7 +639,7 @@
     if (g.tipo === 'colunas') x = Math.min(g.N, Math.max(1, Math.floor((loc.x - ML) / g.banda) + 1));
     else x = Math.min(g.N, Math.max(1, Math.round(1 + ((loc.x - ML) / (GW - ML - MR)) * (g.N - 1))));
     const cursor = $('.g-cursor', caixa);
-    cursor.hidden = false;
+    cursor.removeAttribute('hidden'); // <g> do SVG não tem a propriedade hidden: alterna o atributo
     cursor.setAttribute('transform', 'translate(' + g.sx(x) + ',0)');
     // Pontos do cursor sobre cada linha (gráficos com mais de uma série)
     $$('circle', cursor).forEach((c, i) => {
@@ -662,7 +662,7 @@
     if (!ev.target.classList || !ev.target.classList.contains('g-alvo')) return;
     const caixa = ev.target.closest('.grafico');
     if (!caixa) return;
-    $('.g-cursor', caixa).hidden = true;
+    $('.g-cursor', caixa).setAttribute('hidden', '');
     $('.g-dica', caixa).hidden = true;
   }
 
@@ -1112,7 +1112,8 @@
     if (cont) {
       // Carta contemplada: páginas montadas conforme as guias habilitadas
       const rc = CC.simular(estadoCont);
-      erros = rc.validacoes.filter((v) => v.nivel === 'erro');
+      // Os gráficos não vão para o PDF: pendências só deles não contam como "Não calculado" no documento
+      erros = CC.validar(Object.assign({}, estadoCont, { graficos: { ativo: false } })).filter((v) => v.nivel === 'erro');
       prop = await TC.montarProposta(rc, estadoCont, lead, { fonteTaxas: fonteTaxas() });
       mensagem = TC.mensagem(rc, estadoCont, lead);
       prefixo = 'Proposta_Contemplada_';

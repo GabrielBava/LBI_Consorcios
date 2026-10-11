@@ -36,7 +36,7 @@ Cada carta: **Crédito disponível\***, **Entrada / ágio pago**, **Parcela atua
 | Indexador | INCC | Pré-fixado 5%, Pré-fixado 6%, IPCA, INCC, INPC ou Outro. |
 | Taxa estimada (% a.a.) | vazio | Obrigatória para IPCA/INCC/INPC/Outro quando algum reajuste é usado. |
 | Habilitar reajuste pelo indexador | **desmarcado** | Sem reajuste, o fluxo mostra as parcelas atuais. Habilitado, aplica o reajuste anual. |
-| 1º reajuste (mês) | 13 | Aparece quando há reajuste (fluxo, evolução ou amortização). Depois, a cada 12 meses. |
+| 1º reajuste (mês) | 13 | Aparece quando há reajuste (fluxo, evolução, amortização, Consórcio vs Financiamento ou Gráficos). Depois, a cada 12 meses. |
 
 ### 2.4 Guias opcionais (todas **desmarcadas** ao iniciar)
 | Guia | Campos |
@@ -90,8 +90,8 @@ Notação por carta *i*: crédito Cᵢ, entrada Eᵢ, parcela Pᵢ, prazo nᵢ. 
 | Seguro/FGHab do mês (como a Caixa) | Seguro de vida (MIP) = % × S′ (saldo devedor; na Caixa a taxa varia com a idade do cliente); seguro proteção do imóvel (DFI) = % × valor do imóvel atualizado pela TR (valor da garantia: B′ = B × (1 + TR)^(1/12) a cada mês); outros seguros e TA em R$ |
 | Parcela do financiamento | Prestação + seguro de vida + seguro proteção do imóvel + outros seguros + TA |
 | CESH (custo efetivo do seguro habitacional) | TIR anual das prestações com os dois seguros − TIR anual só das prestações, sobre o valor financiado: (1 + r_com)^12 − (1 + r_sem)^12 |
-| Custo anual nos cartões | Carta: CET a.a. + taxa do indexador; financiamento: juros a.a. + TR a.a. + CESH (soma simples, para comparação) |
-| Pontos de equilíbrio | Parcelas: 1º mês, até o fim do menor prazo, em que (parcela financiamento − parcela consórcio) zera ou muda de sinal; investido: 1º mês antes da última parcela da carta em que acumulado aplicado ≥ saldo devedor do consórcio |
+| Custo anual nos cartões | Carta: CET a.a. + taxa do indexador (+ 0% quando nenhum reajuste cai dentro do prazo); financiamento: juros a.a. + TR a.a. + CESH (soma simples, para comparação) |
+| Pontos de equilíbrio | Parcelas: 1º mês, até o fim do menor prazo, em que (parcela financiamento − parcela consórcio) zera ou muda de sinal — na junção, a queda da parcela quando uma carta termina não conta como equilíbrio (é citada no texto) e a busca segue; investido: 1º mês antes da última parcela da carta em que acumulado aplicado ≥ saldo devedor do consórcio |
 | Comparativo | Economia = parcela financiamento − parcela consórcio; acumulado orgânico = Σ economia; acumulado aplicado = (acumulado anterior × (1 + taxa CDB)^(1/12)) + economia do mês |
 | Custos invisíveis | Σ MIP, DFI/DFC, outros seguros e TA no contrato; % = total ÷ crédito necessário |
 | Renda mínima | 1ª parcela do financiamento ÷ 30% (a parcela não pode comprometer mais de 30% da renda) |

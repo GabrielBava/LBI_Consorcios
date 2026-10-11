@@ -310,15 +310,16 @@
     function linhasConsorcio(Fi, rc) {
       const K = Fi.consorcio, nome = esc(rc.indice.nome);
       const custo = isNum(K.cetAno) ? pct(K.cetAno) + ' + ' + (isNum(K.indiceTaxa) ? pct(K.indiceTaxa) + ' = ' + pct(K.custoAa) : nome) + ' a.a.' : '—';
+      const reaj = K.semReajuste ? 'sem reajuste do ' + nome + ' no prazo' : null;
       return [
         ['Crédito contratado', brl(K.credito), 'forte'],
         ['Entrada', brl(K.entrada), '', 'ágio pago na compra da carta'],
         ['Crédito líquido', brl(K.creditoLiquido), '', 'crédito − entrada'],
         ['1ª parcela', brl(isNum(K.primeira) ? K.primeira : K.parcela), 'acento-valor', isNum(K.primeira) && Math.abs(K.primeira - K.parcela) >= 0.005 ? 'parcela atual com o 1º reajuste' : 'parcela atual da carta'],
-        ['Última parcela', brl(K.ultima), '', 'mês ' + K.prazo + ', com reajuste ' + nome],
+        ['Última parcela', brl(K.ultima), '', 'mês ' + K.prazo + ', ' + (reaj || 'com reajuste ' + nome)],
         ['Prazo', meses(K.prazo)],
-        ['CET + ' + nome, custo, '', 'CET da carta + reajuste estimado do ' + nome],
-        ['Total pago (entrada + parcelas)', brl(K.totalPago), 'realce', 'com os reajustes do ' + nome]
+        ['CET + ' + nome, custo, '', reaj ? 'nenhum reajuste do ' + nome + ' cai dentro do prazo' : 'CET da carta + reajuste estimado do ' + nome],
+        ['Total pago (entrada + parcelas)', brl(K.totalPago), 'realce', reaj || 'com os reajustes do ' + nome]
       ];
     }
 
@@ -413,19 +414,24 @@
     // Gráficos: só na tela (não entram no PDF), com as premissas do Consórcio vs Financiamento
     // -------------------------------------------------------------------------
 
-    function pendGraficos(Fi) {
+    function pendGraficos(rc) {
+      const Fi = rc.financiamento;
       if (!Fi) return ['habilite os gráficos no menu'];
+      if (!rc.resumo.ok) return [MSG_CARTAS.replace(/^Não calculado: /, '').replace(/\.$/, '')];
       if (!Fi.ok) return Fi.pend;
-      if (!Fi.comparativo) return [MSG_CARTAS.replace(/^Não calculado: /, '').replace(/\.$/, '')];
-      return Fi.comparativo.ok ? null : Fi.comparativo.pend;
+      return Fi.comparativo && Fi.comparativo.ok ? null : (Fi.comparativo ? Fi.comparativo.pend : ['complete os dados do financiamento']);
     }
 
     function textoEquilibrioParcela(E, nome) {
-      if (E.t && E.inicio === 'consorcio') return '<b>Mês ' + E.t + ':</b> a parcela do consórcio (' + brl(E.consorcio) + '), com o reajuste do ' + esc(nome) + ', alcança a do financiamento (' + brl(E.financiamento) + '). Até lá, o cliente paga menos todo mês.';
-      if (E.t && E.inicio === 'financiamento') return '<b>Mês ' + E.t + ':</b> a parcela do financiamento (' + brl(E.financiamento) + ') alcança a do consórcio (' + brl(E.consorcio) + '). A partir daí, o consórcio passa a ter a parcela menor.';
+      // Na junção, o fim de uma carta derruba a parcela do consórcio de uma vez: isso é contado à parte, não como equilíbrio
+      const S = E.salto;
+      const salto = S ? 'No mês ' + S.t + ', com o fim de uma das cartas, a parcela do consórcio cai para ' + brl(S.consorcio) + ', ' +
+        (S.consorcio < S.financiamento ? 'abaixo' : 'acima') + ' da do financiamento (' + brl(S.financiamento) + ').' : '';
+      if (E.t && E.inicio === 'consorcio') return (salto ? salto + ' ' : '') + '<b>Mês ' + E.t + ':</b> a parcela do consórcio (' + brl(E.consorcio) + '), com o reajuste do ' + esc(nome) + ', alcança a do financiamento (' + brl(E.financiamento) + '). Até lá, o cliente paga menos todo mês.';
+      if (E.t && E.inicio === 'financiamento') return (salto ? salto + ' ' : '') + '<b>Mês ' + E.t + ':</b> a parcela do financiamento (' + brl(E.financiamento) + ') alcança a do consórcio (' + brl(E.consorcio) + '). A partir daí, o consórcio passa a ter a parcela menor.';
       if (E.t) return 'As duas parcelas começam iguais, em ' + brl(E.consorcio) + '.';
-      return E.inicio === 'consorcio' ? 'A parcela do consórcio fica abaixo da do financiamento enquanto os dois estão sendo pagos.'
-        : 'A parcela do financiamento fica abaixo da do consórcio enquanto os dois estão sendo pagos.';
+      const resto = E.inicio === 'consorcio' ? 'a parcela do consórcio fica abaixo da do financiamento' : 'a parcela do financiamento fica abaixo da do consórcio';
+      return salto ? salto + ' A partir daí, ' + resto + ' enquanto os dois estão sendo pagos.' : resto.charAt(0).toUpperCase() + resto.slice(1) + ' enquanto os dois estão sendo pagos.';
     }
 
     function textoEquilibrioInvestido(I) {
@@ -436,7 +442,7 @@
     function secGraficos(rc) {
       let h = '<section class="bloco-res vitrine">' + ui.tituloSecao('Consórcio × financiamento em', 'Gráficos', 'Mês a mês');
       const Fi = rc.financiamento;
-      const pend = pendGraficos(Fi);
+      const pend = pendGraficos(rc);
       if (pend) return h + '<p class="nc">Não calculado: ' + esc(pend.join('; ')) + '.</p></section>';
       const K = Fi.comparativo, nome = rc.indice.nome;
       const serie = (mod, rot, campo, ate, janela) => ({ mod, nome: rot, pontos: K.meses.slice(0, janela || K.T).map((l) => ({ x: l.t, y: l.t <= ate ? l[campo] : null })) });
