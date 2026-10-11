@@ -44,7 +44,8 @@ Cada carta: **Crédito disponível\***, **Entrada / ágio pago**, **Parcela atua
 | Estudo de Amortização | Valor do aporte (R$), Mês do aporte |
 | Evolução de Parcelas | — |
 | Calculadora de Rendimentos | Aporte inicial (travado = crédito − entrada), Aportes mensais (R$), Período (meses; automático = maior prazo), Parâmetros de rentabilidade |
-| Consórcio vs Financiamento | Sistema (Tabela Price/SAC), Prazo (padrão 420; atalhos 360/420), Entrada % (padrão 20), Juros % a.a. (padrão 11,5), Crédito necessário (pré-preenchido com o crédito das cartas, editável) e, em "Correção e custos do banco": TR (padrão 2% a.a.), MIP (0,03% a.m. do saldo), DFI/DFC (0,008% a.m. do valor do bem), outros seguros (R$/mês, padrão 0) e taxa de administração (R$ 25/mês) |
+| Consórcio vs Financiamento | Sistema (Tabela Price/SAC), Prazo (padrão 420; atalhos 360/420), Entrada % (padrão 20), Juros % a.a. (padrão 11,5), Crédito necessário (pré-preenchido com o crédito das cartas, editável), **Seguro de vida (%)** (MIP, padrão 0,03% a.m. do saldo devedor) e **Seguro proteção imóvel (%)** (DFI, padrão 0,008% a.m. do valor do imóvel) — o Seguro/FGHab da parcela da Caixa — e, em "Correção e custos do banco": TR (padrão 2% a.a.), outros seguros (R$/mês, padrão 0) e taxa de administração (R$ 25/mês) |
+| Gráficos | — (usam as premissas do Consórcio vs Financiamento; com o comparativo desmarcado, essas premissas continuam visíveis só para os gráficos) |
 
 ## 3. Proposta na tela (e no PDF)
 
@@ -56,7 +57,8 @@ Cada carta: **Crédito disponível\***, **Entrada / ágio pago**, **Parcela atua
 4. **Estudo de Amortização** (se habilitado): saldo antes/depois do aporte, parcela antes/depois, reajustes evitados e tabela a cada 12 meses (mês, parcela sem aporte, parcela com aporte, saldo devedor), com a linha do mês do aporte destacada.
 5. **Evolução das Parcelas** (se habilitada): a cada 12 meses e no último mês — mês, parcela com reajuste, aporte acumulado (parcelas pagas) e saldo devedor, sempre por último.
 6. **Calculadora de Rendimentos** (se habilitada): valor inicial, aportes mensais, período, aporte da amortização (quando houver) e soma investida; barras do valor líquido de resgate (com a correção pelo IPCA como referência); tabela com valor bruto acumulado, rentabilidade bruta, custos, IR, valor líquido acumulado, rentabilidade líquida e ganho líquido; comparação com o custo da operação da carta.
-7. **Consórcio vs Financiamento** (se habilitado): cartões da carta (total pago com reajuste pelo indexador e sem reajuste) e do financiamento (1ª e última parcela com seguros e taxa, juros + TR, total pago, juros totais e custos além dos juros); diferença no total pago com os reajustes de cada um (só com o mesmo crédito da carta); tabela **a cada 12 meses** (só com o mesmo crédito da carta) com parcela do consórcio (reajuste pelo indexador), parcela do financiamento (reajuste TR, com seguros e taxa), economia de parcela, acumulado orgânico, acumulado aplicado (CDB da calculadora, bruto), saldo devedor do financiamento e do consórcio; tabela de **custos invisíveis** (MIP, DFI/DFC, outros seguros, TA: 1º mês, total no contrato e % do crédito, com total geral); avisos de renda mínima (regra dos 30%) e idade máxima na assinatura.
+7. **Consórcio vs Financiamento** (se habilitado): dois cartões **lado a lado**, com as mesmas linhas alinhadas — Crédito contratado · Entrada · Crédito líquido (carta) / Crédito financiado (financiamento) · 1ª parcela · Última parcela · Prazo · **CET + indexador** (carta: CET a.a. + taxa do índice = total) / **Juros + TR + CESH** (financiamento: soma = total) · Total pago (entrada + parcelas), os dois com reajustes (indexador na carta; TR, Seguro/FGHab e taxas no financiamento). A 1ª parcela do financiamento detalha prestação + Seguro/FGHab + taxas. No celular os cartões ficam um abaixo do outro; diferença no total pago com os reajustes de cada um (só com o mesmo crédito da carta); tabela **a cada 12 meses** (só com o mesmo crédito da carta) com parcela do consórcio (reajuste pelo indexador), parcela do financiamento (reajuste TR, com seguros e taxa), economia de parcela, acumulado orgânico, acumulado aplicado (CDB da calculadora, bruto), saldo devedor do financiamento e do consórcio; tabela de **custos invisíveis** (seguro de vida/MIP, seguro proteção do imóvel/DFI, outros seguros, TA: 1º mês, total no contrato e % do crédito, com total geral e o CESH); avisos de renda mínima (regra dos 30%) e idade máxima na assinatura.
+8. **Gráficos** (se habilitados; **só na tela, nunca no PDF**): (a) evolução mensal das parcelas do consórcio (reajuste pelo indexador) e do financiamento (TR, Seguro/FGHab e taxas), com a marca do **ponto de equilíbrio** — o primeiro mês em que as parcelas se igualam ou trocam de lado enquanto as duas são pagas; (b) economia acumulada orgânica e aplicada e saldos devedores do consórcio e do financiamento, até a última parcela da carta, com a marca do mês em que a **economia aplicada cobre o saldo devedor do consórcio**. Legenda com cor e traço por linha (financiamento tracejado, orgânico pontilhado), dica ao passar o mouse com os valores do mês (e a diferença de parcela), "ver dados" com a tabela, e o texto do ponto de equilíbrio abaixo de cada gráfico. Exigem o mesmo crédito da carta, como a tabela a cada 12 meses.
 
 **PDF:** páginas A4 no tema escuro da marca, montadas conforme as guias habilitadas; uma guia habilitada com pendência aparece como "Não calculado" com o motivo. Os blocos são medidos no tamanho final; tabelas longas continuam na página seguinte ("continuação"). A última página traz a chamada para o especialista e o aviso. A mensagem do WhatsApp segue o resumo do simulador de cartas contempladas (cartas, resumo financeiro, CET + indexador, transferência e fluxo das parcelas).
 
@@ -85,8 +87,11 @@ Notação por carta *i*: crédito Cᵢ, entrada Eᵢ, parcela Pᵢ, prazo nᵢ. 
 | Rendimentos (mecanismo da calculadora de renda fixa) | Inicial × f^n + aportes mensais × (fⁿ − 1)/(f − 1), f = (1 + taxa a.a.)^(1/12); custos = bruto × [(1 + custo a.a.)^(n/12) − 1]; IR = ganho × alíquota(n): 22,5% até 6 meses, 20% até 11, 17,5% até 23, 15% depois |
 | Aporte da amortização na aplicação | Entra no mês M (nunca antes): valor × f^(n − M), com custos e IR pelo próprio prazo (n − M) |
 | Financiamento mês a mês | Saldo corrigido pela TR: S′ = S × (1 + TR)^(1/12); juros = S′ × i; Price: prestação = S′ × i ÷ [1 − (1 + i)^−(meses restantes)]; SAC: amortização = S′ ÷ meses restantes; i = (1 + juros a.a.)^(1/12) − 1 |
-| Encargos do mês | MIP = % × S′; DFI/DFC = % × valor do bem; outros seguros e TA em R$ |
-| Parcela do financiamento | Prestação + MIP + DFI/DFC + outros seguros + TA |
+| Seguro/FGHab do mês (como a Caixa) | Seguro de vida (MIP) = % × S′ (saldo devedor; na Caixa a taxa varia com a idade do cliente); seguro proteção do imóvel (DFI) = % × valor do imóvel atualizado pela TR (valor da garantia: B′ = B × (1 + TR)^(1/12) a cada mês); outros seguros e TA em R$ |
+| Parcela do financiamento | Prestação + seguro de vida + seguro proteção do imóvel + outros seguros + TA |
+| CESH (custo efetivo do seguro habitacional) | TIR anual das prestações com os dois seguros − TIR anual só das prestações, sobre o valor financiado: (1 + r_com)^12 − (1 + r_sem)^12 |
+| Custo anual nos cartões | Carta: CET a.a. + taxa do indexador; financiamento: juros a.a. + TR a.a. + CESH (soma simples, para comparação) |
+| Pontos de equilíbrio | Parcelas: 1º mês, até o fim do menor prazo, em que (parcela financiamento − parcela consórcio) zera ou muda de sinal; investido: 1º mês antes da última parcela da carta em que acumulado aplicado ≥ saldo devedor do consórcio |
 | Comparativo | Economia = parcela financiamento − parcela consórcio; acumulado orgânico = Σ economia; acumulado aplicado = (acumulado anterior × (1 + taxa CDB)^(1/12)) + economia do mês |
 | Custos invisíveis | Σ MIP, DFI/DFC, outros seguros e TA no contrato; % = total ÷ crédito necessário |
 | Renda mínima | 1ª parcela do financiamento ÷ 30% (a parcela não pode comprometer mais de 30% da renda) |
@@ -101,11 +106,11 @@ Produtos da calculadora: Poupança (% a.m., isenta), CDB (% do CDI, prefixado ou
 | Carta sem crédito, parcela ou prazo | Erro (campo destacado; resultados "Não calculado") |
 | Prazo restante acima de 600 meses | Erro (a carta não é calculada) |
 | Entrada maior ou igual ao crédito; prazo acima de 420 meses | Alerta |
-| Reajuste usado (fluxo, evolução ou amortização) com índice estimado sem taxa | Erro na taxa estimada |
+| Reajuste usado (fluxo, evolução, amortização, financiamento ou gráficos) com índice estimado sem taxa | Erro na taxa estimada |
 | Reajuste usado com "1º reajuste (mês)" vazio | Erro (sem reajuste em uso, o campo fica oculto e não é validado) |
 | Amortização sem valor ou com mês fora do prazo | Erro; aporte acima do saldo é limitado (aviso na proposta) |
 | Período da aplicação acima do maior prazo | Alerta; o período é limitado ao maior prazo |
-| Financiamento: prazo fora de 1–420, entrada fora de 0–100%, juros vazio | Erro |
+| Financiamento (ou gráficos): prazo fora de 1–420, entrada fora de 0–100%, juros vazio; TR, seguros ou taxa negativos | Erro |
 | Nome do cliente vazio | Erro (obrigatório nas duas páginas para gerar a proposta) |
 
 ## 6. Rastreabilidade

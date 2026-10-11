@@ -252,18 +252,30 @@ test('financiamento sem TR e sem encargos reproduz Price e SAC', () => {
   }
 });
 
-test('TR corrige o saldo e a parcela; MIP, DFI, seguros e taxa somam nos custos', () => {
+test('TR corrige o saldo e a parcela; seguro de vida, proteção do imóvel, seguros e taxa somam nos custos', () => {
   const C = CC.cronogramaFinanciamento(800000, 12, 360, 'price', { trAa: 2, mipPct: 0.03, dfiPct: 0.008, valorBem: 1000000, seguros: 10, ta: 25 });
   const tr = Math.pow(1.02, 1 / 12) - 1;
   near(C.meses[0].correcao, 800000 * tr);
-  near(C.meses[0].mip, 800000 * (1 + tr) * 0.0003);
-  near(C.meses[0].dfi, 80);
+  near(C.meses[0].mip, 800000 * (1 + tr) * 0.0003, 'seguro de vida sobre o saldo devedor');
+  near(C.meses[0].dfi, 1000000 * (1 + tr) * 0.00008, 'proteção do imóvel sobre o valor do imóvel atualizado pela TR');
+  near(C.meses[119].dfi, 1000000 * Math.pow(1 + tr, 120) * 0.00008);
+  near(C.meses[0].seguro, C.meses[0].mip + C.meses[0].dfi, 'Seguro/FGHab = vida + imóvel');
   assert.ok(C.meses[120].prestacao > C.meses[0].prestacao, 'Price com TR: prestação cresce');
   near(C.meses[359].saldo, 0);
   near(C.tot.ta, 25 * 360);
   near(C.tot.seguros, 10 * 360);
-  near(C.tot.dfi, 80 * 360);
   near(C.tot.total, C.tot.prestacoes + C.tot.mip + C.tot.dfi + C.tot.seguros + C.tot.ta);
+});
+
+test('CESH: quanto os seguros somam à taxa anual (TIR com prêmios − TIR só com prestações)', () => {
+  const sem = CC.cronogramaFinanciamento(800000, 12, 360, 'price', {});
+  near(sem.cesh, 0, 'sem seguros, CESH zero', 1e-6);
+  near(CC.tirMensal(800000, sem.meses.map((l) => l.prestacao)), Math.pow(1.12, 1 / 12) - 1, 'TIR das prestações = juros', 1e-9);
+  // Seguro constante de 0,05% a.m. sobre o saldo, sem TR: TIR com prêmio ≈ i + 0,0005 ao mês
+  const C = CC.cronogramaFinanciamento(800000, 12, 360, 'price', { mipPct: 0.05 });
+  const i = Math.pow(1.12, 1 / 12) - 1;
+  near(C.cesh, (Math.pow(1 + i + 0.0005, 12) - 1.12) * 100, 'CESH coerente com o prêmio sobre o saldo', 0.01);
+  assert.ok(C.cesh > 0.6 && C.cesh < 0.75);
 });
 
 test('custos invisíveis: total e percentual sobre o crédito', () => {
@@ -273,7 +285,7 @@ test('custos invisíveis: total e percentual sobre o crédito', () => {
   const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
   near(F.custos.ta, 25 * 420);
   near(F.custos.seguros, 15 * 420);
-  near(F.custos.dfi, 1200000 * 0.00008 * 420);
+  near(F.custos.dfi, 1200000 * 0.00008 * 420, 'sem TR, o valor do imóvel não muda');
   near(F.custos.total, F.custos.mip + F.custos.dfi + F.custos.seguros + F.custos.ta);
   near(F.custosPct, F.custos.total / 1200000 * 100);
 });
@@ -348,7 +360,7 @@ test('financiamento: premissas negativas ficam pendentes (não entram no cálcul
   Object.assign(s.financiamento, { ativo: true, mip: -0.03, tr: -2 });
   const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
   assert.equal(F.ok, false);
-  assert.ok(F.pend.some((p) => /MIP não pode ser negativo/.test(p)));
+  assert.ok(F.pend.some((p) => /seguro de vida não pode ser negativo/.test(p)));
   assert.ok(F.pend.some((p) => /TR não pode ser negativo/.test(p)));
 });
 
@@ -362,4 +374,59 @@ test('comparativo a cada 12 meses só com o mesmo crédito da carta', () => {
   assert.match(F.comparativo.pend[0], /mesmo crédito da carta/);
   s.financiamento.credito = null;
   assert.ok(CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.comparativo.ok);
+});
+
+test('cartões lado a lado: 1ª e última parcela reajustadas, custo anual de cada caminho', () => {
+  const s = base();
+  s.indiceTaxa = 5;
+  Object.assign(s.financiamento, { ativo: true });
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
+  const Fc = CC.fluxoMensal(s, true);
+  const K = F.consorcio;
+  near(K.creditoLiquido, 1200000 - 436800);
+  near(K.primeira, 6165.6, 'antes do 1º reajuste (mês 13)');
+  near(K.ultima, Fc.meses[232].total);
+  assert.ok(K.ultima > K.primeira);
+  near(K.custoAa, K.cetAno + 5, 'CET + indexador');
+  near(F.custoAa, 11.5 + 2 + F.cesh, 'juros + TR + CESH');
+  assert.ok(F.cesh > 0);
+  near(F.primeiraSeguro, F.meses[0].mip + F.meses[0].dfi);
+  near(F.primeira, F.primeiraPrestacao + F.primeiraSeguro + F.primeiraOutros);
+});
+
+test('pontos de equilíbrio: parcelas que se igualam e economia aplicada que cobre o saldo do consórcio', () => {
+  // Consórcio começa abaixo e sobe 10% ao ano; financiamento fixo (sem TR nem encargos)
+  const s = base([{ credito: 300000, entrada: 0, parcela: 2000, prazo: 200 }]);
+  Object.assign(s, { indice: 'outro', indiceTaxa: 10, reajusteMes: 13 });
+  Object.assign(s.financiamento, { ativo: true, prazo: 200, entradaPct: 0, juros: 6, tr: 0, mip: 0, dfi: 0, seguros: 0, ta: 0 });
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
+  const K = F.comparativo;
+  assert.equal(K.meses.length, 200);
+  const E = K.equilibrioParcela;
+  assert.equal(E.inicio, 'consorcio', 'o consórcio começa com a parcela menor');
+  assert.ok(E.t > 1);
+  assert.ok(K.meses[E.t - 1].consorcio >= K.meses[E.t - 1].financiamento - 0.005);
+  assert.ok(K.meses[E.t - 2].consorcio < K.meses[E.t - 2].financiamento);
+  // Economia aplicada × saldo do consórcio
+  const I = K.equilibrioInvestido;
+  if (I.t) {
+    assert.ok(K.meses[I.t - 1].aplicado >= K.meses[I.t - 1].saldoCons);
+    if (I.t > 1) assert.ok(K.meses[I.t - 2].aplicado < K.meses[I.t - 2].saldoCons);
+  }
+  // Parcelas que nunca se igualam
+  s.indiceTaxa = 0;
+  const K2 = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.comparativo;
+  assert.equal(K2.equilibrioParcela.t, null);
+  assert.equal(K2.equilibrioParcela.inicio, 'consorcio');
+});
+
+test('economia aplicada cobre o saldo do consórcio antes do fim', () => {
+  const s = base([{ credito: 300000, entrada: 0, parcela: 500, prazo: 120 }]);
+  Object.assign(s, { indice: 'outro', indiceTaxa: 0 });
+  Object.assign(s.financiamento, { ativo: true, prazo: 120, entradaPct: 0, juros: 12, tr: 0, mip: 0, dfi: 0, seguros: 0, ta: 0 });
+  const K = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.comparativo;
+  const I = K.equilibrioInvestido;
+  assert.ok(I.t > 1 && I.t < 120);
+  assert.ok(I.aplicado >= I.saldoCons);
+  assert.ok(K.meses[I.t - 2].aplicado < K.meses[I.t - 2].saldoCons);
 });

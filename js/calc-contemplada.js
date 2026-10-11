@@ -95,9 +95,12 @@
       evolucao: { ativo: false },
       // ref: taxas de referência de onde vieram os parâmetros (o que difere delas foi editado pelo usuário)
       rendimentos: { ativo: false, mensal: 0, meses: null, params: Object.assign({}, PARAMS_RENDIMENTOS), ref: Object.assign({}, PARAMS_RENDIMENTOS) },
-      // Financiamento: TR (% a.a.) corrige o saldo; MIP (% a.m. do saldo), DFI/DFC (% a.m. do valor do bem),
-      // outros seguros e taxa de administração (R$/mês) são os custos além dos juros
-      financiamento: { ativo: false, sistema: 'price', prazo: 420, entradaPct: 20, credito: null, juros: 11.5, tr: 2, mip: 0.03, dfi: 0.008, seguros: 0, ta: 25 }
+      // Financiamento: TR (% a.a.) corrige o saldo. Seguro/FGHab como a Caixa cobra: seguro de vida (MIP, % a.m. do
+      // saldo devedor) e seguro proteção do imóvel (DFI, % a.m. do valor do imóvel); outros seguros e taxa de
+      // administração (R$/mês) completam os custos além dos juros
+      financiamento: { ativo: false, sistema: 'price', prazo: 420, entradaPct: 20, credito: null, juros: 11.5, tr: 2, mip: 0.03, dfi: 0.008, seguros: 0, ta: 25 },
+      // Gráficos (só na tela, fora do PDF): usam as premissas do Consórcio vs Financiamento
+      graficos: { ativo: false }
     };
   }
 
@@ -480,35 +483,63 @@
 
   /**
    * Financiamento mês a mês. A cada mês o saldo é corrigido pela TR, os juros incidem sobre o saldo corrigido e a
-   * prestação é recalculada pelo prazo restante (Price) ou amortiza saldo ÷ meses restantes (SAC). Encargos do mês:
-   * MIP (% do saldo corrigido), DFI/DFC (% do valor do bem), outros seguros e taxa de administração (R$).
+   * prestação é recalculada pelo prazo restante (Price) ou amortiza saldo ÷ meses restantes (SAC). Encargos do mês,
+   * como a Caixa cobra (Seguro/FGHab): seguro de vida (MIP, % do saldo devedor corrigido) e seguro proteção do imóvel
+   * (DFI, % do valor do imóvel atualizado pela TR, como a garantia); mais outros seguros e taxa de administração (R$).
    */
   function cronogramaFinanciamento(pv, jurosAa, n, sistema, opcoes) {
     const o = opcoes || {};
     const i = Math.pow(1 + jurosAa / 100, 1 / 12) - 1;
     const tr = Math.pow(1 + (num(o.trAa) || 0) / 100, 1 / 12) - 1;
     const mip = (num(o.mipPct) || 0) / 100;
-    const dfi = ((num(o.dfiPct) || 0) / 100) * (num(o.valorBem) || 0);
+    const dfi = (num(o.dfiPct) || 0) / 100;
     const seguros = num(o.seguros) || 0, ta = num(o.ta) || 0;
     const meses = [];
     const tot = { prestacoes: 0, juros: 0, correcao: 0, mip: 0, dfi: 0, seguros: 0, ta: 0, total: 0 };
-    let saldo = pv;
+    let saldo = pv, bem = num(o.valorBem) || 0;
     for (let t = 1; t <= n; t++) {
       const restantes = n - t + 1;
       const corrigido = saldo * (1 + tr);
+      bem *= 1 + tr;
       const juros = corrigido * i;
       const amort = sistema === 'sac' ? corrigido / restantes
         : (i > 0 ? (corrigido * i) / (1 - Math.pow(1 + i, -restantes)) : corrigido / restantes) - juros;
-      const l = { t, correcao: corrigido - saldo, juros, amort, prestacao: amort + juros, mip: corrigido * mip, dfi, seguros, ta };
-      l.total = l.prestacao + l.mip + l.dfi + l.seguros + l.ta;
+      const l = { t, correcao: corrigido - saldo, juros, amort, prestacao: amort + juros, mip: corrigido * mip, dfi: bem * dfi, seguros, ta };
+      l.seguro = l.mip + l.dfi; // Seguro/FGHab do mês
+      l.total = l.prestacao + l.seguro + l.seguros + l.ta;
       saldo = Math.max(0, corrigido - amort);
       l.saldo = saldo;
       meses.push(l);
       tot.prestacoes += l.prestacao; tot.juros += juros; tot.correcao += l.correcao;
-      tot.mip += l.mip; tot.dfi += dfi; tot.seguros += seguros; tot.ta += ta; tot.total += l.total;
+      tot.mip += l.mip; tot.dfi += l.dfi; tot.seguros += seguros; tot.ta += ta; tot.total += l.total;
     }
-    return { i, tr, meses, tot };
+    // CESH (custo efetivo do seguro habitacional, conceito da SUSEP): quanto o seguro de vida e o de proteção do
+    // imóvel somam à taxa anual do financiamento = TIR com os prêmios − TIR só com as prestações
+    const anual = (r) => (Math.pow(1 + r, 12) - 1) * 100;
+    const semSeguro = tirMensal(pv, meses.map((l) => l.prestacao));
+    const comSeguro = tirMensal(pv, meses.map((l) => l.prestacao + l.seguro));
+    const cesh = isNum(semSeguro) && isNum(comSeguro) ? Math.max(0, anual(comSeguro) - anual(semSeguro)) : null;
+    return { i, tr, meses, tot, cesh };
   }
+
+  /** Taxa mensal que iguala o valor presente das parcelas ao valor recebido (bisseção). */
+  function tirMensal(pv, fluxos) {
+    if (!(pv > 0) || !fluxos.length) return null;
+    const vp = (r) => fluxos.reduce((a, f, k) => a + f / Math.pow(1 + r, k + 1), 0);
+    let lo = -0.5, hi = 1;
+    if (vp(lo) < pv || vp(hi) > pv) return null;
+    for (let k = 0; k < 200; k++) {
+      const mid = (lo + hi) / 2;
+      if (vp(mid) > pv) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+
+  /** O financiamento é calculado para a guia Consórcio vs Financiamento e para os gráficos, que usam as mesmas premissas. */
+  const usaFinanciamento = (s) => !!((s.financiamento && s.financiamento.ativo) || (s.graficos && s.graficos.ativo));
+
+  // Premissas do banco que não podem ser negativas (campo, nome exibido)
+  const PREMISSAS_BANCO = [['tr', 'TR'], ['mip', 'seguro de vida'], ['dfi', 'seguro proteção do imóvel'], ['seguros', 'outros seguros'], ['ta', 'taxa de administração']];
 
   /**
    * Comparativo com o financiamento: entrada (padrão 20%), prazo (padrão 420 meses), Price ou SAC, TR e encargos.
@@ -517,7 +548,7 @@
    */
   function financiamento(s, R, hoje) {
     const f = s.financiamento;
-    if (!f || !f.ativo) return null;
+    if (!f || !usaFinanciamento(s)) return null;
     const out = { ok: false, pend: [], sistema: f.sistema === 'sac' ? 'sac' : 'price' };
     const credito = isNum(num(f.credito)) ? num(f.credito) : R.ok ? R.credito : null;
     const n = num(f.prazo), pct = num(f.entradaPct), juros = num(f.juros);
@@ -525,7 +556,7 @@
     if (!inteiro(n) || n < 1 || n > REGRAS.prazoFinanciamentoMax) out.pend.push('Prazo do financiamento entre 1 e ' + REGRAS.prazoFinanciamentoMax + ' meses');
     if (!isNum(pct) || pct < 0 || pct >= 100) out.pend.push('Entrada entre 0% e 100%');
     if (!isNum(juros) || juros < 0) out.pend.push('Informe a taxa de juros do financiamento');
-    [['tr', 'TR'], ['mip', 'MIP'], ['dfi', 'DFI/DFC'], ['seguros', 'outros seguros'], ['ta', 'taxa de administração']].forEach(([k, rot]) => {
+    PREMISSAS_BANCO.forEach(([k, rot]) => {
       const x = num(f[k]);
       if (isNum(x) && x < 0) out.pend.push(rot + ' não pode ser negativo');
     });
@@ -540,10 +571,13 @@
     Object.assign(out, {
       ok: true, credito, creditoAuto: !isNum(num(f.credito)), prazo: n, entradaPct: pct, entrada, financiado, juros,
       jurosMes: C.i * 100, trAa: premissas.trAa, premissas, meses: C.meses,
-      // Prestação = amortização + juros; parcela = prestação + seguros e taxa (o que o cliente paga)
+      // Prestação = amortização + juros; parcela = prestação + Seguro/FGHab + outros seguros + taxa (o que o cliente paga)
       primeiraPrestacao: m1.prestacao, ultimaPrestacao: mN.prestacao, primeira: m1.total, ultima: mN.total,
+      primeiraSeguro: m1.seguro, primeiraOutros: m1.seguros + m1.ta,
       totalPrestacoes: C.tot.prestacoes, totalJuros: C.tot.juros, totalCorrecao: C.tot.correcao, totalParcelas: C.tot.total,
       custos, custosPct: (custos.total / credito) * 100,
+      // Custo anual para comparar com o CET + indexador do consórcio: juros + TR + CESH (soma simples)
+      cesh: C.cesh, custoAa: isNum(C.cesh) ? juros + premissas.trAa + C.cesh : null,
       totalPago: entrada + C.tot.total
     });
     out.rendaMinima = m1.total / (REGRAS.comprometimentoRenda / 100);
@@ -559,11 +593,19 @@
     out.idadeMaxima = diferencaData(nascMin, d0);
     // Comparação com a carta contemplada: parcelas reajustadas pelo indexador × financiamento com TR e encargos
     if (R.ok) {
-      out.consorcio = { credito: R.credito, entrada: R.entrada, parcela: R.parcelaAtual, prazo: R.prazoMax, totalSemReajuste: R.totalPago };
+      const taxa = taxaIndice(s);
+      out.consorcio = {
+        credito: R.credito, entrada: R.entrada, creditoLiquido: R.creditoLiquido, parcela: R.parcelaAtual, prazo: R.prazoMax,
+        totalSemReajuste: R.totalPago, cetAno: R.cetAno, indiceTaxa: isNum(taxa) ? taxa : null,
+        custoAa: isNum(R.cetAno) && isNum(taxa) ? R.cetAno + taxa : null
+      };
       const Fc = fluxoMensal(s, true);
       out.comparativo = Math.abs(credito - R.credito) < 0.005 ? comparativo(s, Fc, out)
-        : { ok: false, pend: ['comparação feita só com o mesmo crédito da carta (' + fmtBRL(R.credito) + ')'], linhas: [] };
+        : { ok: false, pend: ['comparação feita só com o mesmo crédito da carta (' + fmtBRL(R.credito) + ')'], linhas: [], meses: [] };
       if (Fc.ok) {
+        // 1ª e última parcela já com o reajuste do indexador; total pago = entrada + parcelas reajustadas
+        out.consorcio.primeira = Fc.meses[0].total;
+        out.consorcio.ultima = Fc.meses[Fc.N - 1].total;
         out.consorcio.totalPago = R.entrada + Fc.total;
         out.diferenca = out.totalPago - out.consorcio.totalPago;
       }
@@ -572,18 +614,19 @@
   }
 
   /**
-   * A cada 12 meses: parcela do consórcio (reajustada pelo indexador) × parcela do financiamento (TR, seguros e taxa),
+   * Mês a mês: parcela do consórcio (reajustada pelo indexador) × parcela do financiamento (TR, seguros e taxa),
    * economia de parcela, economia acumulada guardada (orgânico) ou aplicada no CDB da calculadora, e os saldos devedores.
+   * A tabela mostra a cada 12 meses; os gráficos usam todos os meses e os dois pontos de equilíbrio.
    */
   function comparativo(s, Fc, Fi) {
-    if (!Fc.ok) return { ok: false, pend: Fc.pend, linhas: [] };
+    if (!Fc.ok) return { ok: false, pend: Fc.pend, linhas: [], meses: [] };
     const P = Object.assign({}, PARAMS_RENDIMENTOS, (s.rendimentos && s.rendimentos.params) || {});
     ['cdi', 'ipca', 'cdbPct'].forEach((k) => { P[k] = num(P[k]) || 0; });
     const taxa = taxaTipo(P, P.cdbPct, P.cdbTipo);
     const f = fatorMensal(taxa);
     const T = Math.max(Fc.N, Fi.prazo);
     let organico = 0, aplicado = 0;
-    const linhas = [];
+    const meses = [];
     for (let t = 1; t <= T; t++) {
       const c = t <= Fc.N ? Fc.meses[t - 1] : null;
       const b = t <= Fi.prazo ? Fi.meses[t - 1] : null;
@@ -591,9 +634,39 @@
       const economia = pf - pc;
       organico += economia;
       aplicado = aplicado * f + economia;
-      if (t % 12 === 0 || t === T) linhas.push({ t, consorcio: pc, financiamento: pf, economia, organico, aplicado, saldoFin: b ? b.saldo : 0, saldoCons: c ? c.saldo : 0 });
+      meses.push({ t, consorcio: pc, financiamento: pf, economia, organico, aplicado, saldoFin: b ? b.saldo : 0, saldoCons: c ? c.saldo : 0 });
     }
-    return { ok: true, taxaAplicacao: taxa, T, linhas, organico, aplicado };
+    const linhas = meses.filter((l) => l.t % 12 === 0 || l.t === T);
+    return {
+      ok: true, taxaAplicacao: taxa, T, N: Fc.N, prazoFin: Fi.prazo, meses, linhas, organico, aplicado,
+      equilibrioParcela: equilibrioParcela(meses, Math.min(Fc.N, Fi.prazo)),
+      equilibrioInvestido: equilibrioInvestido(meses, Fc.N)
+    };
+  }
+
+  /**
+   * Ponto de equilíbrio das parcelas: primeiro mês em que a diferença (financiamento − consórcio) muda de lado ou
+   * zera, enquanto os dois ainda estão sendo pagos. inicio: quem começa com a parcela menor.
+   */
+  function equilibrioParcela(meses, ate) {
+    if (!ate) return null;
+    const lado = (l) => { const d = l.financiamento - l.consorcio; return Math.abs(d) < 0.005 ? 0 : d > 0 ? 1 : -1; };
+    const l0 = lado(meses[0]);
+    const inicio = l0 > 0 ? 'consorcio' : l0 < 0 ? 'financiamento' : null;
+    for (let t = 1; t <= ate; t++) {
+      const l = meses[t - 1], x = lado(l);
+      if (x === 0 || x !== l0) return { t, inicio, consorcio: l.consorcio, financiamento: l.financiamento };
+    }
+    return { t: null, inicio };
+  }
+
+  /** Primeiro mês, antes da última parcela da carta, em que a economia aplicada cobre o saldo devedor do consórcio. */
+  function equilibrioInvestido(meses, N) {
+    for (let t = 1; t < N; t++) {
+      const l = meses[t - 1];
+      if (l.saldoCons > 0 && l.aplicado >= l.saldoCons) return { t, aplicado: l.aplicado, saldoCons: l.saldoCons };
+    }
+    return { t: null };
   }
 
   // ---------------------------------------------------------------------------
@@ -616,7 +689,7 @@
     });
     if (!s.cartas || !s.cartas.length) add('erro', 'cartas', 'Inclua ao menos uma carta.');
     const R = resumo(s);
-    const usaReajuste = (s.fluxo && s.fluxo.reajuste) || (s.evolucao && s.evolucao.ativo) || (s.amortizacao && s.amortizacao.ativo) || (s.financiamento && s.financiamento.ativo);
+    const usaReajuste = (s.fluxo && s.fluxo.reajuste) || (s.evolucao && s.evolucao.ativo) || (s.amortizacao && s.amortizacao.ativo) || usaFinanciamento(s);
     if (!INDICES[s.indice]) add('erro', 'indice', 'Selecione o índice de reajuste.');
     else if (usaReajuste && !isNum(taxaIndice(s)) && (!R.ok || R.prazoMax >= mesReajuste(s))) add('erro', 'indiceTaxa', 'Índice ' + nomeIndice(s) + ' sem taxa estimada: informe a projeção ao ano para o reajuste.');
     const m1 = num(s.reajusteMes);
@@ -636,14 +709,14 @@
       if (mm !== null && mm < 0) add('erro', 'rendimentos.mensal', 'Aportes mensais não podem ser negativos.');
     }
     const fi = s.financiamento;
-    if (fi && fi.ativo) {
+    if (fi && usaFinanciamento(s)) {
       const n = num(fi.prazo), pct = num(fi.entradaPct), j = num(fi.juros);
       if (!inteiro(n) || n < 1 || n > REGRAS.prazoFinanciamentoMax) add('erro', 'financiamento.prazo', 'Financiamento: prazo entre 1 e ' + REGRAS.prazoFinanciamentoMax + ' meses.');
       if (!isNum(pct) || pct < 0 || pct >= 100) add('erro', 'financiamento.entradaPct', 'Financiamento: entrada entre 0% e 100%.');
       if (!isNum(j) || j < 0) add('erro', 'financiamento.juros', 'Financiamento: informe a taxa de juros ao ano.');
       const c = num(fi.credito);
       if (c !== null && c <= 0) add('erro', 'financiamento.credito', 'Financiamento: crédito necessário deve ser maior que zero.');
-      [['tr', 'TR'], ['mip', 'MIP'], ['dfi', 'DFI/DFC'], ['seguros', 'outros seguros'], ['ta', 'taxa de administração']].forEach(([k, rot]) => {
+      PREMISSAS_BANCO.forEach(([k, rot]) => {
         const x = num(fi[k]);
         if (x !== null && x < 0) add('erro', 'financiamento.' + k, 'Financiamento: ' + rot + ' não pode ser negativo.');
       });
@@ -675,7 +748,7 @@
   return {
     INDICES, SEGMENTOS, REGRAS, PARAMS_RENDIMENTOS, PRODUTOS,
     estadoPadrao, cartaVazia, simular, resumo, fluxo, fluxoMensal, agrupar, rotuloPeriodo, evolucao, amortizacao,
-    calcularRendimentos, rendimentos, aliquotaIR, financiamento, tabelaFinanciamento, cronogramaFinanciamento, comparativo, validar,
+    calcularRendimentos, rendimentos, aliquotaIR, financiamento, tabelaFinanciamento, cronogramaFinanciamento, tirMensal, comparativo, validar,
     taxaIndice, nomeIndice, indiceEstimado, qtdReajustes, somarMeses, diferencaData, mesesEntre, lerData,
     fmtBRL, fmtPct, fmtNum, num, isNum
   };

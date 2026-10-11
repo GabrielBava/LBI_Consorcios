@@ -25,6 +25,12 @@
   --linha-hover: rgba(119, 141, 169, .08);
   --logo-escuro: block;                    /* qual versão do logotipo aparece */
   --logo-claro: none;
+  /* Séries dos gráficos da página 2 (paleta validada para daltonismo e contraste sobre o cartão):
+     consórcio, financiamento, economia aplicada, economia orgânica */
+  --serie-1: #3987E5;
+  --serie-2: #D95926;
+  --serie-3: #199E70;
+  --serie-4: #C98500;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
@@ -42,6 +48,10 @@
     --linha-hover: rgba(65, 90, 119, .06);
     --logo-escuro: none;
     --logo-claro: block;
+    --serie-1: #2A6FC9;
+    --serie-2: #D7632C;
+    --serie-3: #16916A;
+    --serie-4: #B7860B;
   }
 }
 :root[data-theme="light"] {
@@ -59,6 +69,10 @@
   --linha-hover: rgba(65, 90, 119, .06);
   --logo-escuro: none;
   --logo-claro: block;
+  --serie-1: #2A6FC9;
+  --serie-2: #D7632C;
+  --serie-3: #16916A;
+  --serie-4: #B7860B;
 }
 
 /* ----- Base ----- */
@@ -319,6 +333,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .forma-linha.realce span { color: var(--text); font-weight: 500; }
 .forma-linha.acento-valor b { color: var(--primary-bright); }
 .forma-linha.negativo-valor b { color: var(--danger); }
+/* Consórcio vs financiamento lado a lado: as linhas dos dois cartões dividem a mesma grade (alinhadas) */
+.formas.lado { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.formas.lado > .forma { display: grid; grid-row: span 9; grid-template-rows: subgrid; align-content: start; }
+.formas.lado .forma-linha { align-items: center; }
+@media (max-width: 640px) { .formas.lado { grid-template-columns: minmax(0, 1fr); } }
+.forma-linha-nota { display: block; margin-top: 2px; font-size: var(--fs-xs); font-weight: 300; color: var(--text-muted); }
+.forma-linha.realce .forma-linha-nota, .forma-linha.forte .forma-linha-nota { font-weight: 300; }
 .forma-msg { margin: 8px; }
 .forma-nota { margin: 10px 0 0; font-size: var(--fs-xs); color: var(--text-muted); }
 
@@ -403,6 +424,26 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .g-ponto { stroke: var(--bg-card); stroke-width: 2; }
 .g-ponto.s1 { fill: var(--chart-1); }
 .g-barra.s1 { fill: var(--chart-3); }
+/* Página 2: cor por caminho (consórcio, financiamento) e por economia (aplicada, orgânica);
+   o tracejado é a segunda pista, além da cor: financiamento tracejado, orgânico pontilhado */
+.g-linha.sc1 { stroke: var(--serie-1); }
+.g-linha.sc2 { stroke: var(--serie-2); stroke-dasharray: 7 4; }
+.g-linha.sc3 { stroke: var(--serie-3); }
+.g-linha.sc4 { stroke: var(--serie-4); stroke-dasharray: 2 4; }
+.g-ponto.sc1 { fill: var(--serie-1); }
+.g-ponto.sc2 { fill: var(--serie-2); }
+.g-ponto.sc3 { fill: var(--serie-3); }
+.g-ponto.sc4 { fill: var(--serie-4); }
+.g-ponto-marca { stroke-width: 2.5; }
+.g-rotulo-marca { fill: var(--text); font-weight: 500; }
+.g-chave.sc1 { background: var(--serie-1); }
+.g-chave.sc2 { background: repeating-linear-gradient(90deg, var(--serie-2) 0 5px, transparent 5px 8px); }
+.g-chave.sc3 { background: var(--serie-3); }
+.g-chave.sc4 { background: repeating-linear-gradient(90deg, var(--serie-4) 0 2px, transparent 2px 5px); }
+.g-dica-extra { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border-soft); color: var(--text-muted); }
+.g-equilibrio { margin: -6px 0 22px; padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--pill-bg); font-size: var(--fs-sm); line-height: 1.5; }
+.g-equilibrio b { font-weight: 600; }
+.g-equilibrio-rot { display: block; margin-bottom: 2px; font-size: var(--fs-xs); font-weight: 500; color: var(--text-muted); }
 .g-alvo { fill: transparent; cursor: crosshair; }
 .g-cursor line { stroke: var(--border); stroke-width: 1; }
 .g-legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 4px; font-size: var(--fs-xs); color: var(--text-muted); }
@@ -617,6 +658,9 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .pdf-linha { display: flex; justify-content: space-between; gap: calc(6px * var(--k)); padding: calc(7px * var(--k)) calc(6px * var(--k)); border-bottom: calc(1px * var(--k)) solid var(--border-soft); font-size: calc(10px * var(--k)); color: var(--text-muted); }
 .pdf-linha b { font-family: var(--font-display); font-weight: 600; font-size: calc(10px * var(--k)); color: var(--text); text-align: right; white-space: nowrap; }
 .pdf-linha.forte span { color: var(--text); font-weight: 500; }
+.pdf-linha small { display: block; margin-top: calc(1.5px * var(--k)); font-size: calc(8.2px * var(--k)); font-weight: 300; color: var(--text-muted); }
+.pdf-grade.lado > .pdf-cartao { display: grid; grid-row: span 9; grid-template-rows: subgrid; row-gap: 0; align-content: start; }
+.pdf-grade.lado .pdf-linha { align-items: center; }
 /* Três colunas (Bônus Fidelidade): linhas mais densas para caber na página */
 .pdf-fid .pdf-grade.c3 .pdf-cartao { padding: calc(9px * var(--k)); }
 .pdf-fid .pdf-grade.c3 .pdf-linha { padding: calc(5.5px * var(--k)) calc(4px * var(--k)); font-size: calc(9.4px * var(--k)); line-height: 1.3; }

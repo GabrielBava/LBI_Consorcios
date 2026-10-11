@@ -272,7 +272,7 @@
       <label class="f" data-show="cont.indice=outro"><span>Nome do índice</span>
         <input type="text" id="c-indiceNome" data-k="cont.indiceNome" maxlength="30"></label>
       <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-fluxoReajuste" data-k="cont.fluxo.reajuste"> Habilitar reajuste pelo indexador</label>
-      <div class="sub" data-show="cont.fluxo.reajuste|cont.evolucao.ativo|cont.amortizacao.ativo|cont.financiamento.ativo">
+      <div class="sub" data-show="cont.fluxo.reajuste|cont.evolucao.ativo|cont.amortizacao.ativo|cont.financiamento.ativo|cont.graficos.ativo">
         <label class="f"><span>1º reajuste (mês)</span>
           <input type="number" id="c-reajusteMes" data-k="cont.reajusteMes" min="1" step="1"></label>
       </div>
@@ -353,7 +353,8 @@
     <details class="secao" open data-secao="c-financiamento">
       <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18"/><path d="M6 17.5v-7"/><path d="M10 17.5v-7"/><path d="M14 17.5v-7"/><path d="M18 17.5v-7"/><path d="M12 3 20 7.5H4z"/></svg>Consórcio vs Financiamento</summary>
       <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-finAtivo" data-k="cont.financiamento.ativo"> Habilitar comparativo</label>
-      <div data-show="cont.financiamento.ativo">
+      <small class="nota" data-show="cont.graficos.ativo&amp;!cont.financiamento.ativo">Comparativo desabilitado: estas premissas valem só para os gráficos.</small>
+      <div data-show="cont.financiamento.ativo|cont.graficos.ativo">
         <fieldset class="f segmentado">
           <legend>Sistema de amortização</legend>
           <div class="seg-opcoes">
@@ -378,18 +379,30 @@
         <label class="f"><span>Crédito necessário (R$)</span>
           <input type="text" id="c-finCredito" data-k="cont.financiamento.credito" data-moeda data-auto="credTotal" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
         <small class="nota">Pré-preenchido com o crédito das cartas; apague para voltar ao valor da carta.</small>
+        <div class="grid2">
+          <label class="f"><span>Seguro de vida (%)</span>
+            <input type="number" id="c-finMip" data-k="cont.financiamento.mip" min="0" step="any"></label>
+          <label class="f"><span>Seguro proteção imóvel (%)</span>
+            <input type="number" id="c-finDfi" data-k="cont.financiamento.dfi" min="0" step="any"></label>
+        </div>
+        <small class="nota">Seguro/FGHab, como a Caixa cobra na parcela: seguro de vida (MIP) em % ao mês do saldo devedor, que varia com a idade do cliente; proteção do imóvel (DFI) em % ao mês do valor do imóvel. Confira as taxas na simulação da Caixa.</small>
         <details class="sub-secao" data-id="c-custos-fin">
           <summary>Correção e custos do banco</summary>
           <div class="grid2">
             <label class="f"><span>TR (% a.a.)</span><input type="number" id="c-finTr" data-k="cont.financiamento.tr" min="0" step="any"></label>
-            <label class="f"><span>MIP (% a.m. do saldo)</span><input type="number" id="c-finMip" data-k="cont.financiamento.mip" min="0" step="any"></label>
-            <label class="f"><span>DFI/DFC (% a.m. do bem)</span><input type="number" id="c-finDfi" data-k="cont.financiamento.dfi" min="0" step="any"></label>
             <label class="f"><span>Outros seguros (R$/mês)</span><input type="text" id="c-finSeguros" data-k="cont.financiamento.seguros" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
             <label class="f"><span>Taxa de adm. (R$/mês)</span><input type="text" id="c-finTa" data-k="cont.financiamento.ta" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
           </div>
-          <small class="nota">Premissas editáveis: confirme com o banco. A TR corrige o saldo todo mês.</small>
+          <small class="nota">Premissas editáveis: confirme com o banco. A TR corrige o saldo e o valor do imóvel todo mês.</small>
         </details>
       </div>
+    </details>
+
+    <!-- C8. Gráficos (opcional, só na tela) -->
+    <details class="secao" open data-secao="c-graficos">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 15.5c2.5-1 3.5-6 6-6s3 3 6-3"/><path d="M7 11.5c3 1 5 3 12 4"/></svg>Gráficos</summary>
+      <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-graficosAtivo" data-k="cont.graficos.ativo"> Habilitar gráficos</label>
+      <small class="nota" data-show="cont.graficos.ativo">Parcelas e economia do consórcio × financiamento mês a mês, com os pontos de equilíbrio. Só na tela: não entram no PDF.</small>
     </details>
     </div>
   </aside>

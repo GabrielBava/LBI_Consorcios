@@ -303,33 +303,37 @@
     const pctFin = (x) => CC.fmtNum(x, Number.isInteger(x) ? 0 : 2) + '%';
     const nomeTr = (Fi) => 'TR ' + pct(Fi.trAa) + ' a.a.';
 
+    /**
+     * Cartões lado a lado: as mesmas linhas, na mesma ordem, nos dois caminhos.
+     * Cada linha: [rótulo, valor, classe, nota].
+     */
     function linhasConsorcio(Fi, rc) {
-      const K = Fi.consorcio;
-      const l = [
-        ['Crédito', brl(K.credito), 'forte'],
-        ['Entrada (ágio)', brl(K.entrada)],
-        ['Parcela atual', brl(K.parcela), 'acento-valor'],
-        ['Prazo', 'até ' + K.prazo + ' meses']
+      const K = Fi.consorcio, nome = esc(rc.indice.nome);
+      const custo = isNum(K.cetAno) ? pct(K.cetAno) + ' + ' + (isNum(K.indiceTaxa) ? pct(K.indiceTaxa) + ' = ' + pct(K.custoAa) : nome) + ' a.a.' : '—';
+      return [
+        ['Crédito contratado', brl(K.credito), 'forte'],
+        ['Entrada', brl(K.entrada), '', 'ágio pago na compra da carta'],
+        ['Crédito líquido', brl(K.creditoLiquido), '', 'crédito − entrada'],
+        ['1ª parcela', brl(isNum(K.primeira) ? K.primeira : K.parcela), 'acento-valor', isNum(K.primeira) && Math.abs(K.primeira - K.parcela) >= 0.005 ? 'parcela atual com o 1º reajuste' : 'parcela atual da carta'],
+        ['Última parcela', brl(K.ultima), '', 'mês ' + K.prazo + ', com reajuste ' + nome],
+        ['Prazo', meses(K.prazo)],
+        ['CET + ' + nome, custo, '', 'CET da carta + reajuste estimado do ' + nome],
+        ['Total pago (entrada + parcelas)', brl(K.totalPago), 'realce', 'com os reajustes do ' + nome]
       ];
-      if (isNum(K.totalPago)) l.push(['Total pago com reajuste ' + esc(rc.indice.nome), brl(K.totalPago), 'realce']);
-      l.push(['Total sem reajuste (entrada + parcelas)', brl(K.totalSemReajuste)]);
-      return l;
     }
 
     function linhasFinanciamento(Fi) {
-      const l = [
-        ['Crédito necessário', brl(Fi.credito), 'forte'],
-        ['Entrada (' + pctFin(Fi.entradaPct) + ')', brl(Fi.entrada)],
-        ['Valor financiado', brl(Fi.financiado)],
-        ['1ª parcela (com seguros e taxa)', brl(Fi.primeira), 'acento-valor'],
-        ['Última parcela', brl(Fi.ultima)],
-        ['Prazo', Fi.prazo + ' meses'],
-        ['Juros', pct(Fi.juros) + ' a.a. + ' + nomeTr(Fi)],
-        ['Total pago (entrada + parcelas)', brl(Fi.totalPago), 'realce'],
-        ['Juros totais', brl(Fi.totalJuros)],
-        ['Custos além dos juros', brl(Fi.custos.total) + ' (' + pct(Fi.custosPct) + ')']
+      const custo = isNum(Fi.custoAa) ? pct(Fi.juros) + ' + ' + pct(Fi.trAa) + ' + ' + pct(Fi.cesh) + ' = ' + pct(Fi.custoAa) + ' a.a.' : '—';
+      return [
+        ['Crédito contratado', brl(Fi.credito), 'forte'],
+        ['Entrada', brl(Fi.entrada), '', pctFin(Fi.entradaPct) + ' do valor do imóvel'],
+        ['Crédito financiado', brl(Fi.financiado), '', 'crédito − entrada'],
+        ['1ª parcela', brl(Fi.primeira), 'acento-valor', 'prestação ' + brl(Fi.primeiraPrestacao) + ' + Seguro/FGHab ' + brl(Fi.primeiraSeguro) + (Fi.primeiraOutros > 0.005 ? ' + taxas ' + brl(Fi.primeiraOutros) : '')],
+        ['Última parcela', brl(Fi.ultima), '', 'mês ' + Fi.prazo + ', corrigida pela TR'],
+        ['Prazo', meses(Fi.prazo)],
+        ['Juros + TR + CESH', custo, '', 'CESH: custo efetivo dos seguros obrigatórios'],
+        ['Total pago (entrada + parcelas)', brl(Fi.totalPago), 'realce', 'com TR, seguros e taxas']
       ];
-      return l;
     }
 
     /** O veredito só compara totais quando o crédito do financiamento é o mesmo da carta. */
@@ -366,17 +370,18 @@
       const m = Fi.meses[0];
       const rot = (r) => r.map(([nome, m1, total]) => [nome, brl(m1), brl(total), pct((total / Fi.credito) * 100)]);
       return rot([
-        ['MIP (morte e invalidez)', m.mip, Fi.custos.mip],
-        ['DFI/DFC (danos físicos)', m.dfi, Fi.custos.dfi],
+        ['Seguro de vida (MIP: morte e invalidez)', m.mip, Fi.custos.mip],
+        ['Seguro proteção do imóvel (DFI: danos físicos)', m.dfi, Fi.custos.dfi],
         ['Outros seguros', m.seguros, Fi.custos.seguros],
-        ['TA (taxa de administração)', m.ta, Fi.custos.ta]
+        ['Taxa de administração (TA)', m.ta, Fi.custos.ta]
       ]);
     }
     const rodapeCustos = (Fi) => ['Total', brl(Fi.meses[0].mip + Fi.meses[0].dfi + Fi.meses[0].seguros + Fi.meses[0].ta), brl(Fi.custos.total), pct(Fi.custosPct)];
-    const subCustos = (Fi) => 'Encargos que o banco cobra além dos juros, somados nos ' + Fi.prazo + ' meses: ' + brl(Fi.custos.total) + ', ou ' + pct(Fi.custosPct) + ' do crédito de ' + brl(Fi.credito) + '.';
+    const subCustos = (Fi) => 'Encargos que o banco cobra além dos juros, somados nos ' + Fi.prazo + ' meses: ' + brl(Fi.custos.total) + ', ou ' + pct(Fi.custosPct) + ' do crédito de ' + brl(Fi.credito) + '. ' +
+      'Só os dois seguros obrigatórios (Seguro/FGHab) somam ' + pct(Fi.cesh) + ' ao ano ao custo do financiamento (CESH).';
 
-    function linhaForma(rot, val, cls) {
-      return '<div class="forma-linha' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + val + '</b></div>';
+    function linhaForma(rot, val, cls, nota) {
+      return '<div class="forma-linha' + (cls ? ' ' + cls : '') + '"><span>' + rot + (nota ? '<small class="forma-linha-nota">' + nota + '</small>' : '') + '</span><b>' + val + '</b></div>';
     }
 
     function secFinanciamento(rc) {
@@ -384,10 +389,11 @@
       let h = '<section class="bloco-res vitrine">' + ui.tituloSecao('Consórcio vs', 'Financiamento', 'Comparativo');
       if (!Fi.ok) return h + '<p class="nc">Não calculado: ' + esc(Fi.pend.join('; ')) + '.</p></section>';
       h += '<p class="g-sub">' + subFinanciamento(Fi, rc) + '</p>';
-      h += '<div class="formas">';
+      // Lado a lado: as linhas dos dois cartões ficam alinhadas (mesma grade)
+      h += '<div class="formas' + (Fi.consorcio ? ' lado' : '') + '">';
       if (Fi.consorcio) h += '<article class="forma"><header class="forma-topo"><span class="forma-icone">' + icone('carta') + '</span><h3>Carta contemplada<small class="forma-sub">' + esc(rc.segmento) + '</small></h3></header>' + linhasConsorcio(Fi, rc).map((l) => linhaForma(...l)).join('') + '</article>';
       h += '<article class="forma"><header class="forma-topo"><span class="forma-icone">' + icone('banco') + '</span><h3>Financiamento<small class="forma-sub">' + nomeSistema(Fi) + '</small></h3></header>' + linhasFinanciamento(Fi).map((l) => linhaForma(...l)).join('') + '</article>';
-      h += '</div>';
+      h += '</div><p class="forma-nota">Custo anual pela soma simples das taxas ao ano, para comparar os dois caminhos. Seguro/FGHab: seguro de vida sobre o saldo devedor e seguro proteção do imóvel sobre o valor do imóvel, como a Caixa cobra.</p>';
       if (isNum(Fi.diferenca) && mesmoCredito(Fi)) {
         const favor = Fi.diferenca >= 0;
         h += '<div class="cet comparativo"><span>Diferença no total pago</span><b class="' + (favor ? 'positivo' : 'negativo') + '">' + brl(Math.abs(Fi.diferenca)) + '</b><small>a favor do ' + (favor ? 'consórcio' : 'financiamento') + ', com os reajustes de cada um</small></div>';
@@ -403,6 +409,66 @@
       return h + '</section>';
     }
 
+    // -------------------------------------------------------------------------
+    // Gráficos: só na tela (não entram no PDF), com as premissas do Consórcio vs Financiamento
+    // -------------------------------------------------------------------------
+
+    function pendGraficos(Fi) {
+      if (!Fi) return ['habilite os gráficos no menu'];
+      if (!Fi.ok) return Fi.pend;
+      if (!Fi.comparativo) return [MSG_CARTAS.replace(/^Não calculado: /, '').replace(/\.$/, '')];
+      return Fi.comparativo.ok ? null : Fi.comparativo.pend;
+    }
+
+    function textoEquilibrioParcela(E, nome) {
+      if (E.t && E.inicio === 'consorcio') return '<b>Mês ' + E.t + ':</b> a parcela do consórcio (' + brl(E.consorcio) + '), com o reajuste do ' + esc(nome) + ', alcança a do financiamento (' + brl(E.financiamento) + '). Até lá, o cliente paga menos todo mês.';
+      if (E.t && E.inicio === 'financiamento') return '<b>Mês ' + E.t + ':</b> a parcela do financiamento (' + brl(E.financiamento) + ') alcança a do consórcio (' + brl(E.consorcio) + '). A partir daí, o consórcio passa a ter a parcela menor.';
+      if (E.t) return 'As duas parcelas começam iguais, em ' + brl(E.consorcio) + '.';
+      return E.inicio === 'consorcio' ? 'A parcela do consórcio fica abaixo da do financiamento enquanto os dois estão sendo pagos.'
+        : 'A parcela do financiamento fica abaixo da do consórcio enquanto os dois estão sendo pagos.';
+    }
+
+    function textoEquilibrioInvestido(I) {
+      if (I.t) return '<b>Mês ' + I.t + ':</b> a economia aplicada (' + brl(I.aplicado) + ') já cobre o saldo devedor do consórcio (' + brl(I.saldoCons) + '). A partir daí, o valor investido seria suficiente para quitar a carta.';
+      return 'A economia aplicada não alcança o saldo devedor do consórcio antes da última parcela da carta.';
+    }
+
+    function secGraficos(rc) {
+      let h = '<section class="bloco-res vitrine">' + ui.tituloSecao('Consórcio × financiamento em', 'Gráficos', 'Mês a mês');
+      const Fi = rc.financiamento;
+      const pend = pendGraficos(Fi);
+      if (pend) return h + '<p class="nc">Não calculado: ' + esc(pend.join('; ')) + '.</p></section>';
+      const K = Fi.comparativo, nome = rc.indice.nome;
+      const serie = (mod, rot, campo, ate, janela) => ({ mod, nome: rot, pontos: K.meses.slice(0, janela || K.T).map((l) => ({ x: l.t, y: l.t <= ate ? l[campo] : null })) });
+      // 1) Evolução das parcelas, as duas reajustadas
+      const E = K.equilibrioParcela;
+      const optsParcelas = {
+        extraDica: (x) => {
+          const l = K.meses[x - 1];
+          if (!l || x > K.N || x > K.prazoFin) return '';
+          const d = l.economia;
+          return '<div class="g-dica-extra">' + (Math.abs(d) < 0.005 ? 'Parcelas iguais' : 'Diferença: ' + esc(brl(Math.abs(d))) + ' a favor do ' + (d > 0 ? 'consórcio' : 'financiamento')) + '</div>';
+        }
+      };
+      if (E && E.t) Object.assign(optsParcelas, { marcaX: E.t, marcaRotulo: 'mês ' + E.t + ': parcelas se igualam', marcaPonto: { x: E.t, y: E.consorcio, mod: 'cons' } });
+      h += ui.graficoLinhas('gc-parcelas', 'Evolução das parcelas',
+        'Parcela do consórcio com reajuste anual pelo ' + textoIndice(rc) + ' e parcela do financiamento corrigida pela TR, com Seguro/FGHab e taxas. Passe o mouse para ver cada mês.',
+        [serie('cons', 'Parcela consórcio (' + nome + ')', 'consorcio', K.N), serie('fin', 'Parcela financiamento (TR)', 'financiamento', K.prazoFin)], optsParcelas, false);
+      if (E) h += '<p class="g-equilibrio"><span class="g-equilibrio-rot">Ponto de equilíbrio</span>' + textoEquilibrioParcela(E, nome) + '</p>';
+      // 2) Economia acumulada (orgânica e aplicada) e saldos devedores
+      const I = K.equilibrioInvestido;
+      const optsSaldos = {};
+      if (I.t) Object.assign(optsSaldos, { marcaX: I.t, marcaRotulo: 'mês ' + I.t + ': investido cobre o saldo', marcaPonto: { x: I.t, y: I.aplicado, mod: 'aplic' } });
+      // Janela: até a última parcela da carta, onde a economia é comparada ao saldo do consórcio (a tabela a cada 12 meses segue até o fim)
+      const J = K.N;
+      h += ui.graficoLinhas('gc-saldos', 'Economia acumulada e saldos devedores',
+        'Até a última parcela da carta (mês ' + J + '): a diferença de parcela guardada mês a mês (orgânico) ou aplicada no CDB a ' + pct(K.taxaAplicacao) + ' a.a. (bruto), frente ao saldo devedor de cada caminho.',
+        [serie('cons', 'Saldo devedor consórcio', 'saldoCons', K.N, J), serie('fin', 'Saldo devedor financiamento', 'saldoFin', K.prazoFin, J),
+          serie('aplic', 'Acumulado aplicado (investido)', 'aplicado', K.T, J), serie('org', 'Acumulado orgânico', 'organico', K.T, J)], optsSaldos, false);
+      h += '<p class="g-equilibrio"><span class="g-equilibrio-rot">Ponto de equilíbrio</span>' + textoEquilibrioInvestido(I) + '</p>';
+      return h + '<p class="aviso-inline">Gráficos para apresentar na tela: não entram no PDF. Valores estimados com as premissas do menu.</p></section>';
+    }
+
     function desenhar(rc, s, ctx) {
       recolhidos = ctx.recolhidos || new Set();
       let h = cabecalho(rc, s, ctx.lead);
@@ -412,7 +478,8 @@
       if (rc.amortizacao) h += secAmortizacao(rc);
       if (rc.evolucao) h += secEvolucao(rc);
       if (rc.rendimentos) h += secRendimentos(rc, s, ctx);
-      if (rc.financiamento) h += secFinanciamento(rc);
+      if (rc.financiamento && s.financiamento.ativo) h += secFinanciamento(rc);
+      if (s.graficos && s.graficos.ativo) h += secGraficos(rc);
       return h + '<footer class="rodape"><p>' + esc(AVISO) + '</p></footer>';
     }
 
@@ -461,7 +528,7 @@
     // -------------------------------------------------------------------------
 
     const pdfTitulo = (a, b) => '<h2 class="pdf-h2">' + esc(a) + ' <span class="acento">' + esc(b) + '</span></h2>';
-    const pdfLinhas = (pares) => '<div class="pdf-linhas">' + pares.map(([rot, val, cls]) => '<div class="pdf-linha' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + val + '</b></div>').join('') + '</div>';
+    const pdfLinha = ([rot, val, cls, nota]) => '<div class="pdf-linha' + (cls ? ' ' + cls : '') + '"><span>' + rot + (nota ? '<small>' + nota + '</small>' : '') + '</span><b>' + val + '</b></div>';
     const pdfDestaques = (itens) => '<div class="pdf-destaques c' + itens.length + '">' + itens.map(([rot, val, nota, cls]) => '<div' + (cls ? ' class="' + cls + '"' : '') + '><span>' + rot + '</span><b>' + val + '</b>' + (nota ? '<small>' + nota + '</small>' : '') + '</div>').join('') + '</div>';
 
     function pdfTabela(cab, linhas, rodape, cls) {
@@ -578,13 +645,15 @@
         blocos.push('<div class="pdf-bloco">' + pdfTitulo('Simulação do', 'Investimento') + tabelaRendimentos(Rd, true) + pdfDestaques(itensComparativoRend(rc)) +
           '<p class="pdf-nota">' + esc(notaRendimentos({ params: Object.assign({}, CC.PARAMS_RENDIMENTOS, s.rendimentos.params), fonteTaxas: ctx.fonteTaxas })) + '</p></div>');
       }
-      const Fi = rc.financiamento;
+      // Só a guia Consórcio vs Financiamento vai para o PDF; os gráficos ficam na tela
+      const Fi = s.financiamento.ativo ? rc.financiamento : null;
       if (Fi && !Fi.ok) blocos.push(pdfNc('Consórcio vs', 'Financiamento', Fi.pend));
       if (Fi && Fi.ok) {
         let h = '<div class="pdf-bloco">' + pdfTitulo('Consórcio vs', 'Financiamento') + '<p class="pdf-ident pdf-sub-bloco">' + subFinanciamento(Fi, rc) + '</p>';
-        h += '<div class="pdf-grade c' + (Fi.consorcio ? 2 : 1) + '">';
-        if (Fi.consorcio) h += '<article class="pdf-cartao"><header><span class="forma-icone">' + icone('carta') + '</span><h3>Carta contemplada</h3></header>' + pdfLinhas(linhasConsorcio(Fi, rc)) + '</article>';
-        h += '<article class="pdf-cartao"><header><span class="forma-icone">' + icone('banco') + '</span><h3>Financiamento<small class="pdf-sub">' + nomeSistema(Fi) + '</small></h3></header>' + pdfLinhas(linhasFinanciamento(Fi)) + '</article></div>';
+        // Lado a lado com as linhas alinhadas (as linhas são filhas diretas do cartão, na grade comum)
+        h += '<div class="pdf-grade c' + (Fi.consorcio ? '2 lado' : '1') + '">';
+        if (Fi.consorcio) h += '<article class="pdf-cartao"><header><span class="forma-icone">' + icone('carta') + '</span><h3>Carta contemplada<small class="pdf-sub">' + esc(rc.segmento) + '</small></h3></header>' + linhasConsorcio(Fi, rc).map(pdfLinha).join('') + '</article>';
+        h += '<article class="pdf-cartao"><header><span class="forma-icone">' + icone('banco') + '</span><h3>Financiamento<small class="pdf-sub">' + nomeSistema(Fi) + '</small></h3></header>' + linhasFinanciamento(Fi).map(pdfLinha).join('') + '</article></div>';
         if (isNum(Fi.diferenca) && mesmoCredito(Fi)) h += '<div class="pdf-cet"><span>Diferença no total pago</span><b>' + brl(Math.abs(Fi.diferenca)) + '</b><em>a favor do ' + (Fi.diferenca >= 0 ? 'consórcio' : 'financiamento') + ', com os reajustes de cada um</em></div>';
         h += avisosFinanciamento(Fi).map((x) => '<p class="pdf-aviso ' + x.cls + '">' + x.html + '</p>').join('');
         blocos.push(h + '</div>');

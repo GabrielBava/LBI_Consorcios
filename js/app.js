@@ -66,7 +66,8 @@
   // ---------------------------------------------------------------------------
 
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const SERIE = { sorteio: 1, embutido: 1, fixo: 1, livre: 1 };
+  // Classe de cor de cada série (página 2: consórcio, financiamento, economia aplicada e orgânica)
+  const SERIE = { sorteio: 1, embutido: 1, fixo: 1, livre: 1, cons: 'c1', fin: 'c2', aplic: 'c3', org: 'c4' };
   // Ícones de traço no estilo Lucide (grade 24×24, traço 1,7, nunca preenchidos)
   const ICONES = {
     sorteio: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8.5 8.5h.01"/><path d="M15.5 8.5h.01"/><path d="M12 12h.01"/><path d="M8.5 15.5h.01"/><path d="M15.5 15.5h.01"/>',
@@ -551,10 +552,14 @@
     const sy = (y) => MT + (1 - (y - ymin) / (ymax - ymin)) * (GH - MT - MB);
     const passoX = N > 120 ? 24 : 12;
     let svg = eixoY(yt, sy);
-    for (let m = passoX; m <= N; m += passoX) svg += '<text class="g-rotulo" x="' + sx(m) + '" y="' + (GH - 12) + '" text-anchor="middle">' + m + '</text>';
+    // Marcas do eixo X; a que encostaria no rótulo "mês 1" é omitida
+    for (let m = passoX; m <= N; m += passoX) if (sx(m) - ML > 44) svg += '<text class="g-rotulo" x="' + sx(m) + '" y="' + (GH - 12) + '" text-anchor="middle">' + m + '</text>';
     svg += '<text class="g-rotulo" x="' + ML + '" y="' + (GH - 12) + '" text-anchor="start">mês 1</text>';
     if (ymin < 0) svg += '<line class="g-zero" x1="' + ML + '" x2="' + (GW - MR) + '" y1="' + sy(0) + '" y2="' + sy(0) + '"/>';
-    if (C.isNum(opts.marcaX)) svg += '<line class="g-marca" x1="' + sx(opts.marcaX) + '" x2="' + sx(opts.marcaX) + '" y1="' + MT + '" y2="' + (GH - MB) + '"/><text class="g-rotulo" x="' + (sx(opts.marcaX) + 4) + '" y="' + (MT + 10) + '">' + esc(opts.marcaRotulo || '') + '</text>';
+    if (C.isNum(opts.marcaX)) {
+      const xm = sx(opts.marcaX), fim = xm > GW * 0.7; // rótulo à esquerda da marca perto da borda direita
+      svg += '<line class="g-marca" x1="' + xm + '" x2="' + xm + '" y1="' + MT + '" y2="' + (GH - MB) + '"/><text class="g-rotulo g-rotulo-marca" x="' + (xm + (fim ? -4 : 4)) + '" y="' + (MT + 10) + '" text-anchor="' + (fim ? 'end' : 'start') + '">' + esc(opts.marcaRotulo || '') + '</text>';
+    }
     series.forEach((s) => {
       let d = '', aberto = false;
       s.pontos.forEach((p) => {
@@ -566,8 +571,14 @@
       const ult = s.pontos.filter((p) => C.isNum(p.y)).pop();
       if (ult) svg += '<circle class="g-ponto s' + SERIE[s.mod] + '" cx="' + sx(ult.x) + '" cy="' + sy(ult.y) + '" r="4"/>';
     });
-    if (!pdf) svg += '<g class="g-cursor" hidden><line x1="0" x2="0" y1="' + MT + '" y2="' + (GH - MB) + '"/></g><rect class="g-alvo" data-grafico="' + id + '" x="' + ML + '" y="' + MT + '" width="' + (GW - ML - MR) + '" height="' + (GH - MT - MB) + '"/>';
-    graficos.set(id, { tipo: 'linhas', series, N, sx, fmt: opts.fmtValor || C.fmtBRL, rotuloX: opts.rotuloX || ((x) => 'Mês ' + x) });
+    // Ponto de equilíbrio destacado sobre a linha
+    if (opts.marcaPonto && C.isNum(opts.marcaPonto.y)) svg += '<circle class="g-ponto g-ponto-marca s' + SERIE[opts.marcaPonto.mod] + '" cx="' + sx(opts.marcaPonto.x) + '" cy="' + sy(opts.marcaPonto.y) + '" r="5.5"/>';
+    if (!pdf) {
+      svg += '<g class="g-cursor" hidden><line x1="0" x2="0" y1="' + MT + '" y2="' + (GH - MB) + '"/>' +
+        (series.length > 1 ? series.map((s) => '<circle class="g-ponto s' + SERIE[s.mod] + '" cx="0" r="4"/>').join('') : '') + '</g>' +
+        '<rect class="g-alvo" data-grafico="' + id + '" x="' + ML + '" y="' + MT + '" width="' + (GW - ML - MR) + '" height="' + (GH - MT - MB) + '"/>';
+    }
+    graficos.set(id, { tipo: 'linhas', series, N, sx, sy, fmt: opts.fmtValor || C.fmtBRL, rotuloX: opts.rotuloX || ((x) => 'Mês ' + x), extra: opts.extraDica });
     return '<div class="grafico" data-id="' + id + '"><h3>' + esc(titulo) + '</h3><p class="g-sub">' + esc(subtitulo) + '</p>' + legenda(series) +
       '<div class="g-area"><svg viewBox="0 0 ' + GW + ' ' + GH + '" role="img" aria-label="' + esc(titulo) + '">' + svg + '</svg>' + (pdf ? '' : '<div class="g-dica" hidden></div>') + '</div>' +
       (pdf ? '' : tabelaDados(id, series, opts)) + '</div>';
@@ -630,11 +641,18 @@
     const cursor = $('.g-cursor', caixa);
     cursor.hidden = false;
     cursor.setAttribute('transform', 'translate(' + g.sx(x) + ',0)');
+    // Pontos do cursor sobre cada linha (gráficos com mais de uma série)
+    $$('circle', cursor).forEach((c, i) => {
+      const p = g.series[i] && g.series[i].pontos[x - 1];
+      const ok = p && C.isNum(p.y) && g.sy;
+      c.style.display = ok ? '' : 'none';
+      if (ok) c.setAttribute('cy', g.sy(p.y));
+    });
     const dica = $('.g-dica', caixa);
     dica.innerHTML = '<b>' + esc(g.rotuloX(x)) + '</b>' + g.series.map((s) => {
       const p = s.pontos[x - 1];
       return '<div>' + (g.series.length > 1 ? '<i class="g-chave s' + SERIE[s.mod] + '"></i>' + esc(s.nome) + ': ' : '') + (p && C.isNum(p.y) ? esc(g.fmt(p.y)) + (C.isNum(p.pct) ? ' (' + C.fmtPct(p.pct, 1) + ')' : '') : 'encerrado / n/c') + '</div>';
-    }).join('');
+    }).join('') + (g.extra ? g.extra(x) : '');
     dica.hidden = false;
     const area = $('.g-area', caixa).getBoundingClientRect();
     const px = ev.clientX - area.left;
@@ -891,6 +909,7 @@
   })());
 
   function desenharCont(rc) {
+    graficos.clear();
     textosCopia.fluxo = TC.textoFluxo(rc);
     pintar(barraTopo() + TC.desenhar(rc, estadoCont, { lead: String(estado.plano.lead || '').trim(), fonteTaxas: fonteTaxas(), recolhidos }));
   }
@@ -1298,7 +1317,7 @@
   estado = salvo ? mesclar(C.estadoPadrao(), salvo) : exemplo();
   estadoCont = salvoCont ? mesclar(CC.estadoPadrao(), salvoCont) : exemploCont();
   if (!Array.isArray(estadoCont.cartas) || !estadoCont.cartas.length) estadoCont.cartas = [CC.cartaVazia()];
-  TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, numeroWhatsapp });
+  TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, numeroWhatsapp, graficoLinhas });
   modo = modoDaUrl() || (function () { try { return localStorage.getItem(CHAVE_MODO); } catch (e) { return null; } })() || 'primario';
   // Dados enviados pelo CRM no botão "Gerar proposta" (?nome=...&contato=..., também aceitos depois do #).
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.
