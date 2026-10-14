@@ -20,7 +20,7 @@ O nome exibido na proposta e na mensagem do WhatsApp vem de `js/config.js` (`emp
 |---|---|
 | Laranja Life (títulos, destaques, preenchimentos) | `#F05A00` |
 | Texto de destaque no tema escuro | `#FF7A2E` (7:1 sobre o cartão) |
-| Texto de destaque no tema claro | `#C24400` (5:1 sobre o branco) |
+| Texto de destaque no tema claro | `#B03D00` (6:1 sobre o branco) |
 | Botão principal (texto branco) | `#CC4800` |
 | Fundo escuro / cartões | `#000000` / `#111111` |
 | Texto grafite (tema claro) | `#201E1E` |

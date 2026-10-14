@@ -10,12 +10,15 @@ const ler = (f) => fs.readFileSync(path.join(raiz, f), 'utf8');
 const html = ler('index.html');
 const titulo = html.match(/<title>[\s\S]*?<\/title>/)[0];
 const fontes = (html.match(/<link[^>]*fonts\.g[^>]*>/g) || []).join('\n');
+// Ícone da página (o coração da marca) embutido, para o arquivo único não depender de marca/
+const icone = '<link rel="icon" type="image/png" href="data:image/png;base64,' + fs.readFileSync(path.join(raiz, 'marca', 'life-coracao.png')).toString('base64') + '">';
 const corpo = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script src="js/config.js">')).trim();
 const semEntidade = (js) => js.replace(/<\/script/gi, '<\\/script');
 
 const saida = [
   titulo,
   fontes,
+  icone,
   // Klavika: só a instalada no computador (local); sem ela, vale a Titillium Web do Google Fonts
   '<style>\n' + ler('css/tokens.css').replace(/,url\("fonts\/[^"]+"\) format\("woff2"\)/g, '') + '\n' + ler('css/style.css') + '\n</style>',
   corpo,

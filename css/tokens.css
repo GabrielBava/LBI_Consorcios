@@ -109,7 +109,7 @@
   --border-soft: rgba(32,30,30,.07); /* Divisórias de lista */
   --border-forte: rgba(32,30,30,.45); /* Contorno dos cartões no estilo da apresentação */
   --primary: #F05A00;        /* Laranja Life: destaques, preenchimentos */
-  --primary-bright: #C24400; /* Texto de destaque (5:1 sobre o branco) */
+  --primary-bright: #B03D00; /* Texto de destaque (6:1 sobre o branco; 4,8:1 nos trilhos) */
   --primary-dark: #9A3412;   /* Destaque escuro */
   --text: #201E1E;           /* Texto principal (grafite do logotipo) */
   --text-muted: #67615C;     /* Texto secundário (6:1) */
@@ -120,7 +120,7 @@
   --danger: #B83232;         /* Erro, valor negativo */
   --chart-1: #C24400;        /* Pontos de gráficos */
   --chart-2: #F05A00;        /* Linhas */
-  --chart-3: #F47C20;        /* Barras */
+  --chart-3: #D94F00;        /* Barras (4:1 sobre o branco) */
   --chart-4: #F9A66C;        /* Série 4 */
   --chart-5: #FBD3B6;        /* Série 5 */
   --track: rgba(32,30,30,.08); /* Trilho de barras de progresso */
@@ -151,7 +151,7 @@
     --border-soft: rgba(32,30,30,.07);
     --border-forte: rgba(32,30,30,.45);
     --primary: #F05A00;
-    --primary-bright: #C24400;
+    --primary-bright: #B03D00;
     --primary-dark: #9A3412;
     --text: #201E1E;
     --text-muted: #67615C;
@@ -162,7 +162,7 @@
     --danger: #B83232;
     --chart-1: #C24400;
     --chart-2: #F05A00;
-    --chart-3: #F47C20;
+    --chart-3: #D94F00;
     --chart-4: #F9A66C;
     --chart-5: #FBD3B6;
     --track: rgba(32,30,30,.08);
