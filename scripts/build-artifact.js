@@ -16,7 +16,7 @@ const semEntidade = (js) => js.replace(/<\/script/gi, '<\\/script');
 const saida = [
   titulo,
   fontes,
-  // Famels: só a instalada no computador (local); os arquivos em fonts/ não são publicados on-line
+  // Klavika: só a instalada no computador (local); sem ela, vale a Titillium Web do Google Fonts
   '<style>\n' + ler('css/tokens.css').replace(/,url\("fonts\/[^"]+"\) format\("woff2"\)/g, '') + '\n' + ler('css/style.css') + '\n</style>',
   corpo,
   '<script>window.MODO_ARTIFACT = true;</script>',

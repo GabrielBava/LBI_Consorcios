@@ -1,41 +1,48 @@
 /* ==========================================================
-   CRM Consórcios — Design tokens v1.0 (out/2026)
-   Tema escuro em :root, tema claro em :root[data-theme="light"].
-   Os nomes são iguais nos dois temas; só os valores mudam.
+   Grupo Life Brasil — tokens de design do simulador
+   Base: apresentação institucional V1 (Klavika, laranja Life, preto e branco).
+   Tema escuro em :root (slides pretos), tema claro em :root[data-theme="light"]
+   (slides brancos). Os nomes são iguais nos dois temas; só os valores mudam.
    ========================================================== */
 
-/* Fonte primária (comercial): coloque os arquivos licenciados em /fonts */
-@font-face{font-family:"Famels";src:local("Famels Regular"),url("fonts/Famels-Regular.woff2") format("woff2");font-weight:400 600;font-style:normal;font-display:swap}
-@font-face{font-family:"Famels";src:local("Famels Italic"),url("fonts/Famels-Italic.woff2") format("woff2");font-weight:400 600;font-style:italic;font-display:swap}
-/* Poppins + Manrope (substituta da Famels):
-   <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet"> */
+/* Fonte da marca (comercial): usada quando a Klavika está instalada no computador.
+   Sem ela, vale a Titillium Web (Google Fonts), de desenho próximo:
+   <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet"> */
+@font-face{font-family:"Klavika";src:local("Klavika Light"),local("Klavika-Light");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:"Klavika";src:local("Klavika Light Italic"),local("Klavika-LightItalic");font-weight:300;font-style:italic;font-display:swap}
+@font-face{font-family:"Klavika";src:local("Klavika Regular"),local("Klavika-Regular");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Klavika";src:local("Klavika Medium"),local("Klavika-Medium");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Klavika";src:local("Klavika Bold"),local("Klavika-Bold");font-weight:600 700;font-style:normal;font-display:swap}
 
 :root{
-  /* ----- Paleta base (não muda entre temas) ----- */
-  --ink: #0D1B2A;       /* Azul-noite */
-  --navy: #1B263B;      /* Azul-marinho */
-  --slate: #415A77;     /* Azul-ardósia */
-  --steel: #778DA9;     /* Azul-aço */
-  --mist: #E0E1DD;      /* Névoa */
-  --steel-lt: #A9B8CB;  /* Aço-claro */
+  /* ----- Paleta da marca (não muda entre temas) ----- */
+  --life-laranja: #F05A00;   /* Laranja Life: títulos, destaques e botões */
+  --life-carmim: #C8203A;    /* Topo do coração */
+  --life-coral: #EE3F31;     /* Meio do coração */
+  --life-tangerina: #FF5A24; /* Base do coração */
+  --life-preto: #000000;     /* Fundo dos slides escuros */
+  --life-grafite: #201E1E;   /* Texto do logotipo */
+  --grad-marca: linear-gradient(135deg, #F7A23A 0%, #F05A00 100%);           /* Indicadores em destaque */
+  --grad-coracao: linear-gradient(160deg, #C8203A 0%, #EE3F31 45%, #FF5A24 100%); /* Detalhes no degradê do coração */
+  --texto-sobre-marca: #1A0E05; /* Texto sobre o laranja (contraste acima de 6:1) */
 
   /* ----- Tipografia ----- */
-  --font-display: "Famels", "Manrope", "Segoe UI", sans-serif;
-  --font: "Poppins", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --fs-hero: 2.6rem;
-  --fs-h1: 2rem;
-  --fs-kpi: 1.75rem;
-  --fs-lg: 1.05rem;
-  --fs-md: 0.88rem;
-  --fs-sm: 0.8rem;
-  --fs-xs: 0.7rem;
+  --font-display: "Klavika", "Titillium Web", "Segoe UI", sans-serif;
+  --font: "Klavika", "Titillium Web", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --fs-hero: 2.75rem;
+  --fs-h1: 2.1rem;
+  --fs-kpi: 1.85rem;
+  --fs-lg: 1.12rem;
+  --fs-md: 0.94rem;
+  --fs-sm: 0.86rem;
+  --fs-xs: 0.76rem;
 
-  /* ----- Forma ----- */
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 18px;
-  --radius-panel: 20px;
-  --radius-shell: 28px;
+  /* ----- Forma: cantos bem arredondados, como os cartões da apresentação ----- */
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --radius-panel: 24px;
+  --radius-shell: 30px;
   --radius-pill: 999px;
 
   /* ----- Espaçamento ----- */
@@ -48,124 +55,127 @@
   --space-6: 28px;
   --sidebar-w: 230px;
 
-  /* ----- TEMA ESCURO (padrão) ----- */
-  --bg-app: #08121D;         /* Fundo externo (atrás da moldura) */
-  --bg-shell: #0D1B2A;       /* Moldura do aplicativo */
-  --bg-sidebar: #0B1724;     /* Menu lateral */
-  --bg-card: #1B263B;        /* Cards e painéis */
-  --bg-card-2: #22304A;      /* Blocos internos, campos */
-  --card-top: #1F2B42;       /* Início do degradê dos cards */
-  --bg-active: rgba(119,141,169,.16); /* Item de menu ativo */
-  --border: rgba(119,141,169,.16); /* Bordas padrão */
-  --border-soft: rgba(119,141,169,.10); /* Divisórias de lista */
-  --primary: #778DA9;        /* Destaque, links */
-  --primary-bright: #A9B8CB; /* Destaque de título */
-  --primary-dark: #415A77;   /* Destaque escuro */
-  --text: #E0E1DD;           /* Texto principal */
-  --text-muted: #778DA9;     /* Texto secundário */
-  --text-faint: #415A77;     /* Texto terciário, desabilitado */
-  --icon-soft: #A9B8CB;      /* Ícones em fundo suave */
-  --success: #8CC5A2;        /* Positivo, concluído, oportunidade */
-  --warning: #E3BE76;        /* Atenção, prazo hoje */
-  --danger: #E38A8A;         /* Urgente, atrasado, erro */
-  --chart-1: #E0E1DD;        /* Série 1 de gráficos */
-  --chart-2: #A9B8CB;        /* Série 2 / linhas */
-  --chart-3: #778DA9;        /* Série 3 */
-  --chart-4: #415A77;        /* Série 4 */
-  --chart-5: #2E3F58;        /* Série 5 */
-  --track: rgba(224,225,221,.08); /* Trilho de barras de progresso */
-  --pill-bg: rgba(224,225,221,.04); /* Fundo de pílulas e campos */
-  --pill-active: rgba(224,225,221,.10); /* Pílula selecionada */
-  --glass-shell: rgba(13,27,42,.62); /* Vidro da moldura */
-  --glass-border: rgba(224,225,221,.08); /* Borda de vidro */
-  --glow-1: rgba(65,90,119,.55); /* Luz ambiente principal */
-  --glow-2: rgba(119,141,169,.22); /* Luz ambiente secundária */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.25);
-  --shadow-md: inset 0 1px 0 rgba(224,225,221,.05), 0 2px 4px rgba(0,0,0,.30), 0 12px 28px -8px rgba(0,0,0,.55);
-  --shadow-lg: inset 0 1px 0 rgba(224,225,221,.07), 0 4px 8px rgba(0,0,0,.30), 0 24px 48px -12px rgba(0,0,0,.65);
-  --shadow-float: 0 30px 60px -18px rgba(0,0,0,.75), 0 0 0 1px rgba(224,225,221,.06);
+  /* ----- TEMA ESCURO (padrão): preto com laranja ----- */
+  --bg-app: #000000;         /* Fundo externo (atrás da moldura) */
+  --bg-shell: #050505;       /* Moldura do aplicativo */
+  --bg-sidebar: #0B0B0B;     /* Menu lateral */
+  --bg-card: #111111;        /* Cards e painéis */
+  --bg-card-2: #181818;      /* Blocos internos, campos */
+  --card-top: #151515;       /* Início do degradê dos cards */
+  --bg-active: rgba(240,90,0,.14); /* Item ativo, realces */
+  --border: rgba(255,255,255,.12); /* Bordas padrão */
+  --border-soft: rgba(255,255,255,.07); /* Divisórias de lista */
+  --border-forte: rgba(255,255,255,.55); /* Contorno dos cartões no estilo da apresentação */
+  --primary: #F05A00;        /* Laranja Life: destaques, links, preenchimentos */
+  --primary-bright: #FF7A2E; /* Texto de destaque (7:1 sobre o cartão) */
+  --primary-dark: #B84300;   /* Destaque escuro */
+  --text: #F7F5F2;           /* Texto principal */
+  --text-muted: #A39E99;     /* Texto secundário (7:1) */
+  --text-faint: #6E6964;     /* Texto terciário, desabilitado */
+  --icon-soft: #FF7A2E;      /* Ícones em laranja, como na apresentação */
+  --success: #5CC98A;        /* Positivo, economia */
+  --warning: #F2B33D;        /* Atenção */
+  --danger: #FF6B6B;         /* Erro, valor negativo */
+  --chart-1: #FF7A2E;        /* Pontos de gráficos */
+  --chart-2: #F05A00;        /* Linhas */
+  --chart-3: #F47C20;        /* Barras */
+  --chart-4: #F9A66C;        /* Série 4 */
+  --chart-5: #FBD3B6;        /* Série 5 */
+  --track: rgba(255,255,255,.08); /* Trilho de barras de progresso */
+  --pill-bg: rgba(255,255,255,.04); /* Fundo de pílulas e campos */
+  --pill-active: rgba(255,255,255,.10); /* Pílula selecionada */
+  --glass-shell: rgba(8,8,8,.80); /* Vidro da moldura */
+  --glass-border: rgba(255,255,255,.08); /* Borda de vidro */
+  --glow-1: rgba(240,90,0,.14); /* Luz ambiente principal (laranja) */
+  --glow-2: rgba(200,32,58,.10); /* Luz ambiente secundária (carmim do coração) */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
+  --shadow-md: inset 0 1px 0 rgba(255,255,255,.04), 0 2px 4px rgba(0,0,0,.40), 0 12px 28px -8px rgba(0,0,0,.65);
+  --shadow-lg: inset 0 1px 0 rgba(255,255,255,.06), 0 4px 8px rgba(0,0,0,.40), 0 24px 48px -12px rgba(0,0,0,.75);
+  --shadow-float: 0 30px 60px -18px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.05);
   --glass-blur: 16px;
   color-scheme: dark;
 }
 
 :root[data-theme="light"]{
-  /* ----- TEMA CLARO ----- */
-  --bg-app: #CFD3D6;         /* Fundo externo (atrás da moldura) */
-  --bg-shell: #ECEDEA;       /* Moldura do aplicativo */
-  --bg-sidebar: #E4E6E2;     /* Menu lateral */
+  /* ----- TEMA CLARO: branco com laranja ----- */
+  --bg-app: #ECE9E5;         /* Fundo externo (atrás da moldura) */
+  --bg-shell: #F7F5F2;       /* Moldura do aplicativo */
+  --bg-sidebar: #F2EFEB;     /* Menu lateral */
   --bg-card: #FFFFFF;        /* Cards e painéis */
-  --bg-card-2: #F3F4F2;      /* Blocos internos, campos */
+  --bg-card-2: #F7F5F2;      /* Blocos internos, campos */
   --card-top: #FFFFFF;       /* Início do degradê dos cards */
-  --bg-active: rgba(65,90,119,.12); /* Item de menu ativo */
-  --border: rgba(65,90,119,.14); /* Bordas padrão */
-  --border-soft: rgba(65,90,119,.10); /* Divisórias de lista */
-  --primary: #415A77;        /* Destaque, links */
-  --primary-bright: #415A77; /* Destaque de título */
-  --primary-dark: #1B263B;   /* Destaque escuro */
-  --text: #0D1B2A;           /* Texto principal */
-  --text-muted: #415A77;     /* Texto secundário */
-  --text-faint: #778DA9;     /* Texto terciário, desabilitado */
-  --icon-soft: #415A77;      /* Ícones em fundo suave */
-  --success: #2F7D55;        /* Positivo, concluído, oportunidade */
-  --warning: #A86F12;        /* Atenção, prazo hoje */
-  --danger: #B84545;         /* Urgente, atrasado, erro */
-  --chart-1: #0D1B2A;        /* Série 1 de gráficos */
-  --chart-2: #415A77;        /* Série 2 / linhas */
-  --chart-3: #778DA9;        /* Série 3 */
-  --chart-4: #A9B8CB;        /* Série 4 */
-  --chart-5: #D3D9E0;        /* Série 5 */
-  --track: rgba(13,27,42,.08); /* Trilho de barras de progresso */
-  --pill-bg: rgba(13,27,42,.04); /* Fundo de pílulas e campos */
+  --bg-active: rgba(240,90,0,.09); /* Item ativo, realces */
+  --border: rgba(32,30,30,.12); /* Bordas padrão */
+  --border-soft: rgba(32,30,30,.07); /* Divisórias de lista */
+  --border-forte: rgba(32,30,30,.45); /* Contorno dos cartões no estilo da apresentação */
+  --primary: #F05A00;        /* Laranja Life: destaques, preenchimentos */
+  --primary-bright: #C24400; /* Texto de destaque (5:1 sobre o branco) */
+  --primary-dark: #9A3412;   /* Destaque escuro */
+  --text: #201E1E;           /* Texto principal (grafite do logotipo) */
+  --text-muted: #67615C;     /* Texto secundário (6:1) */
+  --text-faint: #9C958F;     /* Texto terciário, desabilitado */
+  --icon-soft: #E05200;      /* Ícones em laranja */
+  --success: #1F7A4D;        /* Positivo, economia */
+  --warning: #A35F00;        /* Atenção */
+  --danger: #B83232;         /* Erro, valor negativo */
+  --chart-1: #C24400;        /* Pontos de gráficos */
+  --chart-2: #F05A00;        /* Linhas */
+  --chart-3: #F47C20;        /* Barras */
+  --chart-4: #F9A66C;        /* Série 4 */
+  --chart-5: #FBD3B6;        /* Série 5 */
+  --track: rgba(32,30,30,.08); /* Trilho de barras de progresso */
+  --pill-bg: rgba(32,30,30,.04); /* Fundo de pílulas e campos */
   --pill-active: rgba(255,255,255,.95); /* Pílula selecionada */
-  --glass-shell: rgba(236,237,234,.70); /* Vidro da moldura */
+  --glass-shell: rgba(247,245,242,.78); /* Vidro da moldura */
   --glass-border: rgba(255,255,255,.85); /* Borda de vidro */
-  --glow-1: rgba(119,141,169,.55); /* Luz ambiente principal */
-  --glow-2: rgba(65,90,119,.25); /* Luz ambiente secundária */
-  --shadow-sm: 0 1px 2px rgba(13,27,42,.08);
-  --shadow-md: 0 1px 2px rgba(13,27,42,.05), 0 10px 24px -10px rgba(13,27,42,.20);
-  --shadow-lg: 0 2px 4px rgba(13,27,42,.06), 0 22px 44px -14px rgba(13,27,42,.30);
-  --shadow-float: 0 30px 60px -20px rgba(13,27,42,.35), 0 0 0 1px rgba(255,255,255,.9);
+  --glow-1: rgba(240,90,0,.10); /* Luz ambiente principal (laranja) */
+  --glow-2: rgba(200,32,58,.06); /* Luz ambiente secundária (carmim do coração) */
+  --shadow-sm: 0 1px 2px rgba(32,30,30,.08);
+  --shadow-md: 0 1px 2px rgba(32,30,30,.05), 0 10px 24px -10px rgba(32,30,30,.18);
+  --shadow-lg: 0 2px 4px rgba(32,30,30,.06), 0 22px 44px -14px rgba(32,30,30,.26);
+  --shadow-float: 0 30px 60px -20px rgba(32,30,30,.30), 0 0 0 1px rgba(255,255,255,.9);
   color-scheme: light;
 }
 
 /* Segue o sistema operacional quando o usuário não escolheu um tema */
 @media (prefers-color-scheme: light){
   :root:not([data-theme]){
-      --bg-app: #CFD3D6;         /* Fundo externo (atrás da moldura) */
-      --bg-shell: #ECEDEA;       /* Moldura do aplicativo */
-      --bg-sidebar: #E4E6E2;     /* Menu lateral */
-      --bg-card: #FFFFFF;        /* Cards e painéis */
-      --bg-card-2: #F3F4F2;      /* Blocos internos, campos */
-      --card-top: #FFFFFF;       /* Início do degradê dos cards */
-      --bg-active: rgba(65,90,119,.12); /* Item de menu ativo */
-      --border: rgba(65,90,119,.14); /* Bordas padrão */
-      --border-soft: rgba(65,90,119,.10); /* Divisórias de lista */
-      --primary: #415A77;        /* Destaque, links */
-      --primary-bright: #415A77; /* Destaque de título */
-      --primary-dark: #1B263B;   /* Destaque escuro */
-      --text: #0D1B2A;           /* Texto principal */
-      --text-muted: #415A77;     /* Texto secundário */
-      --text-faint: #778DA9;     /* Texto terciário, desabilitado */
-      --icon-soft: #415A77;      /* Ícones em fundo suave */
-      --success: #2F7D55;        /* Positivo, concluído, oportunidade */
-      --warning: #A86F12;        /* Atenção, prazo hoje */
-      --danger: #B84545;         /* Urgente, atrasado, erro */
-      --chart-1: #0D1B2A;        /* Série 1 de gráficos */
-      --chart-2: #415A77;        /* Série 2 / linhas */
-      --chart-3: #778DA9;        /* Série 3 */
-      --chart-4: #A9B8CB;        /* Série 4 */
-      --chart-5: #D3D9E0;        /* Série 5 */
-      --track: rgba(13,27,42,.08); /* Trilho de barras de progresso */
-      --pill-bg: rgba(13,27,42,.04); /* Fundo de pílulas e campos */
-      --pill-active: rgba(255,255,255,.95); /* Pílula selecionada */
-      --glass-shell: rgba(236,237,234,.70); /* Vidro da moldura */
-      --glass-border: rgba(255,255,255,.85); /* Borda de vidro */
-      --glow-1: rgba(119,141,169,.55); /* Luz ambiente principal */
-      --glow-2: rgba(65,90,119,.25); /* Luz ambiente secundária */
-      --shadow-sm: 0 1px 2px rgba(13,27,42,.08);
-      --shadow-md: 0 1px 2px rgba(13,27,42,.05), 0 10px 24px -10px rgba(13,27,42,.20);
-      --shadow-lg: 0 2px 4px rgba(13,27,42,.06), 0 22px 44px -14px rgba(13,27,42,.30);
-      --shadow-float: 0 30px 60px -20px rgba(13,27,42,.35), 0 0 0 1px rgba(255,255,255,.9);
+    --bg-app: #ECE9E5;
+    --bg-shell: #F7F5F2;
+    --bg-sidebar: #F2EFEB;
+    --bg-card: #FFFFFF;
+    --bg-card-2: #F7F5F2;
+    --card-top: #FFFFFF;
+    --bg-active: rgba(240,90,0,.09);
+    --border: rgba(32,30,30,.12);
+    --border-soft: rgba(32,30,30,.07);
+    --border-forte: rgba(32,30,30,.45);
+    --primary: #F05A00;
+    --primary-bright: #C24400;
+    --primary-dark: #9A3412;
+    --text: #201E1E;
+    --text-muted: #67615C;
+    --text-faint: #9C958F;
+    --icon-soft: #E05200;
+    --success: #1F7A4D;
+    --warning: #A35F00;
+    --danger: #B83232;
+    --chart-1: #C24400;
+    --chart-2: #F05A00;
+    --chart-3: #F47C20;
+    --chart-4: #F9A66C;
+    --chart-5: #FBD3B6;
+    --track: rgba(32,30,30,.08);
+    --pill-bg: rgba(32,30,30,.04);
+    --pill-active: rgba(255,255,255,.95);
+    --glass-shell: rgba(247,245,242,.78);
+    --glass-border: rgba(255,255,255,.85);
+    --glow-1: rgba(240,90,0,.10);
+    --glow-2: rgba(200,32,58,.06);
+    --shadow-sm: 0 1px 2px rgba(32,30,30,.08);
+    --shadow-md: 0 1px 2px rgba(32,30,30,.05), 0 10px 24px -10px rgba(32,30,30,.18);
+    --shadow-lg: 0 2px 4px rgba(32,30,30,.06), 0 22px 44px -14px rgba(32,30,30,.26);
+    --shadow-float: 0 30px 60px -20px rgba(32,30,30,.30), 0 0 0 1px rgba(255,255,255,.9);
     color-scheme: light;
   }
 }

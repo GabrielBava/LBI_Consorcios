@@ -2,6 +2,8 @@
 
 Versão 2.8 · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo) e `js/app.js` (interface).
 
+> **v3.1 — identidade do Grupo Life Brasil:** a marca, as cores, as fontes e os modelos visuais passaram a ser os do **Grupo Life Brasil** (seção 2.12). Não há mais logotipos nem vínculos com a marca anterior.
+>
 > **v3.0 — plataforma única:** este simulador é a **página 1 (Consórcio)**, no mesmo link da **página 2 (Carta Contemplada)**, especificada em [`ESPECIFICACAO-CONTEMPLADA.md`](ESPECIFICACAO-CONTEMPLADA.md). As abas no topo da proposta alternam entre as páginas (`#primario` / `#contemplada`); nome e contato do cliente, tema e menu oculto são compartilhados. O seletor de tema saiu do topo da proposta e foi para a barra das abas. As regras desta página não mudaram.
 
 > **Observação obrigatória:** a simulação depende dos dados do grupo, do contrato, das regras da administradora e das premissas inseridas. Nenhum valor é contratual. Não há garantia de contemplação, venda, lucro, valorização ou rentabilidade.
@@ -198,18 +200,20 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
 - **Link do CRM:** além de `nome` e `contato`, aceita `plano=<id>` para já abrir com o plano aplicado.
 - Trocar a categoria ou a administradora desfaz a seleção do plano.
 
-### 2.12 Identidade visual do CRM Consórcios (v2.8)
+### 2.12 Identidade visual do Grupo Life Brasil (v3.1)
 
-- **Fonte da verdade:** `css/tokens.css`, cópia do arquivo oficial de tokens do CRM (paleta base, temas escuro e claro, tipografia, raios, espaçamentos, sombras e vidro). `css/style.css` só acrescenta tokens derivados (botão principal, fundos suaves de status, anel de foco) e os componentes.
-- **Temas:** escuro por padrão; claro quando o sistema operacional está no modo claro ou quando a pessoa escolhe **Claro** no seletor do topo da proposta (preferência guardada só no navegador). O PDF sai sempre no tema escuro da marca.
-- **Tipografia:** Famels (substituta oficial Manrope) em títulos, números e valores; Poppins em textos, rótulos, menus e botões. Escala `--fs-hero` a `--fs-xs`, sem rótulos em maiúsculas.
-- **Forma e componentes:**
-  - Moldura de vidro sobre luz ambiente, com menu flutuante.
-  - Cards com degradê de 160°; botões, abas e chips em pílula.
-  - Um botão principal por tela (névoa sólida no escuro, azul-noite no claro); ações secundárias em pílula de vidro.
-  - Ícones de traço no estilo Lucide (1,7 px, nunca preenchidos).
-  - Status com as cores dessaturadas da marca: sucesso para resultado positivo, perigo para negativo.
-- **Marca:** logotipo da **Vero Consórcios**, nome oficial da empresa. A versão com texto azul-noite é usada no tema claro e a versão com texto em névoa no tema escuro. Aparece no topo do menu, no topo da proposta na tela, no topo da página 1 do PDF e no rodapé de todas as páginas, sempre na versão escura no PDF. A mensagem do WhatsApp cita a *Vero Consórcios*. Os arquivos ficam em `img/vero-logo-claro.png` e `img/vero-logo-escuro.png`, embutidos em `js/logos.js`.
+- **Fonte da verdade:** `css/tokens.css`, tirado da apresentação institucional V1 do Grupo Life Brasil (paleta, temas escuro e claro, tipografia, raios, espaçamentos e sombras). `css/style.css` só acrescenta tokens derivados (botão principal, fundos suaves de status, anel de foco, séries dos gráficos) e os componentes. O resumo da identidade está em `marca/IDENTIDADE.md`.
+- **Temas:** escuro por padrão (preto, como os slides escuros); claro (branco, como os slides claros) quando o sistema operacional está no modo claro ou quando a pessoa escolhe **Claro** no seletor (preferência guardada só no navegador). O PDF sai sempre no tema escuro da marca.
+- **Cores:** laranja Life `#F05A00` nos títulos, destaques e preenchimentos; texto de destaque `#FF7A2E` no escuro e `#C24400` no claro (contraste acima de 4,5:1); fundo preto `#000` e cartões `#111`; grafite `#201E1E` no texto do tema claro; degradê do coração (carmim `#C8203A` → coral `#EE3F31` → tangerina `#FF5A24`) e degradê laranja (`#F7A23A` → `#F05A00`) nos indicadores em destaque, com texto escuro.
+- **Tipografia:** Klavika (fonte da marca, comercial) quando instalada no computador; sem ela, a Titillium Web (Google Fonts), de desenho próximo. Títulos de seção em caixa alta e peso leve, com a palavra-chave em negrito.
+- **Modelos da apresentação aplicados:**
+  - Título de seção laranja em caixa alta ("RESUMO DA **PROPOSTA**"), com um traço fino abaixo.
+  - Cabeçalho da proposta no estilo da capa: "PROPOSTA DE **CONSÓRCIO**", fino, com a palavra-chave em negrito laranja.
+  - Cartões de cantos bem arredondados com contorno fino (como os cartões "Nossa Missão"); ícones em laranja dentro de círculo de contorno.
+  - Indicadores principais em degradê laranja com texto escuro e aba ativa em pílula laranja (como o sistema Diagnóstico Life).
+  - Botão principal em laranja Life com texto branco; destaques em pílula com borda laranja.
+- **Marca:** logotipo do **Grupo Life Brasil** (nome configurável em `js/config.js`, campo `empresa`). A versão com texto grafite é usada no tema claro e a versão com texto branco no tema escuro; o coração sozinho é o ícone da página. Aparece no topo do menu, no topo da proposta na tela, no topo da página 1 do PDF e no rodapé de todas as páginas, sempre na versão escura no PDF. A mensagem do WhatsApp cita o *Grupo Life Brasil*. Os arquivos ficam em `marca/life-logo-claro.png`, `marca/life-logo-escuro.png` e `marca/life-coracao.png`, embutidos em `js/logos.js` por `npm run logos`.
+- **Gráficos:** linhas e barras em laranja Life; na página 2, consórcio em laranja, financiamento em azul, economia aplicada em verde e economia orgânica em magenta (paleta validada para daltonismo e contraste em todos os pares, nos dois temas).
 - **Geração do PDF:** as páginas são montadas fora da tela em escala 2,5× e capturadas a 0,8×. Assim o html2canvas desenha o texto pequeno sem falhas de espaçamento e a resolução final continua a mesma (1588 × 2245 px por página).
 
 ## 3. Fórmulas

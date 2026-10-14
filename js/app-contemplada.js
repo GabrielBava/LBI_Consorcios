@@ -511,7 +511,7 @@
       const l = [
         'Olá, *' + primeiro + '*! Tudo bem?',
         '',
-        'Conforme conversamos, segue abaixo o PDF da proposta da *Vero Consórcios* apresentada em reunião. Os destaques:',
+        'Conforme conversamos, segue abaixo o PDF da proposta do *' + ui.EMPRESA + '* apresentada em reunião. Os destaques:',
         '',
         '📊 *Carta Contemplada – ' + rc.segmento + '*'
       ];
@@ -557,7 +557,7 @@
 
     function pdfPagina(n, total, lead, corpo) {
       return '<section class="pdf-pagina"><div class="pdf-corpo">' + corpo + '</div>' +
-        '<footer class="pdf-rodape"><span>' + esc(lead) + '</span>' + (ui.LOGO.escuro ? '<img class="pdf-logo-rodape" src="' + ui.LOGO.escuro + '" alt="Vero Consórcios">' : '') + '<span>' + n + ' / ' + total + '</span></footer></section>';
+        '<footer class="pdf-rodape"><span>' + esc(lead) + '</span>' + (ui.LOGO.escuro ? '<img class="pdf-logo-rodape" src="' + ui.LOGO.escuro + '" alt="' + esc(ui.EMPRESA) + '">' : '') + '<span>' + n + ' / ' + total + '</span></footer></section>';
     }
 
     /**
@@ -623,7 +623,7 @@
       const blocos = [];
       // Topo e resumo
       const kpi = (rot, val, cls, suf) => '<div class="pdf-kpi' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + val + (suf ? '<small> ' + suf + '</small>' : '') + '</b></div>';
-      blocos.push('<header class="pdf-topo">' + (ui.LOGO.escuro ? '<img class="pdf-logo" src="' + ui.LOGO.escuro + '" alt="Vero Consórcios">' : '') +
+      blocos.push('<header class="pdf-topo">' + (ui.LOGO.escuro ? '<img class="pdf-logo" src="' + ui.LOGO.escuro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
         '<p class="eyebrow">Emitida em ' + hoje + '</p><h1>Proposta de <span class="acento">Carta Contemplada</span></h1>' +
         '<p class="pdf-cliente">' + esc(lead) + '</p><p class="pdf-ident">' + identificacao(rc, s) + '</p></header>' +
         '<div class="pdf-kpis pdf-kpis-cont">' + kpi('Crédito contrato', R.ok ? brl(R.credito) : '—', 'destaque') + kpi('Parcela atual', R.ok ? brl(R.parcelaAtual) : '—', 'destaque') +

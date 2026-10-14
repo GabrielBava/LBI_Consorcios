@@ -1,4 +1,4 @@
-# Simulador de Consórcio — Vero Consórcios
+# Simulador de Consórcio — Grupo Life Brasil
 
 Plataforma única, no mesmo link, com duas páginas:
 
@@ -23,14 +23,14 @@ Na primeira abertura aparece um exemplo com valores fictícios. **Nova proposta*
 
 ## Identidade visual
 
-O simulador segue o manual de identidade do CRM Consórcios (v1.0): paleta azul-noite, tema escuro e claro (botão **Claro | Escuro** no topo da proposta), Famels/Manrope em títulos e números, Poppins nos textos, ícones de traço e o logotipo da **Vero Consórcios** (versões para fundo claro e escuro em `img/`, embutidas em `js/logos.js`). Os tokens oficiais ficam em `css/tokens.css`; para usar a Famels licenciada, coloque os arquivos em `css/fonts/` (sem eles, a Manrope assume automaticamente).
+O simulador segue a identidade do **Grupo Life Brasil** (apresentação institucional V1): laranja Life sobre preto no tema escuro e sobre branco no tema claro (botão **Claro | Escuro** no topo da proposta), títulos em caixa alta com a palavra-chave em negrito, cartões de cantos arredondados e o logotipo com o coração (versões para fundo claro e escuro em `marca/`, embutidas em `js/logos.js` por `npm run logos`). A fonte da marca é a Klavika (comercial), usada quando está instalada no computador; sem ela, a Titillium Web assume automaticamente. Os tokens ficam em `css/tokens.css` e o resumo da identidade em `marca/IDENTIDADE.md`.
 
 ## Estrutura
 
 | Arquivo | Conteúdo |
 |---|---|
 | `index.html` | Tela: menu lateral (configuração) e área de resultados |
-| `css/tokens.css` | Tokens oficiais do CRM Consórcios (cores, tipografia, forma, sombras; temas escuro e claro) |
+| `css/tokens.css` | Tokens da identidade do Grupo Life Brasil (cores, tipografia, forma, sombras; temas escuro e claro) |
 | `css/style.css` | Componentes do simulador e layout das páginas do PDF |
 | `js/config.js` | Número do especialista e planos cadastrados (ou endereço do CRM) |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |

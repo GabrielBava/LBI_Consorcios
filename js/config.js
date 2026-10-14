@@ -1,6 +1,8 @@
 /*
  * Configurações do simulador (editar aqui).
  *
+ * empresa: nome da empresa exibido na proposta, no PDF e na mensagem do WhatsApp.
+ *
  * whatsappEspecialista: número do especialista usado no botão "Falar no WhatsApp"
  * da página 3 do PDF. Informe com DDD, por exemplo '11987654321'.
  *
@@ -25,6 +27,7 @@
  * substitua pelos planos cadastrados no CRM.
  */
 window.CONFIG_SIMULADOR = {
+  empresa: 'Grupo Life Brasil',
   whatsappEspecialista: '',
   planosUrl: '',
   planos: [

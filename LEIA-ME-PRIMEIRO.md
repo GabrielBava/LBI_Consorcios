@@ -1,6 +1,6 @@
-# Simulador de Consórcio — Vero Consórcios
+# Simulador de Consórcio — Grupo Life Brasil
 
-Pacote completo do simulador, com código, logos, manual de identidade visual e um exemplo de proposta em PDF. É uma plataforma única com duas páginas no mesmo link: **Consórcio** (cartas primárias, `#primario`) e **Carta Contemplada** (`#contemplada`).
+Pacote completo do simulador, com código, logos e o resumo da identidade visual do Grupo Life Brasil. É uma plataforma única com duas páginas no mesmo link: **Consórcio** (cartas primárias, `#primario`) e **Carta Contemplada** (`#contemplada`).
 
 ## Como abrir
 
@@ -18,18 +18,17 @@ Pacote completo do simulador, com código, logos, manual de identidade visual e 
 | `js/calc-contemplada.js` | Página 2 — motor de cálculo puro: cartas e junção, CET aproximado, fluxo de parcelas, amortização, evolução, rendimentos e financiamento |
 | `js/app-contemplada.js` | Página 2 — proposta na tela, mensagem do WhatsApp e PDF |
 | `js/app.js` | Interface: abas entre as páginas, campos, desenho da proposta, PDF, mensagem do WhatsApp, temas, link do CRM |
-| `js/config.js` | WhatsApp do especialista, endereço do CRM (`planosUrl`) e planos cadastrados |
-| `js/logos.js` | Logos da Vero embutidos (versão clara e escura) |
+| `js/config.js` | Nome da empresa, WhatsApp do especialista, endereço do CRM (`planosUrl`) e planos cadastrados |
+| `js/logos.js` | Logos do Grupo Life Brasil embutidos (versão clara, escura e o coração), gerados por `npm run logos` |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
-| `css/tokens.css` | Tokens oficiais da identidade (cores, fontes, raios, sombras; temas escuro e claro) |
+| `css/tokens.css` | Tokens da identidade do Grupo Life Brasil (cores, fontes, raios, sombras; temas escuro e claro) |
 | `css/style.css` | Componentes da tela e layout das 3 páginas do PDF |
 | `tests/calc.test.js` | 27 testes do motor de cálculo da página 1 |
 | `tests/contemplada.test.js` | 18 testes do motor de cálculo da página 2 |
 | `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 2.8) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.0): campos, regras, fórmulas e validações |
-| `marca/` | Logos com fundo transparente (`vero-logo-claro.png`, `vero-logo-escuro.png`) e os originais |
-| `marca/manual-identidade/` | Os 4 PDFs do manual (paleta, tipografia, elementos, aplicações) e o `design-tokens.css` original |
-| `exemplos/proposta-exemplo.pdf` | Exemplo do PDF gerado pelo botão "Gerar proposta" |
+| `marca/` | Logos com fundo transparente (`life-logo-claro.png`, `life-logo-escuro.png`, `life-coracao.png`) e `IDENTIDADE.md` (cores, fontes e modelos da marca) |
+| `scripts/gerar-logos.js` | Gera `js/logos.js` a partir dos logos de `marca/` (`npm run logos`) |
 
 ## Regras principais já implementadas (resumo)
 
@@ -60,7 +59,7 @@ Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 
 - Número de WhatsApp do especialista em `js/config.js` (está vazio).
 - Endereço do CRM ou lista real de planos em `js/config.js` (hoje há 2 planos de exemplo).
-- Fonte Famels: comercial. Para usar, coloque os arquivos em `css/fonts/`; até lá, a Manrope é usada.
+- Fonte Klavika: comercial. Instalada no computador, ela é usada automaticamente; sem ela, vale a Titillium Web.
 - Mecanismo de Alavancagem ainda não entra no PDF.
 
 ## Como começar em outro chat
@@ -68,4 +67,4 @@ Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 1. Envie este arquivo zip (ou os arquivos descompactados) no novo chat.
 2. Cole uma mensagem como esta, ajustando o que for preciso:
 
-> Segue em anexo o projeto completo do Simulador de Consórcio da Vero Consórcios (HTML/CSS/JS, sem build). Leia primeiro `LEIA-ME-PRIMEIRO.md` e `docs/ESPECIFICACAO.md`. Quero criar uma versão de teste separada que mantenha tudo o que já existe e inclua um **modelo de carta contemplada**: [descreva aqui as regras da carta contemplada, por exemplo: crédito disponível, saldo devedor, parcelas restantes, valor de ágio/entrada, comparação com financiamento]. Siga a identidade visual de `css/tokens.css` e do manual em `marca/manual-identidade/`, use os logos de `marca/` e mantenha os testes de `tests/calc.test.js` passando.
+> Segue em anexo o projeto completo do Simulador de Consórcio do Grupo Life Brasil (HTML/CSS/JS, sem build). Leia primeiro `LEIA-ME-PRIMEIRO.md` e `docs/ESPECIFICACAO.md`. Quero criar uma versão de teste separada que mantenha tudo o que já existe e inclua um **modelo de carta contemplada**: [descreva aqui as regras da carta contemplada, por exemplo: crédito disponível, saldo devedor, parcelas restantes, valor de ágio/entrada, comparação com financiamento]. Siga a identidade visual de `css/tokens.css` e de `marca/IDENTIDADE.md`, use os logos de `marca/` e mantenha os testes de `tests/calc.test.js` passando.

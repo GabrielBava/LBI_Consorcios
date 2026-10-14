@@ -870,10 +870,11 @@
       '<div class="formas">' + r.aquisicao.map(cartaoAquisicao).join('') + '</div></section>';
   }
 
-  /** Logotipo da Vero Consórcios: versão para fundo escuro e para fundo claro (o CSS mostra a do tema atual). */
-  const LOGO = window.LOGO_VERO || {};
-  const logoPar = (cls) => '<img class="logo logo-escuro ' + cls + '" src="' + (LOGO.escuro || '') + '" alt="Vero Consórcios">' +
-    '<img class="logo logo-claro ' + cls + '" src="' + (LOGO.claro || '') + '" alt="Vero Consórcios">';
+  /** Logotipo da empresa (js/logos.js): versão para fundo escuro e para fundo claro (o CSS mostra a do tema atual). */
+  const LOGO = window.LOGO_MARCA || {};
+  const EMPRESA = String((window.CONFIG_SIMULADOR || {}).empresa || 'Grupo Life Brasil');
+  const logoPar = (cls) => '<img class="logo logo-escuro ' + cls + '" src="' + (LOGO.escuro || '') + '" alt="' + esc(EMPRESA) + '">' +
+    '<img class="logo logo-claro ' + cls + '" src="' + (LOGO.claro || '') + '" alt="' + esc(EMPRESA) + '">';
 
   function cabecalho(s, pdf) {
     const ident = [C.CATEGORIAS[s.plano.categoria].nome, s.plano.administradora].filter(Boolean).map(esc).join(' · ');
@@ -1011,7 +1012,7 @@
 
   function pdfPagina(n, total, s, corpo) {
     return '<section class="pdf-pagina"><div class="pdf-corpo">' + corpo + '</div>' +
-      '<footer class="pdf-rodape"><span>' + esc(s.plano.lead) + '</span>' + (LOGO.escuro ? '<img class="pdf-logo-rodape" src="' + LOGO.escuro + '" alt="Vero Consórcios">' : '') + '<span>' + n + ' / ' + total + '</span></footer></section>';
+      '<footer class="pdf-rodape"><span>' + esc(s.plano.lead) + '</span>' + (LOGO.escuro ? '<img class="pdf-logo-rodape" src="' + LOGO.escuro + '" alt="' + esc(EMPRESA) + '">' : '') + '<span>' + n + ' / ' + total + '</span></footer></section>';
   }
 
   function pdfCartaoForma(n, mod, nome, sub) {
@@ -1044,7 +1045,7 @@
     // Página 1: dados da proposta, características e formas de contemplação
     const kpi = (rot, val, formato, cls, suf) => '<div class="pdf-kpi' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + fmt(val, formato) + (suf && val && val.v != null ? '<small> ' + suf + '</small>' : '') + '</b></div>';
     const ident = [C.CATEGORIAS[p.categoria].nome, p.administradora].filter(Boolean).map(esc).join(' · ');
-    let p1 = '<header class="pdf-topo">' + (LOGO.escuro ? '<img class="pdf-logo" src="' + LOGO.escuro + '" alt="Vero Consórcios">' : '') + '<p class="eyebrow">Emitida em ' + data + '</p><h1>Proposta de <span class="acento">Consórcio</span></h1>' +
+    let p1 = '<header class="pdf-topo">' + (LOGO.escuro ? '<img class="pdf-logo" src="' + LOGO.escuro + '" alt="' + esc(EMPRESA) + '">' : '') + '<p class="eyebrow">Emitida em ' + data + '</p><h1>Proposta de <span class="acento">Consórcio</span></h1>' +
       '<p class="pdf-cliente">' + esc(p.lead) + '</p><p class="pdf-ident">' + ident + '</p></header>';
     p1 += '<div class="pdf-kpis">' + kpi('Crédito', R.credito, 'brl', 'destaque') + kpi('Parcela inicial', R.parcelaInicial, 'brl', 'destaque') + kpi('Total de taxas', R.taxaAno, 'pct', '', 'a.a.') + kpi('Prazo', R.prazo, 'meses') + '</div>';
     const carac = [
@@ -1181,7 +1182,7 @@
     const linhas = [
       'Olá, *' + primeiro + '*! Tudo bem?',
       '',
-      'Conforme conversamos, segue abaixo o PDF da proposta da *Vero Consórcios* apresentada em reunião. Os destaques:',
+      'Conforme conversamos, segue abaixo o PDF da proposta do *' + EMPRESA + '* apresentada em reunião. Os destaques:',
       '',
       '🏷️ *Consórcio de ' + C.CATEGORIAS[p.categoria].nome + '*',
       '💰 Crédito: *' + v(R.credito.v) + '*',
@@ -1263,7 +1264,7 @@
       const k = parseFloat(getComputedStyle(area).getPropertyValue('--k')) || 1;
       for (let i = 0; i < paginas.length; i++) {
         const pg = paginas[i];
-        const canvas = await window.html2canvas(pg, { scale: 2 / k, backgroundColor: '#0D1B2A', logging: false, useCORS: true });
+        const canvas = await window.html2canvas(pg, { scale: 2 / k, backgroundColor: '#000000', logging: false, useCORS: true });
         if (i) doc.addPage();
         doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
         // Mantém os links (botão do WhatsApp) clicáveis no PDF
@@ -1335,7 +1336,7 @@
   estado = salvo ? mesclar(C.estadoPadrao(), salvo) : exemplo();
   estadoCont = salvoCont ? mesclar(CC.estadoPadrao(), salvoCont) : exemploCont();
   if (!Array.isArray(estadoCont.cartas) || !estadoCont.cartas.length) estadoCont.cartas = [CC.cartaVazia()];
-  TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, numeroWhatsapp, graficoLinhas });
+  TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, EMPRESA, numeroWhatsapp, graficoLinhas });
   modo = modoDaUrl() || (function () { try { return localStorage.getItem(CHAVE_MODO); } catch (e) { return null; } })() || 'primario';
   // Dados enviados pelo CRM no botão "Gerar proposta" (?nome=...&contato=..., também aceitos depois do #).
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.
@@ -1363,7 +1364,7 @@
     return false;
   };
   const comUrlCrm = !!(window.CONFIG_SIMULADOR || {}).planosUrl;
-  document.querySelectorAll('img[data-logo]').forEach((img) => { img.src = LOGO[img.dataset.logo] || ''; });
+  document.querySelectorAll('img[data-logo]').forEach((img) => { img.src = LOGO[img.dataset.logo] || ''; img.alt = EMPRESA; });
   preencherSelects();
   let planoAplicado = aplicarPlanoCrm(!comUrlCrm);
   ligarMenu();
