@@ -281,13 +281,17 @@
         escreverCampos();
         preencherPlanos();
       } else if (el.dataset.k === 'plano.administradora') {
-        // Nome digitado igual a uma administradora da lista ganha a grafia dela (HS, Itaú...)
+        // Enquanto digita, plano e lista só mudam quando o texto já é uma administradora conhecida (ou ao sair do campo)
         const grafia = grafiaAdministradora(estado.plano.administradora);
-        if (grafia !== estado.plano.administradora && ev.type === 'change') { estado.plano.administradora = grafia; el.value = grafia; }
-        // Troca de administradora: o plano cadastrado anterior deixa de valer
-        const pl = planoPorId(estado.plano.planoId);
-        if (pl && chaveAdm(pl.administradora) !== chaveAdm(estado.plano.administradora)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null });
-        preencherPlanos();
+        const conhecida = C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora)).includes(grafia);
+        if (ev.type === 'change' || conhecida) {
+          // Nome digitado igual a uma administradora da lista ganha a grafia dela (HS, Itaú...)
+          if (grafia !== estado.plano.administradora && ev.type === 'change') { estado.plano.administradora = grafia; el.value = grafia; }
+          // Troca de administradora: o plano cadastrado anterior deixa de valer
+          const pl = planoPorId(estado.plano.planoId);
+          if (pl && chaveAdm(pl.administradora) !== chaveAdm(grafia)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null });
+          preencherPlanos();
+        }
       } else if (el.dataset.k === 'plano.planoId') {
         // Plano cadastrado: crédito mínimo, prazo, taxas, lances e índice preenchidos automaticamente
         if (selecionarPlano(estado.plano.planoId)) avisar('Plano aplicado: crédito, prazo, taxas, lances e índice atualizados.');
@@ -429,6 +433,7 @@
           estado = C.estadoPadrao();
           revelados.clear();
         }
+        if (TA) TA.limpar(); // o rascunho do termo de adesão era do cliente anterior
         escreverCampos(); atualizar();
         $('#f-lead').focus();
       });

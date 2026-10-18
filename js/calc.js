@@ -380,7 +380,11 @@
     let lance = null;
     if (mod !== 'sorteio') {
       lance = lanceSobre(s, mod, credBruto, pctFidelidade);
-      if (!isNum(lance.pct)) res.pend.push(mod === 'retido' ? 'Valor do lance retido não informado' : 'Percentual do ' + NOMES_MOD[mod].toLowerCase() + ' não informado');
+      if (!isNum(lance.pct)) {
+        const retidoInformado = isNum(num(s.lances.retidoValor)) && num(s.lances.retidoValor) > 0;
+        res.pend.push(mod !== 'retido' ? 'Percentual do ' + NOMES_MOD[mod].toLowerCase() + ' não informado'
+          : retidoInformado ? 'Lance retido: crédito na contemplação não calculado (confira crédito e reajuste)' : 'Valor do lance retido não informado');
+      }
       if (lance.usaEmbutido && !isNum(lance.pctEmbutido)) res.pend.push('Percentual do lance embutido não informado');
       const pos = linhas.slice(mesC);
       if (isNum(lance.total) && lance.total > 0 && pos.length && pos.every((l) => isNum(l.plano))) {

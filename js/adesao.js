@@ -113,8 +113,11 @@
   function Adesao(ui) {
     const esc = ui.esc;
     const CHAVE_CONSULTOR = 'simconsorcio.consultor';
-    // Dados digitados ficam só na memória desta aba (não são gravados no navegador: são dados pessoais do cliente)
+    // Dados digitados ficam só na memória desta aba (não são gravados no navegador: são dados pessoais do cliente).
+    // O rascunho é do cliente para quem foi aberto (nome + celular da proposta); outro cliente começa do zero.
     let rascunho = {};
+    let rascunhoDe = '';
+    function limpar() { rascunho = {}; rascunhoDe = ''; }
 
     function lembrados() {
       try { return JSON.parse(localStorage.getItem(CHAVE_CONSULTOR) || '{}') || {}; } catch (e) { return {}; }
@@ -188,19 +191,50 @@
       return g.campos.filter((c) => visivel(c, dados) && String(dados[c.id] || '').trim()).map((c) => [c.rotulo, valorTexto(c, dados[c.id])]);
     }
 
-    function pdfHtml(dados, resumo, data) {
+    /** Blocos do termo: topo, proposta, grupos preenchidos e observações. */
+    function blocosPdf(dados, resumo, data) {
       const dl = (pares) => '<dl class="pdf-carac">' + pares.map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl>';
-      let corpo = '<header class="pdf-topo">' + (ui.LOGO.claro ? '<img class="pdf-logo" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
+      const blocos = ['<header class="pdf-topo">' + (ui.LOGO.claro ? '<img class="pdf-logo" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
         '<p class="eyebrow">Uso interno · gerado em ' + data + '</p><h1>Termo de <span class="acento">Adesão</span></h1>' +
-        '<p class="pdf-cliente">' + esc(dados.nome) + '</p><p class="pdf-ident">Dados para o pós-venda subir o termo de adesão e gerar o contrato.</p></header>';
-      corpo += '<div class="pdf-bloco">' + '<h2 class="pdf-h2">Dados da <span class="acento">Proposta</span></h2>' + dl(resumo) + '</div>';
+        '<p class="pdf-cliente">' + esc(dados.nome) + '</p><p class="pdf-ident">Dados para o pós-venda subir o termo de adesão e gerar o contrato.</p></header>'];
+      blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">Dados da <span class="acento">Proposta</span></h2>' + dl(resumo) + '</div>');
       CAMPOS_ADESAO.forEach((g) => {
         const pares = linhasGrupo(g, dados).filter(([k]) => k !== 'Observações para o pós-venda');
-        if (pares.length) corpo += '<div class="pdf-bloco"><h2 class="pdf-h2">' + esc(g.grupo) + '</h2>' + dl(pares) + '</div>';
+        if (pares.length) blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">' + esc(g.grupo) + '</h2>' + dl(pares) + '</div>');
       });
-      if (String(dados.observacoes || '').trim()) corpo += '<div class="pdf-bloco"><h2 class="pdf-h2">Observações</h2><p class="pdf-ident">' + esc(dados.observacoes) + '</p></div>';
-      return '<section class="pdf-pagina"><div class="pdf-corpo">' + corpo + '</div>' +
-        '<footer class="pdf-rodape"><span>' + esc(dados.consultorNome || '') + '</span>' + (ui.LOGO.claro ? '<img class="pdf-logo-rodape" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') + '<span>Uso interno</span></footer></section>';
+      if (String(dados.observacoes || '').trim()) blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">Observações</h2><p class="pdf-ident">' + esc(dados.observacoes) + '</p></div>');
+      return blocos;
+    }
+
+    /** Distribui os blocos em páginas A4 medindo cada um no tamanho final (como a proposta da carta contemplada). */
+    async function pdfHtml(dados, resumo, data) {
+      const blocos = blocosPdf(dados, resumo, data);
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      const area = document.createElement('div');
+      area.className = 'pdf-render pdf-medida';
+      area.innerHTML = '<section class="pdf-pagina"><div class="pdf-corpo">' + blocos.map((b) => '<div class="pdf-item">' + b + '</div>').join('') + '</div></section>';
+      document.body.appendChild(area);
+      let util, gap, alturas;
+      try {
+        const pg = area.querySelector('.pdf-pagina');
+        const cs = getComputedStyle(pg);
+        util = (pg.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) * 0.994;
+        gap = parseFloat(getComputedStyle(area.querySelector('.pdf-corpo')).rowGap) || 0;
+        alturas = Array.from(area.querySelectorAll('.pdf-corpo > .pdf-item')).map((el) => el.getBoundingClientRect().height);
+      } finally {
+        area.remove();
+      }
+      const paginas = [];
+      let atual = [], usado = 0;
+      blocos.forEach((b, i) => {
+        if (atual.length && usado + gap + alturas[i] > util) { paginas.push(atual); atual = []; usado = 0; }
+        usado += (atual.length ? gap : 0) + alturas[i];
+        atual.push(b);
+      });
+      if (atual.length) paginas.push(atual);
+      return paginas.map((p, i) => '<section class="pdf-pagina"><div class="pdf-corpo">' + p.map((b) => '<div class="pdf-item">' + b + '</div>').join('') + '</div>' +
+        '<footer class="pdf-rodape"><span>' + esc(dados.consultorNome || '') + '</span>' + (ui.LOGO.claro ? '<img class="pdf-logo-rodape" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
+        '<span>Uso interno · ' + (i + 1) + ' / ' + paginas.length + '</span></footer></section>').join('');
     }
 
     function emailTexto(dados, resumo, nomePdf) {
@@ -216,20 +250,31 @@
       return l.join('\n');
     }
 
-    function janelaEnvio(dados, resumo, blob, nomePdf) {
+    // Acima disso, o link de e-mail pode ser cortado (Outlook e Windows aceitam cerca de 2.000 caracteres)
+    const LIMITE_MAILTO = 1900;
+
+    function janelaEnvio(dados, resumo, blob, nomePdf, baixado) {
       const para = String((window.CONFIG_SIMULADOR || {}).emailPosVenda || '').trim();
       const adm = (resumo.find(([k]) => k === 'Administradora') || [])[1];
       const assunto = 'Termo de adesão · ' + dados.nome + (adm && adm !== '—' ? ' · ' + adm : '');
       const corpo = emailTexto(dados, resumo, nomePdf);
-      const mailto = 'mailto:' + encodeURIComponent(para) + '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo);
+      const link = (texto) => 'mailto:' + encodeURIComponent(para) + '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+      // Texto longo: o e-mail abre com um lembrete e o texto completo vai para a área de transferência
+      const longo = link(corpo).length > LIMITE_MAILTO;
+      const mailto = longo ? link('Cole aqui o texto copiado do simulador e anexe o arquivo ' + nomePdf + '.') : link(corpo);
       const html = '<h2>Enviar ao pós-venda</h2>' +
-        '<p class="nota">O PDF <b>' + esc(nomePdf) + '</b> foi gerado. Abra o e-mail, anexe o arquivo e envie ao time de pós-venda.</p>' +
+        (baixado ? '<p class="nota">O PDF <b>' + esc(nomePdf) + '</b> foi gerado. Abra o e-mail, anexe o arquivo e envie ao time de pós-venda.</p>'
+          : '<p class="aviso">O PDF <b>' + esc(nomePdf) + '</b> não foi baixado. Tente <b>Baixar PDF de novo</b> ou use o arquivo index.html do simulador.</p>') +
         (para ? '' : '<p class="aviso">Sem e-mail do pós-venda configurado: informe <b>emailPosVenda</b> em js/config.js (ou preencha o destinatário no e-mail).</p>') +
         '<div class="mensagem-envio"><div class="mensagem-topo"><b>' + esc(assunto) + '</b><button type="button" class="botao-copiar" data-copiar-email>Copiar e-mail</button></div>' +
         '<textarea readonly rows="12" aria-label="Texto do e-mail para o pós-venda">' + esc(corpo) + '</textarea></div>';
       const fundo = ui.janela(html, [
         { texto: 'Baixar PDF de novo', acao: () => { ui.baixarArquivo(blob, nomePdf).catch(() => ui.avisar('Não foi possível baixar o PDF.')); return false; } },
-        { texto: 'Abrir e-mail', primario: true, acao: () => { window.location.href = mailto; return false; } },
+        { texto: 'Abrir e-mail', primario: true, acao: () => {
+          if (longo) ui.copiarTexto(corpo, 'Texto do e-mail copiado: cole no corpo do e-mail e anexe o PDF.');
+          window.location.href = mailto;
+          return false;
+        } },
         { texto: 'Concluir' }
       ], true);
       fundo.querySelector('[data-copiar-email]').addEventListener('click', () => ui.copiarTexto(corpo, 'E-mail copiado. Cole no seu e-mail e anexe o PDF.'));
@@ -238,16 +283,25 @@
     async function finalizar(dados, resumo) {
       const data = new Date().toLocaleDateString('pt-BR');
       const nomePdf = 'Termo_Adesao_' + ui.nomeArquivo(dados.nome) + '_' + data.replace(/\//g, '-') + '.pdf';
-      const blob = await ui.gerarPdfArquivo(pdfHtml(dados, resumo, data));
-      await ui.baixarArquivo(blob, nomePdf);
-      janelaEnvio(dados, resumo, blob, nomePdf);
+      const blob = await ui.gerarPdfArquivo(await pdfHtml(dados, resumo, data));
+      let baixado = true;
+      try {
+        await ui.baixarArquivo(blob, nomePdf);
+      } catch (e) {
+        if (e && e.code === 'declined') throw e;
+        baixado = false; // sem download (versão on-line): o e-mail continua disponível
+      }
+      janelaEnvio(dados, resumo, blob, nomePdf, baixado);
     }
 
     /** Abre o formulário. cliente: { nome, telefone }; resumo: pares [rótulo, valor] da proposta em tela. */
     function abrir(cliente, resumo) {
+      const de = String(cliente.nome || '').trim().toLowerCase() + '|' + digitos(cliente.telefone);
+      if (de !== rascunhoDe) { rascunho = {}; rascunhoDe = de; }
       const dados = Object.assign({}, lembrados(), rascunho);
       if (!dados.nome) dados.nome = cliente.nome || '';
-      if (!dados.telefone) dados.telefone = cliente.telefone || '';
+      const fone = String(cliente.telefone || '');
+      if (!dados.telefone) dados.telefone = [10, 11].includes(digitos(fone).length) ? mascara('tel', fone) : fone;
       let ocupado = false;
       const fundo = ui.janela(formularioHtml(dados, resumo), [
         { texto: 'Cancelar', acao: (f) => { rascunho = lerFormulario(f); } },
@@ -282,7 +336,7 @@
       if (primeiro) primeiro.focus({ preventScroll: true });
     }
 
-    return { abrir, CAMPOS_ADESAO, cpfValido, emailValido, erroCampo };
+    return { abrir, limpar, CAMPOS_ADESAO, cpfValido, emailValido, erroCampo };
   }
 
   if (typeof window !== 'undefined') window.Adesao = Adesao;
