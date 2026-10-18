@@ -127,11 +127,11 @@ test('embutido maior que o lance é limitado ao lance', () => {
 test('projeções só são calculadas quando selecionadas', () => {
   const s = comLances(base());
   assert.deepEqual(Object.keys(Calc.simular(s).projecoes), []);
-  s.projecoes = { parcelas: true, credito: true, rentabilidade: true };
+  s.projecoes = { parcelas: true, credito: true };
   const p = Calc.simular(s).projecoes;
   assert.equal(p.parcelas.length, 3);
   assert.equal(p.credito.length, 9);
-  near(p.rentabilidade[0].pontos[11].y, 20000 - 14640);
+  assert.equal(p.rentabilidade, undefined, 'o gráfico de rentabilidade saiu das projeções');
 });
 
 test('validações de campos obrigatórios', () => {
@@ -216,7 +216,7 @@ test('FGTS entra nos recursos próprios e o lance total recalcula as parcelas', 
   const s = base();
   Object.assign(s.lances, { embutidoAtivo: true, fixoAtivo: true, fixoUsarEmbutido: true });
   const sem = Calc.nucleo(s, 'fixo');
-  Object.assign(s.lances, { fgtsAtivo: true, fgtsValor: 10000, fixoUsarFgts: true });
+  Object.assign(s.lances, { recursosAtivo: true, recursosValor: 50000, fgtsValor: 10000, fixoUsarRecursos: true });
   const n = Calc.nucleo(s, 'fixo');
   near(n.lance.total, 50000);
   near(n.embutido, 25000);
@@ -328,4 +328,60 @@ test('plano cadastrado: aplica crédito mínimo, prazo, taxas, lances e índice'
   assert.ok(Calc.validar(s).some((v) => v.campo === 'plano.credito' && /mínimo/.test(v.msg)));
   assert.equal(Calc.normalizarIndice('Pré-fixado 6%'), 'pre6');
   assert.equal(Calc.normalizarPlano({ nome: 'sem id' }), null);
+});
+
+test('recursos próprios: FGTS primeiro, dinheiro depois, e aviso quando faltar', () => {
+  const s = base();
+  Object.assign(s.lances, { embutidoAtivo: true, fixoAtivo: true, fixoUsarEmbutido: true, recursosAtivo: true, recursosValor: 5000, fgtsValor: 10000, fixoUsarRecursos: true });
+  const n = Calc.nucleo(s, 'fixo');
+  near(n.lance.proprios, 25000);
+  near(n.lance.fgts, 10000);
+  near(n.lance.dinheiro, 15000);
+  near(n.lance.falta, 10000, 'R$ 15 mil em dinheiro, só R$ 5 mil disponíveis');
+  assert.ok(Calc.simular(s).validacoes.some((v) => /faltam R\$/.test(v.msg)));
+  s.lances.recursosValor = 20000;
+  near(Calc.nucleo(s, 'fixo').lance.falta, 0);
+  // Sem "Usar recursos próprios": o restante do lance segue como recursos próprios, sem FGTS e sem checagem
+  s.lances.fixoUsarRecursos = false;
+  const n2 = Calc.nucleo(s, 'fixo');
+  near(n2.lance.fgts, 0);
+  near(n2.lance.proprios, 25000);
+  near(n2.lance.falta, 0);
+});
+
+test('veículo: o FGTS fica de fora do lance', () => {
+  const s = base();
+  s.plano.categoria = 'veiculo';
+  Object.assign(s.lances, { embutidoAtivo: true, fixoAtivo: true, fixoUsarEmbutido: true, recursosAtivo: true, recursosValor: 40000, fgtsValor: 10000, fixoUsarRecursos: true });
+  const n = Calc.nucleo(s, 'fixo');
+  near(n.lance.fgts, 0);
+  near(n.lance.dinheiro, n.lance.proprios);
+  assert.equal(Calc.fgtsPermitido(s), false);
+  assert.ok(Calc.validar(s).some((v) => v.campo === 'lances.fgtsValor' && /só pode ser usado em imóveis/.test(v.msg)));
+  // Recursos ativados sem valor de dinheiro: no veículo o FGTS não conta como valor informado
+  s.lances.recursosValor = null;
+  assert.ok(Calc.validar(s).some((v) => v.campo === 'lances.recursosValor' && v.nivel === 'erro'));
+});
+
+test('Lance Retido: valor em R$, percentual calculado, embutido e recursos como nas outras modalidades', () => {
+  const s = base();
+  Object.assign(s.lances, { embutidoAtivo: true, embutidoPct: 25, retidoAtivo: true, retidoValor: 30000, retidoUsarEmbutido: true });
+  const n = Calc.nucleo(s, 'retido');
+  assert.ok(n.ok);
+  near(n.lance.total, 30000, 'o lance é o valor ofertado');
+  near(n.lance.pct, 30000 / n.credBruto * 100);
+  near(n.embutido, 25000);
+  near(n.proprios, 5000);
+  near(n.credLiquido, n.credBruto - 25000);
+  const r = Calc.simular(s);
+  assert.ok(r.cenarios.some((c) => c.mod === 'retido' && c.nome === 'Lance Retido'));
+  near(r.valoresLance.retidoPct, n.lance.pct);
+  near(r.valoresLance.retidoDinheiro, 5000);
+  // Sem valor: pendência e erro de validação
+  s.lances.retidoValor = null;
+  assert.ok(Calc.nucleo(s, 'retido').pend.includes('Valor do lance retido não informado'));
+  assert.ok(Calc.validar(s).some((v) => v.campo === 'lances.retidoValor' && v.nivel === 'erro'));
+  // Lance acima do saldo devedor: aviso de excedente
+  s.lances.retidoValor = 500000;
+  assert.ok(Calc.simular(s).validacoes.some((v) => /passa do saldo devedor/.test(v.msg)));
 });

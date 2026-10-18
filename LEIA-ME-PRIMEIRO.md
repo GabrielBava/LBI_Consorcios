@@ -17,16 +17,18 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `js/calc.js` | Página 1 — motor de cálculo puro, sem interface: parcelas, reajuste, redutor, lances, venda, alavancagem, CET, fidelidade, mecanismo, planos |
 | `js/calc-contemplada.js` | Página 2 — motor de cálculo puro: cartas e junção, CET aproximado, fluxo de parcelas, amortização, evolução, rendimentos e financiamento |
 | `js/app-contemplada.js` | Página 2 — proposta na tela, mensagem do WhatsApp e PDF |
+| `js/adesao.js` | Transmitir proposta: formulário do termo de adesão (campos em `CAMPOS_ADESAO`), PDF interno e e-mail para o pós-venda |
 | `js/app.js` | Interface: abas entre as páginas, campos, desenho da proposta, PDF, mensagem do WhatsApp, temas, link do CRM |
-| `js/config.js` | Nome da empresa, WhatsApp do especialista, endereço do CRM (`planosUrl`) e planos cadastrados |
+| `js/config.js` | Nome da empresa, WhatsApp do especialista, e-mail do pós-venda (`emailPosVenda`), endereço do CRM (`planosUrl`) e planos cadastrados |
 | `js/logos.js` | Logos do Grupo Life Brasil embutidos (versão clara, escura e o coração), gerados por `npm run logos` |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
 | `css/tokens.css` | Tokens da identidade do Grupo Life Brasil (cores, fontes, raios, sombras; temas escuro e claro) |
 | `css/style.css` | Componentes da tela e layout das 3 páginas do PDF |
-| `tests/calc.test.js` | 27 testes do motor de cálculo da página 1 |
-| `tests/contemplada.test.js` | 18 testes do motor de cálculo da página 2 |
-| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 2.8) |
-| `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.0): campos, regras, fórmulas e validações |
+| `tests/calc.test.js` | 30 testes do motor de cálculo da página 1 |
+| `tests/contemplada.test.js` | 37 testes do motor de cálculo da página 2 |
+| `tests/adesao.test.js` | 4 testes das validações e máscaras do termo de adesão |
+| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.2) |
+| `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.2): campos, regras, fórmulas e validações |
 | `marca/` | Logos com fundo transparente (`life-logo-claro.png`, `life-logo-escuro.png`, `life-coracao.png`) e `IDENTIDADE.md` (cores, fontes e modelos da marca) |
 | `scripts/gerar-logos.js` | Gera `js/logos.js` a partir dos logos de `marca/` (`npm run logos`) |
 
@@ -37,13 +39,15 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 - **Reajuste:** índice anual a cada 12 meses (INCC no imóvel, IPCA no veículo).
 - **Lances:**
   - Embutido 25% e fixo 50%; livre informado.
-  - "Usar Embutido" e "Usar FGTS"; o FGTS entra nos recursos próprios.
+  - **Lance Retido:** oferta pelo valor do bem (R$); o % do crédito e a parte em dinheiro são calculados.
+  - **Recursos próprios e FGTS:** valores do cliente, com dica do que perguntar; o lance usa primeiro o FGTS (só imóvel; travado no veículo) e depois o dinheiro, com alerta do que faltar. "Usar Embutido" e "Usar Recursos próprios" em cada lance.
   - O lance abate o saldo por parcela ou por prazo.
 - **Venda da carta:** 20% do crédito disponível. Alavancagem nos meses 1 a 12 e depois 18 a 48, de 6 em 6.
 - **Aquisição:** CET pela TIR dos fluxos, parcela pós-contemplação e retorno de locação de 1,6% do crédito disponível.
 - **Lance Fidelidade (opcional):** 6ª parcela/30%, 12ª/27% e 18ª/25%, 100% embutido.
 - **Mecanismo de Alavancagem (opcional):** reaplica a venda (ou o lucro) em novas cartas do mesmo plano, em até 4 cenários.
-- **PDF:** 3 páginas A4 no tema escuro da marca, com logo; o botão "Gerar proposta" baixa o arquivo e prepara a mensagem do WhatsApp.
+- **PDF:** 3 páginas A4 no tema claro da marca, com logo; o botão "Gerar proposta" baixa o arquivo e prepara a mensagem do WhatsApp.
+- **Transmitir proposta (uso interno):** formulário do termo de adesão; gera o PDF do termo e o e-mail para o pós-venda subir o termo e gerar o contrato.
 - **CRM:** o link aceita `?nome=...&contato=...&plano=<id>` e `pagina=contemplada` para abrir direto na página 2.
 
 ### Página 2 · Carta Contemplada
@@ -52,12 +56,16 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 - **Características:** crédito total e líquido, entrada (ágio), custo da operação (saldo devedor + ágio, em R$ e em % acima do crédito) e saldo devedor.
 - **Fluxo de parcelas (sempre):** agrupado por faixa de meses; o reajuste pelo indexador começa desabilitado.
 - **Guias opcionais (desabilitadas ao iniciar):** Estudo de Amortização (aporte no mês informado, parcela recalculada e tabela a cada 12 meses), Evolução de Parcelas (a cada 12 meses, com reajuste, aporte acumulado e saldo devedor), Calculadora de Rendimentos (mecanismo da calculadora de renda fixa; aplicação inicial = crédito − entrada; período = maior prazo; o aporte da amortização entra só no mês dele) e Consórcio vs Financiamento (cartões lado a lado com as mesmas linhas; Price/SAC, 420 meses, entrada de 20%, TR, seguro de vida e seguro proteção do imóvel — o Seguro/FGHab da Caixa — com o CESH, comparativo a cada 12 meses, custos invisíveis, renda mínima pela regra dos 30% e idade máxima de 65 anos ao fim do contrato) e Gráficos (parcelas e economia mês a mês com os pontos de equilíbrio; só na tela, não entram no PDF).
+- **Veículo e Serviço:** o comparativo usa o financiamento de veículo (CDC, Tabela Price, juros ao mês, 48 meses, entrada de 20%, IOF de pessoa física e tarifas financiados, CET pela TIR).
+- **PDF:** tema claro, cerca de três páginas: características, composição da junção, fluxo de parcelas, calculadora de rendimentos e consórcio vs financiamento.
 
 Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 
 ## Pendências conhecidas
 
 - Número de WhatsApp do especialista em `js/config.js` (está vazio).
+- E-mail do time de pós-venda em `js/config.js` (`emailPosVenda`, está vazio).
+- Lista definitiva de campos do termo de adesão (hoje há uma lista mínima em `CAMPOS_ADESAO`, `js/adesao.js`).
 - Endereço do CRM ou lista real de planos em `js/config.js` (hoje há 2 planos de exemplo).
 - Fonte Klavika: comercial. Instalada no computador, ela é usada automaticamente; sem ela, vale a Titillium Web.
 - Mecanismo de Alavancagem ainda não entra no PDF.

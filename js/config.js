@@ -3,6 +3,8 @@
  *
  * empresa: nome da empresa exibido na proposta, no PDF e na mensagem do WhatsApp.
  *
+ * emailPosVenda: e-mail do time de pós-venda que recebe o termo de adesão ("Transmitir proposta").
+ *
  * whatsappEspecialista: número do especialista usado no botão "Falar no WhatsApp"
  * da página 3 do PDF. Informe com DDD, por exemplo '11987654321'.
  *
@@ -28,6 +30,7 @@
  */
 window.CONFIG_SIMULADOR = {
   empresa: 'Grupo Life Brasil',
+  emailPosVenda: '',
   whatsappEspecialista: '',
   planosUrl: '',
   planos: [

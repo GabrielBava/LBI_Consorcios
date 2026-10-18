@@ -1,7 +1,9 @@
 # Especificação funcional — Simulador de Cartas de Consórcio Primárias
 
-Versão 2.8 · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo) e `js/app.js` (interface).
+Versão 3.2 · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (termo de adesão).
 
+> **v3.2 — ajustes do simulador:** administradora digitável, Recursos próprios e FGTS (com dica), FGTS travado no veículo, **Lance Retido**, seta para recolher as tabelas de venda, projeções sem o gráfico de rentabilidade, **Transmitir proposta** (termo de adesão para o pós-venda) e PDF no tema claro (seção 2.13).
+>
 > **v3.1 — identidade do Grupo Life Brasil:** a marca, as cores, as fontes e os modelos visuais passaram a ser os do **Grupo Life Brasil** (seção 2.12). Não há mais logotipos nem vínculos com a marca anterior.
 >
 > **v3.0 — plataforma única:** este simulador é a **página 1 (Consórcio)**, no mesmo link da **página 2 (Carta Contemplada)**, especificada em [`ESPECIFICACAO-CONTEMPLADA.md`](ESPECIFICACAO-CONTEMPLADA.md). As abas no topo da proposta alternam entre as páginas (`#primario` / `#contemplada`); nome e contato do cliente, tema e menu oculto são compartilhados. O seletor de tema saiu do topo da proposta e foi para a barra das abas. As regras desta página não mudaram.
@@ -31,7 +33,7 @@ Todo valor exibido tem uma etiqueta de tipo (**Informado**, **Calculado**, **Est
 |---|---|---|---|---|---|---|---|
 | Nome completo | Texto | — | Sim | vazio | Identifica o cliente na proposta | Título e nome do arquivo PDF | Obrigatório |
 | Categoria | Lista: Imóvel, Veículo | — | Sim | Imóvel | Sugere o índice: Imóvel → INCC, Veículo → IPCA | Índice de reajuste (editável depois) | — |
-| Administradora | Lista: HS, Embracon, CNP, Itaú, Porto Seguro, Servopa, Banco do Brasil, Santander, Klubi | — | Não | Selecione | Identificação | Exibida na proposta | Informativo se vazia |
+| Administradora | Texto com sugestões: HS, Embracon, CNP, Itaú, Porto Seguro, Servopa, Banco do Brasil, Santander, Klubi (v3.2: selecionar ou digitar, como na página 2) | — | Não | vazio | Identificação; a grafia de uma administradora da lista é corrigida ao sair do campo ("hs" → "HS") | Exibida na proposta; filtra os planos cadastrados | Informativo se vazia |
 | Valor do crédito | Moeda | R$ | Sim | vazio | Crédito contratado | Base de todas as parcelas, lances e venda | > 0 |
 | Prazo total | Inteiro | meses | Sim | 240 | Número de parcelas | Divisor da parcela | Inteiro ≥ 1; alerta > 420 |
 | Projeção contemplação | Inteiro | mês | Sim | 12 | Mês projetado de contemplação, igual para todas as modalidades | Fim do redutor, lance, venda e resultado | 1 ≤ mês ≤ prazo |
@@ -152,7 +154,7 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
 - **Contato do cliente (WhatsApp):** campo obrigatório, com o mesmo destaque do nome e máscara (11) 98765-4321. Nome e contato são exigidos para gerar a proposta. A prévia tem o botão **Abrir conversa no WhatsApp** (link `wa.me` para o cliente, com mensagem pronta); o PDF salvo é anexado na conversa.
 - **WhatsApp do especialista:** sai do menu e passa a ser configurado em `js/config.js` (`whatsappEspecialista`), usado no botão da página 3 do PDF.
 - **Abatimento do lance:** opções "Parcela" e "Prazo", com descrição abaixo do campo.
-- **Estratégia de Lance** (antes "Estratégias de Contemplação"), com títulos em maiúsculas. Campo **FGTS** no início (valor em R$); "Usar FGTS" no Lance Fixo e no Lance Livre. O FGTS faz parte dos recursos próprios, sem linha própria: recursos próprios = lance − embutido (com o FGTS incluído, limitado a esse valor). O lance total (embutido + recursos próprios) abate o saldo e recalcula as parcelas por parcela ou por prazo, e os recursos próprios entram no aporte uma única vez.
+- **Estratégia de Lance** (antes "Estratégias de Contemplação"), com títulos em maiúsculas. Campo **FGTS** no início (valor em R$); "Usar FGTS" no Lance Fixo e no Lance Livre (na v3.2, substituído por Recursos próprios e FGTS, seção 2.13). O FGTS faz parte dos recursos próprios, sem linha própria: recursos próprios = lance − embutido (com o FGTS incluído, limitado a esse valor). O lance total (embutido + recursos próprios) abate o saldo e recalcula as parcelas por parcela ou por prazo, e os recursos próprios entram no aporte uma única vez.
 - **Características do Plano:** projeção de contemplação só com o número (ex.: 12); abatimento "Parcela" ou "Prazo".
 - **Alavancagem:** meses 1 a 12 e depois 18, 24, 30, 36, 42 e 48. Rentabilidade ao mês = (Vl. venda ÷ Aporte)^(1/mês) − 1.
 - **Aquisição:** cenários de Sorteio e Lance Embutido.
@@ -203,7 +205,7 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
 ### 2.12 Identidade visual do Grupo Life Brasil (v3.1)
 
 - **Fonte da verdade:** `css/tokens.css`, tirado da apresentação institucional V1 do Grupo Life Brasil (paleta, temas escuro e claro, tipografia, raios, espaçamentos e sombras). `css/style.css` só acrescenta tokens derivados (botão principal, fundos suaves de status, anel de foco, séries dos gráficos) e os componentes. O resumo da identidade está em `marca/IDENTIDADE.md`.
-- **Temas:** escuro por padrão (preto, como os slides escuros); claro (branco, como os slides claros) quando o sistema operacional está no modo claro ou quando a pessoa escolhe **Claro** no seletor (preferência guardada só no navegador). O PDF sai sempre no tema escuro da marca.
+- **Temas:** escuro por padrão (preto, como os slides escuros); claro (branco, como os slides claros) quando o sistema operacional está no modo claro ou quando a pessoa escolhe **Claro** no seletor (preferência guardada só no navegador). O PDF sai sempre no tema claro da marca (v3.2; antes, escuro).
 - **Cores:** laranja Life `#F05A00` nos títulos, destaques e preenchimentos; texto de destaque `#FF7A2E` no escuro e `#B03D00` no claro (contraste acima de 4,5:1); fundo preto `#000` e cartões `#111`; grafite `#201E1E` no texto do tema claro; degradê do coração (carmim `#C8203A` → coral `#EE3F31` → tangerina `#FF5A24`) e degradê laranja (`#F7A23A` → `#F05A00`) nos indicadores em destaque, com texto escuro.
 - **Tipografia:** Klavika (fonte da marca, comercial) quando instalada no computador; sem ela, a Titillium Web (Google Fonts), de desenho próximo. Títulos de seção em caixa alta e peso leve, com a palavra-chave em negrito.
 - **Modelos da apresentação aplicados:**
@@ -212,9 +214,23 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
   - Cartões de cantos bem arredondados com contorno fino (como os cartões "Nossa Missão"); ícones em laranja dentro de círculo de contorno.
   - Indicadores principais em degradê laranja com texto escuro e aba ativa em pílula laranja (como o sistema Diagnóstico Life).
   - Botão principal em laranja Life com texto branco; destaques em pílula com borda laranja.
-- **Marca:** logotipo do **Grupo Life Brasil** (nome configurável em `js/config.js`, campo `empresa`). A versão com texto grafite é usada no tema claro e a versão com texto branco no tema escuro; o coração sozinho é o ícone da página. Aparece no topo do menu, no topo da proposta na tela, no topo da página 1 do PDF e no rodapé de todas as páginas, sempre na versão escura no PDF. A mensagem do WhatsApp cita o *Grupo Life Brasil*. Os arquivos ficam em `marca/life-logo-claro.png`, `marca/life-logo-escuro.png` e `marca/life-coracao.png`, embutidos em `js/logos.js` por `npm run logos`.
+- **Marca:** logotipo do **Grupo Life Brasil** (nome configurável em `js/config.js`, campo `empresa`). A versão com texto grafite é usada no tema claro e a versão com texto branco no tema escuro; o coração sozinho é o ícone da página. Aparece no topo do menu, no topo da proposta na tela, no topo da página 1 do PDF e no rodapé de todas as páginas, sempre na versão clara (texto grafite) no PDF. A mensagem do WhatsApp cita o *Grupo Life Brasil*. Os arquivos ficam em `marca/life-logo-claro.png`, `marca/life-logo-escuro.png` e `marca/life-coracao.png`, embutidos em `js/logos.js` por `npm run logos`.
 - **Gráficos:** linhas e barras em laranja Life; na página 2, consórcio em laranja, financiamento em azul, economia aplicada em verde e economia orgânica em magenta (paleta validada para daltonismo e contraste em todos os pares, nos dois temas).
 - **Geração do PDF:** as páginas são montadas fora da tela em escala 2,5× e capturadas a 0,8×. Assim o html2canvas desenha o texto pequeno sem falhas de espaçamento e a resolução final continua a mesma (1588 × 2245 px por página).
+
+### 2.13 Ajustes v3.2
+
+- **Administradora:** o mesmo campo da página 2 — selecionar da lista ou digitar. Os planos cadastrados aparecem para a administradora escolhida; com um nome fora da lista, a seleção de plano fica desabilitada e a proposta usa os campos preenchidos.
+- **Recursos próprios e FGTS** (primeiro bloco da Estratégia de Lance; substitui o antigo "FGTS"): a caixa **Recursos próprios** abre dois campos, **Recursos próprios (R$)** e **FGTS (R$)**. Ao lado de Recursos próprios, um ícone de dica (ao passar o mouse, tocar ou focar) lembra o consultor de perguntar ao cliente: dinheiro em conta ou aplicado que possa resgatar para o lance; imóvel quitado (o valor de avaliação pode servir de base para o lance); veículo quitado (valor da tabela FIPE do modelo). No campo, só os valores.
+  - Nos lances fixo, livre e retido, **Usar Recursos próprios** aparece quando a caixa está marcada. O lance pago pelo cliente (lance − embutido) usa primeiro o FGTS (só imóvel) e depois o dinheiro; se não bastar, um alerta mostra quanto falta.
+  - Propostas salvas antes desta versão: "FGTS" ativado vira "Recursos próprios" com o mesmo valor de FGTS.
+- **Trava do FGTS no veículo:** com a categoria Veículo, o campo FGTS fica desabilitado ("O FGTS só pode ser usado em imóveis") e não entra em nenhum lance; um valor já digitado é ignorado, com aviso.
+- **Lance Retido (nova modalidade):** funciona como um lance livre, mas a oferta é feita pelo **valor do bem** (por exemplo, o veículo ou o imóvel do cliente). Campos: **Valor do lance (R$)**; travados, o **% do crédito** (valor ÷ crédito atualizado na contemplação) e o valor **em dinheiro** (o que o cliente paga além do embutido e do FGTS); **Usar Embutido** e **Usar Recursos próprios**, como nas demais. Vale para imóvel e veículo. Limites: alerta quando o valor passa do crédito contratado, quando o lance passa do saldo devedor na contemplação (o excedente não é aproveitado) e quando faltam recursos próprios. Aparece nas Formas de Contemplação, na tela e no PDF.
+- **Tabelas de venda (Simulação de Alavancagem):** além do olho (mostrar/ocultar os valores ao cliente), uma seta no canto direito do bloco recolhe a tabela de Sorteio ou de Lance Embutido, como nas tabelas da página 2 (lembrado no navegador).
+- **Projeções:** só **Parcelas** e **Crédito atualizado**; o gráfico de rentabilidade (venda) saiu.
+- **Botões do topo:** **Transmitir proposta** (laranja, principal); abaixo, no tom claro, **Nova proposta** e **Gerar proposta** (a prévia do PDF, que antes era o botão laranja). **Salvar proposta** (.json) saiu.
+- **Transmitir proposta (uso interno, backoffice):** abre o formulário do termo de adesão com o resumo da proposta em tela e os dados mínimos do cliente — consorciado (nome, CPF, nascimento, RG, órgão emissor, estado civil, cônjuge quando casado(a) ou em união estável, profissão, renda, celular, e-mail), endereço, cota (grupo, cota, dia de vencimento, pagamento da 1ª parcela), consultor e observações. Campos obrigatórios e formatos são validados (CPF com dígito verificador, e-mail, CEP, celular com DDD, 18 anos ou mais). Ao finalizar, baixa o PDF `Termo_Adesao_<Nome>_<data>.pdf` (tema claro, "Uso interno") e abre a janela de envio ao pós-venda: assunto, texto do e-mail pronto para copiar, **Abrir e-mail** (destinatário em `emailPosVenda`, `js/config.js`) e **Baixar PDF de novo**. O cliente não recebe este documento. Os dados pessoais ficam só na memória da aba; o navegador lembra apenas nome e e-mail do consultor. A lista de campos fica em `CAMPOS_ADESAO` (`js/adesao.js`), para trocar quando a lista definitiva chegar.
+- **PDF da proposta:** tema claro (fundo branco, títulos laranja, texto grafite e logo na versão clara); o conteúdo é o mesmo. A página 1 traz até quatro cartões (Sorteio, Lance Embutido, Lance Fixo e Lance Retido).
 
 ## 3. Fórmulas
 
@@ -236,6 +252,8 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 | Lance (fixo ou livre) | % × C × F(mC) |
 | Lance embutido | % embutido × C × F(mC), limitado ao lance |
 | Recursos próprios | Lance − Embutido |
+| Uso dos recursos informados (v3.2) | FGTS usado = min(FGTS informado, recursos próprios) — só imóvel; dinheiro = recursos próprios − FGTS usado; falta = max(0, dinheiro − recursos próprios informados) |
+| Lance Retido (v3.2) | Lance = valor ofertado (R$); % do crédito = valor ÷ (C × F(mC)); em dinheiro = lance − embutido − FGTS usado |
 | **Crédito líquido** | C × F(mC) − Embutido |
 | Saldo na contemplação | Σ (fundo comum + taxa + fundo de reserva) das parcelas restantes, a valores do mês da contemplação |
 | Abatimento por parcela | Parcelas restantes × (1 − Lance ÷ Saldo) |
@@ -261,6 +279,11 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 | IPCA/INCC/INPC/Outro sem taxa estimada (prazo > 12 meses) | Erro — "sem premissa de projeção" |
 | Lance ativado sem percentual | Erro |
 | "Usar embutido" com lance embutido desativado | Alerta |
+| Recursos próprios marcado sem valor (nem FGTS, no imóvel); valores negativos | Erro |
+| Recursos próprios insuficientes para o lance | Alerta (mostra quanto falta) |
+| FGTS informado com categoria Veículo | Informação (o FGTS não entra no lance) |
+| Lance Retido ativado sem valor | Erro |
+| Lance Retido acima do crédito; lance acima do saldo devedor na contemplação | Alerta |
 | Embutido maior que o lance | Alerta (limitado ao lance) |
 | Índice com taxa estimada | Informação — "A projeção usa uma taxa estimada para o índice selecionado." |
 | Sempre nos cenários | "Mês de contemplação projetado, sem garantia de ocorrência." · "Resultado estimado: depende das premissas informadas." |
@@ -286,5 +309,5 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 
 - Motor de cálculo puro em `js/calc.js`, testado em `tests/calc.test.js` (`npm test`).
 - Cada valor carrega fórmula, números usados e origem.
-- **Exportar JSON** guarda todas as entradas, para reproduzir a simulação.
+- As entradas ficam guardadas no navegador, para reabrir a simulação (o antigo **Salvar proposta** em .json saiu na v3.2).
 - Regras fixas (reajuste a cada 12 meses, venda de 20%, padrões de 0,038%, 25% e 50%) ficam em `REGRAS`, em `js/calc.js`.

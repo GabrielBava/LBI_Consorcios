@@ -44,7 +44,13 @@
     comprometimentoRenda: 30, // financiamento: a parcela não pode passar de 30% da renda
     idadeLimite: 65, // financiamento: idade máxima ao fim do contrato
     prazoFinanciamentoMax: 420,
-    prazosFinanciamento: [360, 420]
+    prazosFinanciamento: [360, 420],
+    // Financiamento de veículo (CDC): prazo máximo e IOF de pessoa física (0,38% + 0,0082% ao dia, até 365 dias)
+    prazoVeiculoMax: 72,
+    prazosVeiculo: [36, 48, 60],
+    iofFixoPct: 0.38,
+    iofDiarioPct: 0.0082,
+    iofDiasMax: 365
   };
 
   // Calculadora de rendimentos: parâmetros de referência (editáveis). Selic, CDI, IPCA e poupança
@@ -98,7 +104,12 @@
       // Financiamento: TR (% a.a.) corrige o saldo. Seguro/FGHab como a Caixa cobra: seguro de vida (MIP, % a.m. do
       // saldo devedor) e seguro proteção do imóvel (DFI, % a.m. do valor do imóvel); outros seguros e taxa de
       // administração (R$/mês) completam os custos além dos juros
-      financiamento: { ativo: false, sistema: 'price', prazo: 420, entradaPct: 20, credito: null, juros: 11.5, tr: 2, mip: 0.03, dfi: 0.008, seguros: 0, ta: 25 },
+      financiamento: {
+        ativo: false, sistema: 'price', prazo: 420, entradaPct: 20, credito: null, juros: 11.5, tr: 2, mip: 0.03, dfi: 0.008, seguros: 0, ta: 25,
+        // Segmento veículo (e serviço): financiamento CDC pela Tabela Price, juros ao mês (média do Banco Central
+        // para aquisição de veículos por pessoa física, perto de 1,93% a.m. em 2026), IOF e tarifas financiados
+        veiculo: { prazo: 48, entradaPct: 20, jurosAm: 1.93, tarifaCadastro: 800, registro: 250 }
+      },
       // Gráficos (só na tela, fora do PDF): usam as premissas do Consórcio vs Financiamento
       graficos: { ativo: false }
     };
@@ -535,6 +546,82 @@
     return (lo + hi) / 2;
   }
 
+  /** Imóvel: financiamento habitacional (SFH/SBPE). Veículo e serviço: financiamento de veículo / CDC. */
+  const tipoFinanciamento = (s) => (s.segmento === 'veiculo' || s.segmento === 'servico' ? 'veiculo' : 'imovel');
+
+  /**
+   * Financiamento de veículo (CDC) pela Tabela Price, com o IOF de pessoa física financiado:
+   * IOF = 0,38% do valor financiado + 0,0082% ao dia sobre cada amortização (até 365 dias).
+   * Como o IOF entra no valor financiado, o total é base ÷ (1 − fator do IOF).
+   */
+  function cronogramaVeiculo(base, jurosAm, n) {
+    const i = jurosAm / 100;
+    const pmtUnit = i > 0 ? i / (1 - Math.pow(1 + i, -n)) : 1 / n;
+    let saldo = 1, fator = REGRAS.iofFixoPct / 100;
+    for (let t = 1; t <= n; t++) {
+      const a = pmtUnit - saldo * i;
+      fator += a * (REGRAS.iofDiarioPct / 100) * Math.min(30 * t, REGRAS.iofDiasMax);
+      saldo -= a;
+    }
+    const total = base / (1 - fator);
+    const pmt = total * pmtUnit;
+    const meses = [];
+    const tot = { prestacoes: 0, juros: 0 };
+    saldo = total;
+    for (let t = 1; t <= n; t++) {
+      const juros = saldo * i;
+      const amort = pmt - juros;
+      saldo = Math.max(0, saldo - amort);
+      meses.push({ t, juros, amort, prestacao: pmt, total: pmt, saldo, correcao: 0, seguro: 0, seguros: 0, ta: 0, mip: 0, dfi: 0 });
+      tot.prestacoes += pmt; tot.juros += juros;
+    }
+    return { i, total, iof: total - base, pmt, meses, tot };
+  }
+
+  function financiamentoVeiculo(s, R) {
+    const f = s.financiamento;
+    const v = f.veiculo || {};
+    const out = { ok: false, pend: [], tipo: 'veiculo', sistema: 'price' };
+    const credito = isNum(num(f.credito)) ? num(f.credito) : R.ok ? R.credito : null;
+    const n = num(v.prazo), pct = num(v.entradaPct), jm = num(v.jurosAm);
+    const tc = num(v.tarifaCadastro), rg = num(v.registro);
+    if (!isNum(credito) || credito <= 0) out.pend.push(isNum(num(f.credito)) || R.ok ? 'Informe o crédito necessário' : 'preencha crédito, parcela e prazo de todas as cartas');
+    if (!inteiro(n) || n < 1 || n > REGRAS.prazoVeiculoMax) out.pend.push('Prazo do financiamento de veículo entre 1 e ' + REGRAS.prazoVeiculoMax + ' meses');
+    if (!isNum(pct) || pct < 0 || pct >= 100) out.pend.push('Entrada entre 0% e 100%');
+    if (!isNum(jm) || jm < 0) out.pend.push('Informe a taxa de juros ao mês do financiamento');
+    if ((isNum(tc) && tc < 0) || (isNum(rg) && rg < 0)) out.pend.push('Tarifas não podem ser negativas');
+    if (out.pend.length) return out;
+    const entrada = credito * pct / 100;
+    const financiado = credito - entrada;
+    const tarifaCadastro = tc || 0, registro = rg || 0;
+    const tarifas = tarifaCadastro + registro;
+    const C = cronogramaVeiculo(financiado + tarifas, jm, n);
+    // CET: taxa que iguala o valor do bem financiado às parcelas pagas (inclui juros, IOF e tarifas)
+    const cetMes = tirMensal(financiado, C.meses.map((l) => l.prestacao));
+    const anual = (r) => (Math.pow(1 + r, 12) - 1) * 100;
+    const juros = anual(C.i);
+    const cet = isNum(cetMes) ? anual(cetMes) : null;
+    // Custos além dos juros: IOF e tarifas, cobrados no contrato e pagos com juros nas parcelas
+    const comJuros = (x) => x * (C.pmt * n) / C.total;
+    const custos = {
+      iof: C.iof, tarifaCadastro, registro,
+      iofContrato: comJuros(C.iof), tarifaCadastroContrato: comJuros(tarifaCadastro), registroContrato: comJuros(registro)
+    };
+    custos.total = custos.iofContrato + custos.tarifaCadastroContrato + custos.registroContrato;
+    Object.assign(out, {
+      ok: true, credito, creditoAuto: !isNum(num(f.credito)), prazo: n, entradaPct: pct, entrada, financiado,
+      financiadoTotal: C.total, iof: C.iof, tarifas, jurosAm: jm, juros, jurosMes: jm, trAa: 0, meses: C.meses,
+      primeiraPrestacao: C.pmt, ultimaPrestacao: C.pmt, primeira: C.pmt, ultima: C.pmt, primeiraSeguro: 0, primeiraOutros: 0,
+      totalPrestacoes: C.tot.prestacoes, totalJuros: C.tot.juros, totalCorrecao: 0, totalParcelas: C.tot.prestacoes,
+      custos, custosPct: (custos.total / credito) * 100,
+      // Custo anual para comparar com o CET + indexador do consórcio: juros + (IOF e tarifas) = CET
+      cet, extraAa: isNum(cet) ? cet - juros : null, custoAa: cet,
+      totalPago: entrada + C.tot.prestacoes
+    });
+    out.rendaMinima = C.pmt / (REGRAS.comprometimentoRenda / 100);
+    return out;
+  }
+
   /** O financiamento é calculado para a guia Consórcio vs Financiamento e para os gráficos, que usam as mesmas premissas. */
   const usaFinanciamento = (s) => !!((s.financiamento && s.financiamento.ativo) || (s.graficos && s.graficos.ativo));
 
@@ -549,7 +636,12 @@
   function financiamento(s, R, hoje) {
     const f = s.financiamento;
     if (!f || !usaFinanciamento(s)) return null;
-    const out = { ok: false, pend: [], sistema: f.sistema === 'sac' ? 'sac' : 'price' };
+    if (tipoFinanciamento(s) === 'veiculo') {
+      const V = financiamentoVeiculo(s, R);
+      if (V.ok) compararComConsorcio(s, R, V);
+      return V;
+    }
+    const out = { ok: false, pend: [], tipo: 'imovel', sistema: f.sistema === 'sac' ? 'sac' : 'price' };
     const credito = isNum(num(f.credito)) ? num(f.credito) : R.ok ? R.credito : null;
     const n = num(f.prazo), pct = num(f.entradaPct), juros = num(f.juros);
     if (!isNum(credito) || credito <= 0) out.pend.push(isNum(num(f.credito)) || R.ok ? 'Informe o crédito necessário' : 'preencha crédito, parcela e prazo de todas as cartas');
@@ -591,7 +683,13 @@
     out.dataFim = fim;
     out.nascimentoMinimo = nascMin;
     out.idadeMaxima = diferencaData(nascMin, d0);
-    // Comparação com a carta contemplada: parcelas reajustadas pelo indexador × financiamento com TR e encargos
+    compararComConsorcio(s, R, out);
+    return out;
+  }
+
+  /** Comparação com a carta contemplada: parcelas reajustadas pelo indexador × parcelas do financiamento. */
+  function compararComConsorcio(s, R, out) {
+    const credito = out.credito;
     if (R.ok) {
       const taxa = taxaIndice(s);
       // Sem nenhum reajuste dentro do prazo, o indexador não entra no custo da carta
@@ -612,7 +710,6 @@
         out.diferenca = out.totalPago - out.consorcio.totalPago;
       }
     }
-    return out;
   }
 
   /**
@@ -721,7 +818,19 @@
       if (mm !== null && mm < 0) add('erro', 'rendimentos.mensal', 'Aportes mensais não podem ser negativos.');
     }
     const fi = s.financiamento;
-    if (fi && usaFinanciamento(s)) {
+    if (fi && usaFinanciamento(s) && tipoFinanciamento(s) === 'veiculo') {
+      const v = fi.veiculo || {};
+      const n = num(v.prazo), pct = num(v.entradaPct), j = num(v.jurosAm);
+      if (!inteiro(n) || n < 1 || n > REGRAS.prazoVeiculoMax) add('erro', 'financiamento.veiculo.prazo', 'Financiamento de veículo: prazo entre 1 e ' + REGRAS.prazoVeiculoMax + ' meses.');
+      if (!isNum(pct) || pct < 0 || pct >= 100) add('erro', 'financiamento.veiculo.entradaPct', 'Financiamento de veículo: entrada entre 0% e 100%.');
+      if (!isNum(j) || j < 0) add('erro', 'financiamento.veiculo.jurosAm', 'Financiamento de veículo: informe a taxa de juros ao mês.');
+      [['tarifaCadastro', 'tarifa de cadastro'], ['registro', 'registro do contrato']].forEach(([k, rot]) => {
+        const x = num(v[k]);
+        if (x !== null && x < 0) add('erro', 'financiamento.veiculo.' + k, 'Financiamento de veículo: ' + rot + ' não pode ser negativa.');
+      });
+      const c = num(fi.credito);
+      if (c !== null && c <= 0) add('erro', 'financiamento.credito', 'Financiamento: crédito necessário deve ser maior que zero.');
+    } else if (fi && usaFinanciamento(s)) {
       const n = num(fi.prazo), pct = num(fi.entradaPct), j = num(fi.juros);
       if (!inteiro(n) || n < 1 || n > REGRAS.prazoFinanciamentoMax) add('erro', 'financiamento.prazo', 'Financiamento: prazo entre 1 e ' + REGRAS.prazoFinanciamentoMax + ' meses.');
       if (!isNum(pct) || pct < 0 || pct >= 100) add('erro', 'financiamento.entradaPct', 'Financiamento: entrada entre 0% e 100%.');
@@ -760,7 +869,7 @@
   return {
     INDICES, SEGMENTOS, REGRAS, PARAMS_RENDIMENTOS, PRODUTOS,
     estadoPadrao, cartaVazia, simular, resumo, fluxo, fluxoMensal, agrupar, rotuloPeriodo, evolucao, amortizacao,
-    calcularRendimentos, rendimentos, aliquotaIR, financiamento, tabelaFinanciamento, cronogramaFinanciamento, tirMensal, comparativo, validar,
+    calcularRendimentos, rendimentos, aliquotaIR, financiamento, tabelaFinanciamento, cronogramaFinanciamento, cronogramaVeiculo, tipoFinanciamento, tirMensal, comparativo, validar,
     taxaIndice, nomeIndice, indiceEstimado, qtdReajustes, somarMeses, diferencaData, mesesEntre, lerData,
     fmtBRL, fmtPct, fmtNum, num, isNum
   };

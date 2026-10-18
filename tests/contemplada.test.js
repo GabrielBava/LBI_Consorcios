@@ -485,3 +485,46 @@ test('financiamento com crédito automático e carta incompleta pede as cartas, 
   s.financiamento.credito = 0;
   assert.match(CC.simular(s).financiamento.pend[0], /crédito necessário/);
 });
+
+test('financiamento de veículo (CDC): Price com IOF e tarifas financiados, CET pela TIR', () => {
+  assert.equal(CC.tipoFinanciamento({ segmento: 'imovel' }), 'imovel');
+  assert.equal(CC.tipoFinanciamento({ segmento: 'veiculo' }), 'veiculo');
+  assert.equal(CC.tipoFinanciamento({ segmento: 'servico' }), 'veiculo');
+  // IOF: 0,38% + 0,0082% ao dia sobre cada amortização (até 365 dias), sobre o total financiado
+  const C = CC.cronogramaVeiculo(81050, 1.93, 48);
+  const i = 0.0193;
+  const pmt1 = i / (1 - Math.pow(1 + i, -48));
+  let saldo = 1, fator = 0.0038;
+  for (let t = 1; t <= 48; t++) { const a = pmt1 - saldo * i; fator += a * 0.000082 * Math.min(30 * t, 365); saldo -= a; }
+  near(C.iof, C.total * fator, 'IOF financiado');
+  near(C.total, 81050 + C.iof);
+  near(C.pmt, C.total * pmt1);
+  near(C.meses[47].saldo, 0);
+
+  const s = base([{ credito: 100000, entrada: 15000, parcela: 2100, prazo: 50 }]);
+  Object.assign(s, { segmento: 'veiculo', indice: 'ipca', indiceTaxa: 4.5 });
+  s.financiamento.ativo = true;
+  const F = CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento;
+  assert.ok(F.ok);
+  assert.equal(F.tipo, 'veiculo');
+  near(F.entrada, 20000);
+  near(F.financiado, 80000);
+  near(F.tarifas, 1050);
+  near(F.primeira, F.ultima, 'parcelas fixas');
+  near(F.juros, (Math.pow(1.0193, 12) - 1) * 100);
+  assert.ok(F.cet > F.juros, 'o CET inclui IOF e tarifas');
+  near(F.custoAa, F.juros + F.extraAa);
+  near(F.rendaMinima, F.primeira / 0.3);
+  near(F.totalPago, 20000 + 48 * F.primeira);
+  assert.equal(F.idadeMaxima, undefined, 'sem regra de idade no veículo');
+  near(F.custos.total, F.custos.iofContrato + F.custos.tarifaCadastroContrato + F.custos.registroContrato);
+  assert.ok(F.comparativo.ok);
+  near(F.diferenca, F.totalPago - F.consorcio.totalPago);
+  // Validação dos campos do veículo
+  s.financiamento.veiculo.prazo = 100;
+  assert.ok(CC.validar(s).some((v) => v.campo === 'financiamento.veiculo.prazo' && v.nivel === 'erro'));
+  assert.equal(CC.simular(s).financiamento.ok, false);
+  // Imóvel continua no modelo habitacional
+  s.segmento = 'imovel';
+  assert.equal(CC.simular(s, { hoje: new Date(2026, 9, 10) }).financiamento.tipo, 'imovel');
+});

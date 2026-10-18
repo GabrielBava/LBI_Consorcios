@@ -24,10 +24,12 @@
     <!-- Páginas do simulador (no celular; na tela larga ficam no topo da proposta) -->
     <nav class="paginas paginas-menu" aria-label="Páginas do simulador"></nav>
     <div class="toolbar">
-      <button type="button" data-acao="pdf" class="primario"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="m9 14 3 3 3-3"/></svg>Gerar proposta (PDF)</button>
+      <button type="button" data-acao="transmitir" class="primario"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 21.7a.5.5 0 0 0 .9 0l6.5-19a.5.5 0 0 0-.6-.6l-19 6.5a.5.5 0 0 0 0 .9l7.9 3.2a2 2 0 0 1 1.1 1.1z"/><path d="m21.9 2.1-10.9 10.9"/></svg>Transmitir proposta</button>
       <button type="button" data-acao="nova"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Nova proposta</button>
-      <button type="button" data-acao="salvar"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>Salvar proposta</button>
+      <button type="button" data-acao="pdf"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="m9 14 3 3 3-3"/></svg>Gerar proposta</button>
     </div>
+    <!-- Sugestões de administradora (as duas páginas aceitam selecionar ou digitar) -->
+    <datalist id="lista-administradoras"></datalist>
 
     <label class="f campo-cliente"><span>Nome completo <em class="req">*</em></span>
       <input type="text" id="f-lead" data-k="plano.lead" maxlength="80" autocomplete="off"></label>
@@ -48,7 +50,7 @@
         </div>
       </fieldset>
       <label class="f"><span>Administradora</span>
-        <select id="f-administradora" data-k="plano.administradora" class="sel-administradora"></select></label>
+        <input type="text" id="f-administradora" data-k="plano.administradora" list="lista-administradoras" maxlength="40" placeholder="Selecione ou digite" autocomplete="off"></label>
       <label class="f"><span>Plano</span>
         <select id="f-plano" data-k="plano.planoId"></select></label>
       <small class="nota" id="nota-plano" hidden></small>
@@ -121,9 +123,14 @@
     <details class="secao" open data-secao="lances">
       <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>Estratégia de Lance</summary>
       <div class="bloco bloco-fgts">
-        <label class="chk chk-titulo"><input type="checkbox" id="f-fgtsAtivo" data-k="lances.fgtsAtivo"> FGTS</label>
-        <label class="f" data-show="lances.fgtsAtivo"><span>Valor do FGTS (R$)</span>
-          <input type="text" id="f-fgtsValor" data-k="lances.fgtsValor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+        <label class="chk chk-titulo"><input type="checkbox" id="f-recursosAtivo" data-k="lances.recursosAtivo"> Recursos próprios</label>
+        <div class="grid2" data-show="lances.recursosAtivo">
+          <div class="f f-dica"><label for="f-recursosValor">Recursos próprios (R$)</label><span class="dica"><button type="button" class="dica-botao" aria-label="Dica: recursos próprios" aria-describedby="dica-recursos"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></button><span class="dica-texto" role="tooltip" id="dica-recursos"><b>Pergunte ao cliente</b><span>• Tem dinheiro em conta ou aplicado que possa resgatar para ofertar como lance?</span><span>• Tem imóvel quitado? O valor de avaliação pode servir de base para o lance.</span><span>• Tem veículo quitado? Use o valor da tabela FIPE do modelo.</span><span>Informe aqui só os valores.</span></span></span>
+            <input type="text" id="f-recursosValor" data-k="lances.recursosValor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></div>
+          <label class="f"><span>FGTS (R$)</span>
+            <input type="text" id="f-fgtsValor" data-k="lances.fgtsValor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+        </div>
+        <small class="nota" data-show="lances.recursosAtivo&amp;plano.categoria=veiculo">Veículo: o FGTS só pode ser usado em imóveis.</small>
       </div>
       <div class="bloco">
         <label class="chk chk-titulo"><input type="checkbox" id="f-embutidoAtivo" data-k="lances.embutidoAtivo"> Lance Embutido</label>
@@ -141,7 +148,7 @@
           </div>
           <div class="linha-chk">
             <label class="chk chk-sub"><input type="checkbox" id="f-fixoUsarEmbutido" data-k="lances.fixoUsarEmbutido"> Usar Embutido</label>
-            <label class="chk chk-sub" data-show="lances.fgtsAtivo"><input type="checkbox" id="f-fixoUsarFgts" data-k="lances.fixoUsarFgts"> Usar FGTS</label>
+            <label class="chk chk-sub" data-show="lances.recursosAtivo"><input type="checkbox" id="f-fixoUsarRecursos" data-k="lances.fixoUsarRecursos"> Usar Recursos próprios</label>
           </div>
         </div>
       </div>
@@ -154,8 +161,24 @@
           </div>
           <div class="linha-chk">
             <label class="chk chk-sub"><input type="checkbox" id="f-livreUsarEmbutido" data-k="lances.livreUsarEmbutido"> Usar Embutido</label>
-            <label class="chk chk-sub" data-show="lances.fgtsAtivo"><input type="checkbox" id="f-livreUsarFgts" data-k="lances.livreUsarFgts"> Usar FGTS</label>
+            <label class="chk chk-sub" data-show="lances.recursosAtivo"><input type="checkbox" id="f-livreUsarRecursos" data-k="lances.livreUsarRecursos"> Usar Recursos próprios</label>
           </div>
+        </div>
+      </div>
+      <div class="bloco">
+        <label class="chk chk-titulo"><input type="checkbox" id="f-retidoAtivo" data-k="lances.retidoAtivo"> Lance Retido</label>
+        <div data-show="lances.retidoAtivo">
+          <label class="f"><span>Valor do lance (R$)</span>
+            <input type="text" id="f-retidoValor" data-k="lances.retidoValor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+          <div class="grid2">
+            <label class="f"><span>% do Crédito</span><output class="valor-travado" id="v-retidoPct" data-valor="retidoPct" aria-live="polite">—</output></label>
+            <label class="f"><span>Em dinheiro (R$)</span><output class="valor-travado" id="v-retidoDinheiro" data-valor="retidoDinheiro" aria-live="polite">—</output></label>
+          </div>
+          <div class="linha-chk">
+            <label class="chk chk-sub"><input type="checkbox" id="f-retidoUsarEmbutido" data-k="lances.retidoUsarEmbutido"> Usar Embutido</label>
+            <label class="chk chk-sub" data-show="lances.recursosAtivo"><input type="checkbox" id="f-retidoUsarRecursos" data-k="lances.retidoUsarRecursos"> Usar Recursos próprios</label>
+          </div>
+          <small class="nota">Oferta pelo valor do bem (por exemplo, o veículo): informe o valor em R$; o percentual sobre o crédito e a parte em dinheiro são calculados.</small>
         </div>
       </div>
     </details>
@@ -225,11 +248,10 @@
     <!-- 6. Projeções -->
     <details class="secao" open data-secao="projecoes">
       <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>Projeções</summary>
-      <p class="nota">Gráficos exibidos na tela e no PDF.</p>
+      <p class="nota">Gráficos exibidos na tela.</p>
       <div class="linha-chk">
         <label class="chk"><input type="checkbox" id="f-projParcelas" data-k="projecoes.parcelas"> Parcelas</label>
         <label class="chk"><input type="checkbox" id="f-projCredito" data-k="projecoes.credito"> Crédito</label>
-        <label class="chk"><input type="checkbox" id="f-projRentabilidade" data-k="projecoes.rentabilidade"> Rentabilidade</label>
       </div>
     </details>
     </div>
@@ -250,7 +272,6 @@
       </fieldset>
       <label class="f"><span>Administradora</span>
         <input type="text" id="c-administradora" data-k="cont.administradora" list="lista-administradoras" maxlength="40" placeholder="Selecione ou digite" autocomplete="off"></label>
-      <datalist id="lista-administradoras"></datalist>
     </details>
 
     <!-- C2. Cartas contempladas (uma ou várias: junção) -->
@@ -356,44 +377,76 @@
       <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="c-finAtivo" data-k="cont.financiamento.ativo"> Habilitar comparativo</label>
       <small class="nota" data-show="cont.graficos.ativo&amp;!cont.financiamento.ativo">Comparativo desabilitado: estas premissas valem só para os gráficos.</small>
       <div data-show="cont.financiamento.ativo|cont.graficos.ativo">
-        <fieldset class="f segmentado">
-          <legend>Sistema de amortização</legend>
-          <div class="seg-opcoes">
-            <label><input type="radio" name="c-sistema" data-k="cont.financiamento.sistema" value="price"><span>Tabela Price</span></label>
-            <label><input type="radio" name="c-sistema" data-k="cont.financiamento.sistema" value="sac"><span>Tabela SAC</span></label>
-          </div>
-        </fieldset>
-        <div class="grid2">
-          <label class="f"><span>Prazo (meses)</span>
-            <input type="number" id="c-finPrazo" data-k="cont.financiamento.prazo" min="1" max="420" step="1"></label>
-          <div class="chips" role="group" aria-label="Prazos usuais">
-            <button type="button" class="chip" data-prazo-fin="360">360</button>
-            <button type="button" class="chip" data-prazo-fin="420">420</button>
-          </div>
-        </div>
-        <div class="grid2">
-          <label class="f"><span>Entrada (%)</span>
-            <input type="number" id="c-finEntrada" data-k="cont.financiamento.entradaPct" min="0" max="99" step="any"></label>
-          <label class="f"><span>Juros (% a.a.)</span>
-            <input type="number" id="c-finJuros" data-k="cont.financiamento.juros" min="0" step="any"></label>
-        </div>
+        <small class="nota" data-show="cont.segmento=imovel">Imóvel: financiamento habitacional (TR, seguros e taxa do banco).</small>
+        <small class="nota" data-show="cont.segmento!=imovel">Veículo: financiamento CDC (parcelas fixas, juros ao mês, IOF e tarifas).</small>
         <label class="f"><span>Crédito necessário (R$)</span>
           <input type="text" id="c-finCredito" data-k="cont.financiamento.credito" data-moeda data-auto="credTotal" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
         <small class="nota">Pré-preenchido com o crédito das cartas; apague para voltar ao valor da carta.</small>
-        <label class="f"><span>Seguro de vida (% a.m.)</span>
-          <input type="number" id="c-finMip" data-k="cont.financiamento.mip" min="0" step="any"></label>
-        <label class="f"><span>Seguro proteção imóvel (% a.m.)</span>
-          <input type="number" id="c-finDfi" data-k="cont.financiamento.dfi" min="0" step="any"></label>
-        <small class="nota">Seguro/FGHab, como a Caixa cobra na parcela: seguro de vida (MIP) em % ao mês do saldo devedor, que varia com a idade do cliente; proteção do imóvel (DFI) em % ao mês do valor do imóvel. Confira as taxas na simulação da Caixa.</small>
-        <details class="sub-secao" data-id="c-custos-fin">
-          <summary>Correção e custos do banco</summary>
+        <!-- Imóvel: financiamento habitacional -->
+        <div data-show="cont.segmento=imovel">
+          <fieldset class="f segmentado">
+            <legend>Sistema de amortização</legend>
+            <div class="seg-opcoes">
+              <label><input type="radio" name="c-sistema" data-k="cont.financiamento.sistema" value="price"><span>Tabela Price</span></label>
+              <label><input type="radio" name="c-sistema" data-k="cont.financiamento.sistema" value="sac"><span>Tabela SAC</span></label>
+            </div>
+          </fieldset>
           <div class="grid2">
-            <label class="f"><span>TR (% a.a.)</span><input type="number" id="c-finTr" data-k="cont.financiamento.tr" min="0" step="any"></label>
-            <label class="f"><span>Outros seguros (R$/mês)</span><input type="text" id="c-finSeguros" data-k="cont.financiamento.seguros" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
-            <label class="f"><span>Taxa de adm. (R$/mês)</span><input type="text" id="c-finTa" data-k="cont.financiamento.ta" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+            <label class="f"><span>Prazo (meses)</span>
+              <input type="number" id="c-finPrazo" data-k="cont.financiamento.prazo" min="1" max="420" step="1"></label>
+            <div class="chips" role="group" aria-label="Prazos usuais do financiamento imobiliário">
+              <button type="button" class="chip" data-prazo-fin="360">360</button>
+              <button type="button" class="chip" data-prazo-fin="420">420</button>
+            </div>
           </div>
-          <small class="nota">Premissas editáveis: confirme com o banco. A TR corrige o saldo e o valor do imóvel todo mês.</small>
-        </details>
+          <div class="grid2">
+            <label class="f"><span>Entrada (%)</span>
+              <input type="number" id="c-finEntrada" data-k="cont.financiamento.entradaPct" min="0" max="99" step="any"></label>
+            <label class="f"><span>Juros (% a.a.)</span>
+              <input type="number" id="c-finJuros" data-k="cont.financiamento.juros" min="0" step="any"></label>
+          </div>
+          <label class="f"><span>Seguro de vida (% a.m.)</span>
+            <input type="number" id="c-finMip" data-k="cont.financiamento.mip" min="0" step="any"></label>
+          <label class="f"><span>Seguro proteção imóvel (% a.m.)</span>
+            <input type="number" id="c-finDfi" data-k="cont.financiamento.dfi" min="0" step="any"></label>
+          <small class="nota">Seguro/FGHab, como a Caixa cobra na parcela: seguro de vida (MIP) em % ao mês do saldo devedor, que varia com a idade do cliente; proteção do imóvel (DFI) em % ao mês do valor do imóvel. Confira as taxas na simulação da Caixa.</small>
+          <details class="sub-secao" data-id="c-custos-fin">
+            <summary>Correção e custos do banco</summary>
+            <div class="grid2">
+              <label class="f"><span>TR (% a.a.)</span><input type="number" id="c-finTr" data-k="cont.financiamento.tr" min="0" step="any"></label>
+              <label class="f"><span>Outros seguros (R$/mês)</span><input type="text" id="c-finSeguros" data-k="cont.financiamento.seguros" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+              <label class="f"><span>Taxa de adm. (R$/mês)</span><input type="text" id="c-finTa" data-k="cont.financiamento.ta" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+            </div>
+            <small class="nota">Premissas editáveis: confirme com o banco. A TR corrige o saldo e o valor do imóvel todo mês.</small>
+          </details>
+        </div>
+        <!-- Veículo (e serviço): financiamento CDC -->
+        <div data-show="cont.segmento!=imovel">
+          <div class="grid2">
+            <label class="f"><span>Prazo (meses)</span>
+              <input type="number" id="c-finVeicPrazo" data-k="cont.financiamento.veiculo.prazo" min="1" max="72" step="1"></label>
+            <div class="chips" role="group" aria-label="Prazos usuais do financiamento de veículo">
+              <button type="button" class="chip" data-prazo-veic="36">36</button>
+              <button type="button" class="chip" data-prazo-veic="48">48</button>
+              <button type="button" class="chip" data-prazo-veic="60">60</button>
+            </div>
+          </div>
+          <div class="grid2">
+            <label class="f"><span>Entrada (%)</span>
+              <input type="number" id="c-finVeicEntrada" data-k="cont.financiamento.veiculo.entradaPct" min="0" max="99" step="any"></label>
+            <label class="f"><span>Juros (% a.m.)</span>
+              <input type="number" id="c-finVeicJuros" data-k="cont.financiamento.veiculo.jurosAm" min="0" step="any"></label>
+          </div>
+          <small class="nota">Referência: média do Banco Central para aquisição de veículos por pessoa física (perto de 1,93% a.m.). Confirme com o banco.</small>
+          <details class="sub-secao" data-id="c-tarifas-veic">
+            <summary>IOF e tarifas</summary>
+            <div class="grid2">
+              <label class="f"><span>Tarifa de cadastro (R$)</span><input type="text" id="c-finVeicCadastro" data-k="cont.financiamento.veiculo.tarifaCadastro" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+              <label class="f"><span>Registro do contrato (R$)</span><input type="text" id="c-finVeicRegistro" data-k="cont.financiamento.veiculo.registro" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+            </div>
+            <small class="nota">IOF de pessoa física calculado pela regra legal: 0,38% + 0,0082% ao dia sobre cada amortização (até 365 dias). IOF e tarifas entram no valor financiado.</small>
+          </details>
+        </div>
       </div>
     </details>
 
@@ -422,6 +475,7 @@
 <script src="js/calc.js"></script>
 <script src="js/calc-contemplada.js"></script>
 <script src="js/app-contemplada.js"></script>
+<script src="js/adesao.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

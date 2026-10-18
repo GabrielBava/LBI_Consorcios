@@ -10,7 +10,7 @@
  *     v === null significa "Não calculado" e pend lista os motivos.
  * - Meses são numerados de 1 até o prazo.
  * - O núcleo numérico (nucleo) não formata textos, para poder ser chamado
- *   muitas vezes (gráfico de rentabilidade por mês de contemplação).
+ *   muitas vezes (tabelas de alavancagem por mês de contemplação).
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -158,20 +158,27 @@
       },
       parcela: { modalidade: 'integral', redutorOutro: null },
       lances: {
-        fgtsAtivo: false,
+        // Recursos do cliente para o lance: dinheiro (aplicações, imóvel ou veículo quitado) e FGTS (só imóvel)
+        recursosAtivo: false,
+        recursosValor: null,
         fgtsValor: null,
         embutidoAtivo: true,
         embutidoPct: REGRAS.embutidoPctPadrao,
         fixoAtivo: true,
         fixoPct: REGRAS.fixoPctPadrao,
         fixoUsarEmbutido: true,
-        fixoUsarFgts: false,
+        fixoUsarRecursos: false,
         livreAtivo: false,
         livrePct: null,
         livreUsarEmbutido: false,
-        livreUsarFgts: false
+        livreUsarRecursos: false,
+        // Lance Retido: valor ofertado em R$ (por exemplo, o valor do bem); o percentual é calculado
+        retidoAtivo: false,
+        retidoValor: null,
+        retidoUsarEmbutido: false,
+        retidoUsarRecursos: false
       },
-      projecoes: { parcelas: false, credito: false, rentabilidade: false },
+      projecoes: { parcelas: false, credito: false },
       // Lance Fidelidade: desabilitado ao iniciar; cada opção tem parcela inicial e % de embutido
       fidelidade: { ativo: false, p1Parcela: 6, p1Pct: 30, p2Parcela: 12, p2Pct: 27, p3Parcela: 18, p3Pct: 25 },
       // Mecanismo de Alavancagem: reaplica a venda (ou o lucro) da carta em novas cartas do mesmo plano
@@ -262,31 +269,42 @@
     return { ok: pend.length === 0, pend, C, N, ta, fr, r: isNum(r) ? r : 0 };
   }
 
+  /** O FGTS só pode ser usado no consórcio de imóvel. */
+  const fgtsPermitido = (s) => s.plano.categoria !== 'veiculo';
+
   /**
    * Valores do lance de uma modalidade sobre uma base de crédito.
    * 'embutido': o lance é composto só pelo lance embutido (sem recursos próprios).
-   * 'fixo' | 'livre': percentual da modalidade; com "Usar embutido", o embutido é descontado do total.
+   * 'fixo' | 'livre': percentual da modalidade; 'retido': valor ofertado em R$ (o percentual é calculado).
+   * Com "Usar embutido", o embutido é descontado do total. Com "Usar recursos próprios", o restante sai dos
+   * recursos informados pelo cliente: primeiro o FGTS (só imóvel), depois o dinheiro; o que faltar fica em out.falta.
    */
   function lanceSobre(s, mod, base, pctFidelidade) {
     const l = s.lances;
     const soEmbutido = mod === 'embutido' || mod === 'fidelidade';
+    const retido = mod === 'retido';
     // Lance Fidelidade: todo o lance é embutido, com o percentual da opção escolhida
     const pctE = mod === 'fidelidade' ? num(pctFidelidade) : num(l.embutidoPct);
-    const pct = soEmbutido ? pctE : num(mod === 'fixo' ? l.fixoPct : l.livrePct);
-    const usar = soEmbutido || ((mod === 'fixo' ? l.fixoUsarEmbutido : l.livreUsarEmbutido) && l.embutidoAtivo);
-    const usaFgts = !soEmbutido && l.fgtsAtivo && (mod === 'fixo' ? l.fixoUsarFgts : l.livreUsarFgts);
-    const out = { pct, pctEmbutido: usar ? pctE : 0, usaEmbutido: usar, usaFgts, total: null, embutido: null, fgts: null, proprios: null, limitado: false };
+    const valorRetido = num(l.retidoValor);
+    let pct = soEmbutido ? pctE : retido ? (isNum(valorRetido) && isNum(base) && base > 0 ? (valorRetido / base) * 100 : null) : num(mod === 'fixo' ? l.fixoPct : l.livrePct);
+    const flag = (k) => !!l[mod + k];
+    const usar = soEmbutido || (flag('UsarEmbutido') && l.embutidoAtivo);
+    const usaRecursos = !soEmbutido && !!l.recursosAtivo && flag('UsarRecursos');
+    const out = { pct, pctEmbutido: usar ? pctE : 0, usaEmbutido: usar, usaRecursos, usaFgts: false, total: null, embutido: null, fgts: null, proprios: null, dinheiro: null, falta: 0, limitado: false };
     if (!isNum(pct) || !isNum(base)) return out;
-    out.total = (pct / 100) * base;
+    out.total = retido ? valorRetido : (pct / 100) * base;
     let e = usar && isNum(pctE) ? (pctE / 100) * base : 0;
     if (e > out.total) { e = out.total; out.limitado = true; }
     out.embutido = e;
     // Recursos próprios = lance − embutido. O FGTS, quando usado, faz parte dos recursos próprios
-    // (limitado a eles); fica registrado à parte só para referência (out.fgts / out.dinheiro).
-    const fv = num(l.fgtsValor);
+    // (limitado a eles); fica registrado à parte (out.fgts / out.dinheiro).
     out.proprios = out.total - e;
-    out.fgts = usaFgts && isNum(fv) ? Math.min(Math.max(0, fv), out.proprios) : 0;
+    const fv = fgtsPermitido(s) ? num(l.fgtsValor) : null;
+    out.usaFgts = usaRecursos && isNum(fv) && fv > 0;
+    out.fgts = out.usaFgts ? Math.min(Math.max(0, fv), out.proprios) : 0;
     out.dinheiro = out.proprios - out.fgts;
+    const rv = num(l.recursosValor);
+    if (usaRecursos) out.falta = Math.max(0, out.dinheiro - (isNum(rv) ? Math.max(0, rv) : 0));
     return out;
   }
 
@@ -362,7 +380,7 @@
     let lance = null;
     if (mod !== 'sorteio') {
       lance = lanceSobre(s, mod, credBruto, pctFidelidade);
-      if (!isNum(lance.pct)) res.pend.push('Percentual do ' + NOMES_MOD[mod].toLowerCase() + ' não informado');
+      if (!isNum(lance.pct)) res.pend.push(mod === 'retido' ? 'Valor do lance retido não informado' : 'Percentual do ' + NOMES_MOD[mod].toLowerCase() + ' não informado');
       if (lance.usaEmbutido && !isNum(lance.pctEmbutido)) res.pend.push('Percentual do lance embutido não informado');
       const pos = linhas.slice(mesC);
       if (isNum(lance.total) && lance.total > 0 && pos.length && pos.every((l) => isNum(l.plano))) {
@@ -432,12 +450,13 @@
   // Cenário com memória de cálculo (tabelas de cenários)
   // ---------------------------------------------------------------------------
 
-  const NOMES_MOD = { sorteio: 'Sorteio', embutido: 'Lance Embutido', fixo: 'Lance Fixo', livre: 'Lance Livre', fidelidade: 'Lance Fidelidade' };
+  const NOMES_MOD = { sorteio: 'Sorteio', embutido: 'Lance Embutido', fixo: 'Lance Fixo', livre: 'Lance Livre', retido: 'Lance Retido', fidelidade: 'Lance Fidelidade' };
   const TITULOS = {
     sorteio: 'Contemplação por sorteio',
     embutido: 'Contemplação por lance embutido',
     fixo: 'Contemplação por lance fixo',
-    livre: 'Contemplação por lance livre'
+    livre: 'Contemplação por lance livre',
+    retido: 'Contemplação por lance retido'
   };
 
   function cenario(s, mod) {
@@ -463,12 +482,17 @@
     } else {
       const lc = n.lance;
       const base = fmtBRL(n.credBruto);
-      L.lance = val(lc.total, 'estimado', 'Lance = ' + fmtPct(lc.pct) + ' × crédito na contemplação ' + base, mod === 'fixo' ? 'Percentual do lance fixo (administradora)' : mod === 'embutido' ? 'Lance composto só pelo embutido' : 'Percentual ofertado no lance livre');
+      L.lance = mod === 'retido'
+        ? val(lc.total, 'informado', 'Lance retido = valor ofertado ' + fmtBRL(lc.total) + ' (' + fmtPct(lc.pct) + ' do crédito na contemplação ' + base + ')', 'Valor ofertado pelo consultor (por exemplo, o valor do bem)')
+        : val(lc.total, 'estimado', 'Lance = ' + fmtPct(lc.pct) + ' × crédito na contemplação ' + base, mod === 'fixo' ? 'Percentual do lance fixo (administradora)' : mod === 'embutido' ? 'Lance composto só pelo embutido' : 'Percentual ofertado no lance livre');
       L.embutido = lc.usaEmbutido
         ? val(lc.embutido, 'estimado', 'Lance embutido = ' + fmtPct(lc.pctEmbutido) + ' × ' + base + (lc.limitado ? ' (limitado ao valor total do lance)' : ''), 'Percentual do lance embutido (administradora)')
         : V(0, 'calculado', '"Usar embutido" desmarcado para esta modalidade', 'Configuração');
       L.proprios = val(lc.proprios, 'estimado', 'Recursos próprios = Lance ' + fmtBRL(lc.total) + ' − Embutido ' + fmtBRL(lc.embutido), 'Cálculo');
       if (lc.limitado) res.alertas.push({ nivel: 'alerta', msg: res.nome + ': o lance embutido é maior que o lance total; foi limitado ao valor do lance.' });
+      if (lc.falta > 0.005) res.alertas.push({ nivel: 'alerta', msg: res.nome + ': recursos próprios insuficientes; faltam ' + fmtBRL(lc.falta) + ' em dinheiro para completar o lance.' });
+      if (isNum(lc.total) && isNum(n.saldoNaContemplacao) && lc.total > n.saldoNaContemplacao + 0.005) res.alertas.push({ nivel: 'alerta', msg: res.nome + ': o lance (' + fmtBRL(lc.total) + ') passa do saldo devedor na contemplação (' + fmtBRL(n.saldoNaContemplacao) + '); o excedente não é aproveitado.' });
+      else if (mod === 'retido' && isNum(lc.total) && isNum(n.credBruto) && lc.total > n.credBruto + 0.005) res.alertas.push({ nivel: 'alerta', msg: res.nome + ': o valor ofertado passa do crédito na contemplação (' + fmtBRL(n.credBruto) + ').' });
     }
     L.credLiquido = val(n.credLiquido, n.embutido > 0 ? 'estimado' : L.credBruto.tipo, n.embutido > 0 ? 'Crédito líquido = ' + fmtBRL(n.credBruto) + ' − embutido ' + fmtBRL(n.embutido) : 'Crédito líquido = crédito na contemplação (sem embutido)', 'Cálculo');
 
@@ -568,11 +592,22 @@
       if (!mec.q1 && !mec.q2 && !mec.q3 && !mec.q4) add('aviso', 'mecanismo.q1', 'Mecanismo de Alavancagem: informe a quantidade de cartas em pelo menos um cenário.');
       if (mec.origem === 'embutido' && !l.embutidoAtivo) add('aviso', 'mecanismo.origem', 'Mecanismo de Alavancagem: lance embutido desativado; a origem usada é o sorteio.');
     }
-    if (l.fgtsAtivo && !isNum(num(l.fgtsValor))) add('erro', 'lances.fgtsValor', 'FGTS ativado: informe o valor disponível.');
+    if (l.recursosAtivo) {
+      const rv = num(l.recursosValor), fv = num(l.fgtsValor);
+      if (!isNum(rv) && !(fgtsPermitido(s) && isNum(fv))) add('erro', 'lances.recursosValor', 'Recursos próprios ativados: informe o valor disponível' + (fgtsPermitido(s) ? ' (recursos próprios e/ou FGTS).' : '.'));
+      if (isNum(rv) && rv < 0) add('erro', 'lances.recursosValor', 'Recursos próprios não podem ser negativos.');
+      if (isNum(fv) && fv < 0) add('erro', 'lances.fgtsValor', 'O FGTS não pode ser negativo.');
+      if (!fgtsPermitido(s) && isNum(fv) && fv > 0) add('info', 'lances.fgtsValor', 'Veículo: o FGTS só pode ser usado em imóveis e não entra no lance.');
+    }
     if (l.embutidoAtivo) pctOk('embutidoPct', 'Lance embutido');
     if (l.fixoAtivo) pctOk('fixoPct', 'Lance fixo');
     if (l.livreAtivo) pctOk('livrePct', 'Lance livre');
-    if ((l.fixoAtivo && l.fixoUsarEmbutido) || (l.livreAtivo && l.livreUsarEmbutido)) {
+    if (l.retidoAtivo) {
+      const rt = num(l.retidoValor);
+      if (!isNum(rt) || rt <= 0) add('erro', 'lances.retidoValor', 'Lance retido: informe o valor do lance (R$).');
+      else if (isNum(C) && rt > C) add('alerta', 'lances.retidoValor', 'Lance retido acima do crédito contratado: confira o valor ofertado.');
+    }
+    if ((l.fixoAtivo && l.fixoUsarEmbutido) || (l.livreAtivo && l.livreUsarEmbutido) || (l.retidoAtivo && l.retidoUsarEmbutido)) {
       if (!l.embutidoAtivo) add('alerta', 'lances.embutidoAtivo', '"Usar embutido" marcado, mas o lance embutido está desativado: o embutido não será considerado.');
     }
     return a;
@@ -670,6 +705,7 @@
     if (s.lances.embutidoAtivo) l.push('embutido');
     if (s.lances.fixoAtivo) l.push('fixo');
     if (s.lances.livreAtivo) l.push('livre');
+    if (s.lances.retidoAtivo) l.push('retido');
     return l;
   }
 
@@ -690,13 +726,6 @@
         pts.push({ x: ano, rotulo: 'Ano ' + ano, y: isNum(f) ? b.C * f : null });
       }
       out.credito = pts;
-    }
-    if (pr.rentabilidade) {
-      out.rentabilidade = mods.map((mod) => {
-        const pts = [];
-        for (let m = 1; m <= b.N; m++) { const n = nucleo(s, mod, m); pts.push({ x: m, y: n.ok ? n.resultado : null, pct: n.ok ? n.rentabilidade : null }); }
-        return { mod, nome: NOMES_MOD[mod], pontos: pts };
-      });
     }
     return out;
   }
@@ -876,7 +905,12 @@
       validacoes,
       resumo: resumo(s, nucleos.sorteio),
       cenarios,
-      valoresLance: Object.assign({ embutido: valor(s.lances.embutidoPct), fixo: valor(s.lances.fixoPct), livre: valor(s.lances.livrePct), mecCapital: mec ? mec.capital : null },
+      valoresLance: Object.assign({
+        embutido: valor(s.lances.embutidoPct), fixo: valor(s.lances.fixoPct), livre: valor(s.lances.livrePct), mecCapital: mec ? mec.capital : null,
+        // Lance Retido: percentual do valor ofertado sobre o crédito na contemplação e quanto sai em dinheiro
+        retidoPct: nucleos.retido && nucleos.retido.lance ? nucleos.retido.lance.pct : null,
+        retidoDinheiro: nucleos.retido && nucleos.retido.lance ? nucleos.retido.lance.dinheiro : null
+      },
         ...fid.map((f) => ({ ['fid' + f.i]: f.nucleo.ok ? f.nucleo.embutido : null }))),
       baseLance,
       projecoes: projecoes(s, nucleos),
@@ -894,7 +928,7 @@
   return {
     normalizarPlano, aplicarPlanoCadastrado, normalizarIndice, mecanismo, redutorNaParcelaToda, INDICES, CATEGORIAS, ADMINISTRADORAS, MODALIDADES_PARCELA, REGRAS, MSG, NOMES_MOD,
     estadoPadrao, aplicarCategoria, simular, nucleo, aquisicao, tirMensal, vpl, cenario, validar, fator, qtdReajustes, parcelaDataBase, redutorPct,
-    nomeIndice, taxaIndice, indiceEstimado, lanceSobre,
+    nomeIndice, taxaIndice, indiceEstimado, lanceSobre, fgtsPermitido,
     fmtBRL, fmtPct, fmtNum, num, isNum
   };
 });

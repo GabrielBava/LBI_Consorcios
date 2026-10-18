@@ -39,12 +39,22 @@
     try { localStorage.setItem(chave, JSON.stringify(valor)); return true; } catch (e) { return false; }
   }
 
-  const salvo = ler(CHAVE_ATUAL);
+  /** Propostas salvas antes de "Recursos próprios": o antigo FGTS vira recursos próprios (com o mesmo valor de FGTS). */
+  function migrarLances(sv) {
+    const l = sv && sv.lances;
+    if (!l || 'recursosAtivo' in l) return sv;
+    if (l.fgtsAtivo) l.recursosAtivo = true;
+    if (l.fixoUsarFgts) l.fixoUsarRecursos = true;
+    if (l.livreUsarFgts) l.livreUsarRecursos = true;
+    return sv;
+  }
+  const salvo = migrarLances(ler(CHAVE_ATUAL));
   const salvoCont = ler(CHAVE_CONT);
   let estado = null; // página 1 (consórcio primário); definido na inicialização (exemplo ilustrativo na primeira visita)
   let estadoCont = null; // página 2 (carta contemplada)
   let modo = 'primario'; // página exibida
   let TC = null; // interface da página da carta contemplada (js/app-contemplada.js)
+  let TA = null; // transmissão da proposta: termo de adesão (js/adesao.js)
   const abertos = new Set();
   const revelados = new Set(); // lances e tabelas de venda exibidos ao cliente (começam ocultos)
   const graficos = new Map(); // dados dos gráficos exibidos, para o tooltip
@@ -67,13 +77,14 @@
 
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // Classe de cor de cada série (página 2: consórcio, financiamento, economia aplicada e orgânica)
-  const SERIE = { sorteio: 1, embutido: 1, fixo: 1, livre: 1, cons: 'c1', fin: 'c2', aplic: 'c3', org: 'c4' };
+  const SERIE = { sorteio: 1, embutido: 1, fixo: 1, livre: 1, retido: 1, cons: 'c1', fin: 'c2', aplic: 'c3', org: 'c4' };
   // Ícones de traço no estilo Lucide (grade 24×24, traço 1,7, nunca preenchidos)
   const ICONES = {
     sorteio: '<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8.5 8.5h.01"/><path d="M15.5 8.5h.01"/><path d="M12 12h.01"/><path d="M8.5 15.5h.01"/><path d="M15.5 15.5h.01"/>',
     embutido: '<path d="M12 3.5 3 8l9 4.5L21 8z"/><path d="m3 12.5 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>',
     fixo: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
     livre: '<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+    retido: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
     fidelidade: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
     mecanismo: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M8 17v-4"/><path d="M13 17V9"/><path d="M18 17V5"/>'
   };
@@ -127,22 +138,29 @@
   function preencherSelects() {
     $$('.sel-indice').forEach((s) => { s.innerHTML = Object.entries(C.INDICES).map(([k, v]) => '<option value="' + k + '">' + esc(v.nome) + '</option>').join(''); });
     const adms = C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora).filter((a) => !C.ADMINISTRADORAS.includes(a)));
-    const atual = estado && estado.plano.administradora;
-    if (atual && !adms.includes(atual)) adms.push(atual);
-    $$('.sel-administradora').forEach((s) => { s.innerHTML = '<option value="">Selecione</option>' + adms.map((a) => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join(''); });
-    // Página da carta contemplada: indexador e sugestões de administradora (aceita texto livre)
+    // Sugestões de administradora nas duas páginas (aceitam selecionar ou digitar); indexador da página 2
     $$('.sel-indice-cont').forEach((s) => { s.innerHTML = Object.entries(CC.INDICES).map(([k, v]) => '<option value="' + k + '">' + esc(v.nome) + '</option>').join(''); });
     const lista = $('#lista-administradoras');
     if (lista) lista.innerHTML = adms.map((a) => '<option value="' + esc(a) + '"></option>').join('');
     preencherPlanos();
   }
 
-  /** Lista os planos da administradora selecionada. */
+  /** Compara nomes de administradora sem diferenciar maiúsculas, acentos e espaços. */
+  const chaveAdm = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+  /** Nome digitado igual a uma administradora conhecida (sem diferenciar maiúsculas e acentos): usa a grafia da lista. */
+  function grafiaAdministradora(txt) {
+    const k = chaveAdm(txt);
+    if (!k) return '';
+    const todas = C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora));
+    return todas.find((a) => chaveAdm(a) === k) || txt;
+  }
+
+  /** Lista os planos da administradora informada (selecionada ou digitada). */
   function preencherPlanos() {
     const sel = $('#f-plano');
     if (!sel) return;
     const adm = estado ? estado.plano.administradora : '';
-    const daAdm = planos.filter((x) => x.administradora === adm);
+    const daAdm = adm ? planos.filter((x) => chaveAdm(x.administradora) === chaveAdm(adm)) : [];
     let ops;
     if (!adm) ops = '<option value="">Selecione a administradora</option>';
     else if (!daAdm.length) ops = '<option value="">Nenhum plano cadastrado</option>';
@@ -239,6 +257,13 @@
 
   function aplicarVisibilidade() {
     $$('[data-show]').forEach((el) => { el.hidden = !avaliarCondicao(el.dataset.show); });
+    // FGTS só no consórcio de imóvel: no veículo o campo fica travado
+    const fgts = $('#f-fgtsValor');
+    if (fgts && estado) {
+      const travado = estado.plano.categoria === 'veiculo';
+      fgts.disabled = travado;
+      fgts.title = travado ? 'O FGTS só pode ser usado em imóveis.' : '';
+    }
   }
 
   function ligarMenu() {
@@ -256,9 +281,12 @@
         escreverCampos();
         preencherPlanos();
       } else if (el.dataset.k === 'plano.administradora') {
+        // Nome digitado igual a uma administradora da lista ganha a grafia dela (HS, Itaú...)
+        const grafia = grafiaAdministradora(estado.plano.administradora);
+        if (grafia !== estado.plano.administradora && ev.type === 'change') { estado.plano.administradora = grafia; el.value = grafia; }
         // Troca de administradora: o plano cadastrado anterior deixa de valer
         const pl = planoPorId(estado.plano.planoId);
-        if (pl && pl.administradora !== estado.plano.administradora) Object.assign(estado.plano, { planoId: '', creditoMinimo: null });
+        if (pl && chaveAdm(pl.administradora) !== chaveAdm(estado.plano.administradora)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null });
         preencherPlanos();
       } else if (el.dataset.k === 'plano.planoId') {
         // Plano cadastrado: crédito mínimo, prazo, taxas, lances e índice preenchidos automaticamente
@@ -286,6 +314,7 @@
       else if (b.dataset.acaoCont) acoesCont[b.dataset.acaoCont]();
       else if (b.dataset.removerCarta) acoesCont.removerCarta(Number(b.dataset.removerCarta));
       else if (b.dataset.prazoFin) { estadoCont.financiamento.prazo = Number(b.dataset.prazoFin); escreverCampos(); atualizar(); }
+      else if (b.dataset.prazoVeic) { estadoCont.financiamento.veiculo.prazo = Number(b.dataset.prazoVeic); escreverCampos(); atualizar(); }
     });
     document.addEventListener('toggle', (ev) => {
       const d = ev.target;
@@ -374,7 +403,7 @@
     // Parcela integral e sem seguro: a parcela inicial mostra só fundo comum + taxa adm. + fundo de reserva
     Object.assign(s.plano, { lead: 'Exemplo ilustrativo', mesContemplacao: 12, indiceTaxa: 5 });
     Object.assign(s.lances, { embutidoAtivo: true, fixoAtivo: true, fixoUsarEmbutido: true, livreAtivo: true, livrePct: 35, livreUsarEmbutido: true });
-    s.projecoes = { parcelas: true, credito: true, rentabilidade: true };
+    s.projecoes = { parcelas: true, credito: true };
     return s;
   }
 
@@ -404,27 +433,11 @@
         $('#f-lead').focus();
       });
     },
-    salvar() {
-      // Um arquivo com as duas páginas: consórcio primário (estado) e carta contemplada (contemplada)
-      const json = JSON.stringify({ versao: 3, gerado: new Date().toISOString(), pagina: modo, estado, contemplada: estadoCont }, null, 2);
-      if (!window.MODO_ARTIFACT) {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-        a.download = 'proposta_' + nomeArquivo(estado.plano.lead) + '.json';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        avisar('Proposta salva.');
-        return;
-      }
-      janela('<h2>Salvar proposta</h2><p class="nota">Copie o conteúdo e guarde em um arquivo .json.</p><textarea id="jsonExportado" readonly>' + esc(json) + '</textarea>', [
-        { texto: 'Fechar' },
-        { texto: 'Copiar', primario: true, acao: (j) => {
-          const ta = j.querySelector('textarea');
-          const selecionar = () => { ta.focus(); ta.select(); avisar('Texto selecionado: use Ctrl+C para copiar.'); };
-          try { navigator.clipboard.writeText(json).then(() => avisar('Proposta copiada.'), selecionar); } catch (e) { selecionar(); }
-          return false;
-        } }
-      ], true);
+    transmitir() {
+      // Termo de adesão (uso interno): dados mínimos do cliente → PDF e e-mail para o pós-venda
+      const cliente = { nome: String(estado.plano.lead || '').trim(), telefone: estado.contato.cliente || '' };
+      const resumo = modo === 'contemplada' ? TC.resumoAdesao(CC.simular(estadoCont), estadoCont) : resumoAdesao(estado, C.simular(estado));
+      TA.abrir(cliente, resumo);
     },
     pdf: gerarPdf
   };
@@ -700,9 +713,8 @@
     const mesC = C.num(estado.plano.mesContemplacao);
     if (p.parcelas) partes.push(multiplos(pre + 'g-parcelas', 'Parcelas mês a mês', 'Parcela total (plano, adesão e seguro) em cada forma de contemplação. Após a contemplação, a parcela reflete a recomposição do redutor e o abatimento do lance.', p.parcelas, { marcaX: mesC, marcaRotulo: 'contemplação' }, pdf));
     if (p.credito) partes.push(graficoColunas(pre + 'g-credito', 'Crédito atualizado por ano', 'Crédito contratado reajustado anualmente pelo índice ' + C.nomeIndice(estado.plano) + (C.indiceEstimado(estado.plano) ? ' (taxa estimada)' : '') + '.', p.credito, pdf));
-    if (p.rentabilidade) partes.push(multiplos(pre + 'g-rentab', 'Rentabilidade da venda conforme o mês de contemplação', 'Lucro estimado se a carta for contemplada no mês indicado e vendida por ' + C.REGRAS.vendaPct + '% do crédito disponível. No detalhe, entre parênteses: lucro ÷ aporte.', p.rentabilidade, { marcaX: mesC, marcaRotulo: 'projeção', rotuloX: (x) => 'Contemplação no mês ' + x }, pdf));
     if (!partes.length) return '';
-    return partes.join('') + '<p class="aviso-inline">Projeções estimadas, sem garantia de contemplação, venda ou rentabilidade.</p>';
+    return partes.join('') + '<p class="aviso-inline">Projeções estimadas, sem garantia de contemplação.</p>';
   }
 
   // ---------------------------------------------------------------------------
@@ -803,10 +815,19 @@
     const oculto = !revelados.has(id);
     const f = (x) => (C.isNum(x) ? C.fmtBRL(x) : '<span class="nc">n/c</span>');
     const cor = (x) => (C.isNum(x) ? (x >= 0 ? 'positivo' : 'negativo') : '');
-    return '<div class="alav"><h3 class="alav-titulo">Alavancagem via <span class="acento">' + esc(a.nome) + '</span>' + (pdf ? '' : botaoOlho(id, 'cenário de venda via ' + a.nome.toLowerCase())) + '</h3>' +
-      '<div class="rolagem-x' + (oculto ? ' borrado' : '') + '"' + (oculto ? ' aria-hidden="true"' : '') + '><table class="tab-alav"><thead><tr><th>Mês</th><th>Crédito</th><th>Parcela atual</th><th>Aporte</th><th>Vl. venda</th><th>Lucro (R$)</th><th>Rentab. a.m.</th></tr></thead><tbody>' +
+    const idTab = 'alav-' + a.mod;
+    const fechada = !pdf && recolhidos.has(idTab);
+    return '<div class="alav"><h3 class="alav-titulo">Alavancagem via <span class="acento">' + esc(a.nome) + '</span>' + (pdf ? '' : botaoOlho(id, 'cenário de venda via ' + a.nome.toLowerCase()) + setaRecolher(idTab, 'tabela de alavancagem via ' + a.nome.toLowerCase())) + '</h3>' +
+      '<div class="rolagem-x' + (oculto ? ' borrado' : '') + '"' + (oculto ? ' aria-hidden="true"' : '') + (fechada ? ' hidden' : '') + ' id="tab-' + idTab + '"><table class="tab-alav"><thead><tr><th>Mês</th><th>Crédito</th><th>Parcela atual</th><th>Aporte</th><th>Vl. venda</th><th>Lucro (R$)</th><th>Rentab. a.m.</th></tr></thead><tbody>' +
       a.linhas.map((l) => '<tr><td>' + l.m + '</td><td>' + f(l.credito) + '</td><td>' + f(l.parcela) + '</td><td>' + f(l.aporte) + '</td><td>' + f(l.venda) + '</td><td class="' + cor(l.lucro) + '">' + f(l.lucro) + '</td><td class="' + cor(l.rentabilidade) + '">' + (C.isNum(l.rentabilidade) ? C.fmtPct(l.rentabilidade, 2) : '—') + '</td></tr>').join('') +
       '</tbody></table></div></div>';
+  }
+
+  /** Seta no canto do bloco: mostra ou recolhe a tabela na tela (lembrado no navegador). */
+  function setaRecolher(id, rotulo) {
+    const aberta = !recolhidos.has(id);
+    return '<button type="button" class="seta-tabela" data-recolher="' + id + '" aria-expanded="' + aberta + '" aria-controls="tab-' + id + '" aria-label="' + (aberta ? 'Recolher ' : 'Mostrar ') + esc(rotulo) + '" title="' + (aberta ? 'Recolher' : 'Mostrar') + '">' +
+      '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
   }
 
   function secAlavancagem(r, pdf) {
@@ -868,6 +889,36 @@
     return '<section class="bloco-res vitrine">' + tituloSecao('Simulação de', 'Aquisição', 'Cenário de aquisição') +
       '<p class="g-sub">Uso da carta para comprar o imóvel: custo efetivo total (CET) com os reajustes das parcelas até o fim do plano.</p>' +
       '<div class="formas">' + r.aquisicao.map(cartaoAquisicao).join('') + '</div></section>';
+  }
+
+  /** Dados da proposta da página 1 que acompanham o termo de adesão (pares rótulo, valor). */
+  function resumoAdesao(s, r) {
+    const p = s.plano, R = r.resumo;
+    const t = C.taxaIndice(p);
+    const pl = planoPorId(p.planoId);
+    const v = (x) => (x && C.isNum(x.v) ? C.fmtBRL(x.v) : '—');
+    const lances = r.cenarios.filter((c) => c.mod !== 'sorteio').map((c) => {
+      const lc = c.nucleo.lance;
+      return c.nome + (lc && C.isNum(lc.total) ? ' ' + C.fmtBRL(lc.total) + ' (' + C.fmtPct(lc.pct, 2) + ')' : '');
+    });
+    const l = s.lances;
+    return [
+      ['Produto', 'Consórcio de ' + C.CATEGORIAS[p.categoria].nome],
+      ['Administradora', p.administradora || '—'],
+      ['Plano', pl ? pl.nome : '—'],
+      ['Crédito', v(R.credito)],
+      ['Prazo', C.isNum(C.num(p.prazo)) ? p.prazo + ' meses' : '—'],
+      ['Parcela inicial', v(R.parcelaInicial)],
+      ['Taxa de administração', C.isNum(C.num(p.taxaAdm)) ? C.fmtPct(C.num(p.taxaAdm)) : '—'],
+      ['Fundo de reserva', C.isNum(C.num(p.fundoReserva)) ? C.fmtPct(C.num(p.fundoReserva)) : '—'],
+      ['Modalidade da parcela', s.parcela.modalidade === 'integral' ? 'Parcela integral' : 'Redutor de ' + C.fmtPct(r.redutorPct, 0)],
+      ['Indexador de reajuste', C.nomeIndice(p) + (C.isNum(t) ? ' (' + C.fmtPct(t) + ' a.a.)' : '')],
+      ['Seguro prestamista', p.seguroAtivo ? 'Sim (' + C.fmtPct(C.num(p.seguroPct), 3) + ' a.m.)' : 'Não'],
+      ['Adesão', p.adesaoAtiva ? C.fmtPct(C.num(p.adesaoPct)) + ' em ' + (p.adesaoMeses || '—') + ' meses' : 'Não'],
+      ['Lances simulados', lances.length ? lances.join(' · ') : 'Sem lance (sorteio)'],
+      ['Recursos próprios informados', l.recursosAtivo ? [C.isNum(C.num(l.recursosValor)) ? 'dinheiro ' + C.fmtBRL(C.num(l.recursosValor)) : '', C.fgtsPermitido(s) && C.isNum(C.num(l.fgtsValor)) ? 'FGTS ' + C.fmtBRL(C.num(l.fgtsValor)) : ''].filter(Boolean).join(' · ') || '—' : 'Não'],
+      ['Projeção de contemplação', p.mesContemplacao ? 'Mês ' + p.mesContemplacao : '—']
+    ];
   }
 
   /** Logotipo da empresa (js/logos.js): versão para fundo escuro e para fundo claro (o CSS mostra a do tema atual). */
@@ -983,7 +1034,7 @@
   function atualizarValoresTravados(r) {
     $$('[data-valor]').forEach((o) => {
       const v = r.valoresLance[o.dataset.valor];
-      o.textContent = C.isNum(v) ? C.fmtBRL(v) : '—';
+      o.textContent = !C.isNum(v) ? '—' : o.dataset.valor === 'retidoPct' ? C.fmtPct(v, 2) : C.fmtBRL(v);
     });
   }
 
@@ -1012,7 +1063,7 @@
 
   function pdfPagina(n, total, s, corpo) {
     return '<section class="pdf-pagina"><div class="pdf-corpo">' + corpo + '</div>' +
-      '<footer class="pdf-rodape"><span>' + esc(s.plano.lead) + '</span>' + (LOGO.escuro ? '<img class="pdf-logo-rodape" src="' + LOGO.escuro + '" alt="' + esc(EMPRESA) + '">' : '') + '<span>' + n + ' / ' + total + '</span></footer></section>';
+      '<footer class="pdf-rodape"><span>' + esc(s.plano.lead) + '</span>' + (LOGO.claro ? '<img class="pdf-logo-rodape" src="' + LOGO.claro + '" alt="' + esc(EMPRESA) + '">' : '') + '<span>' + n + ' / ' + total + '</span></footer></section>';
   }
 
   function pdfCartaoForma(n, mod, nome, sub) {
@@ -1045,7 +1096,7 @@
     // Página 1: dados da proposta, características e formas de contemplação
     const kpi = (rot, val, formato, cls, suf) => '<div class="pdf-kpi' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + fmt(val, formato) + (suf && val && val.v != null ? '<small> ' + suf + '</small>' : '') + '</b></div>';
     const ident = [C.CATEGORIAS[p.categoria].nome, p.administradora].filter(Boolean).map(esc).join(' · ');
-    let p1 = '<header class="pdf-topo">' + (LOGO.escuro ? '<img class="pdf-logo" src="' + LOGO.escuro + '" alt="' + esc(EMPRESA) + '">' : '') + '<p class="eyebrow">Emitida em ' + data + '</p><h1>Proposta de <span class="acento">Consórcio</span></h1>' +
+    let p1 = '<header class="pdf-topo">' + (LOGO.claro ? '<img class="pdf-logo" src="' + LOGO.claro + '" alt="' + esc(EMPRESA) + '">' : '') + '<p class="eyebrow">Emitida em ' + data + '</p><h1>Proposta de <span class="acento">Consórcio</span></h1>' +
       '<p class="pdf-cliente">' + esc(p.lead) + '</p><p class="pdf-ident">' + ident + '</p></header>';
     p1 += '<div class="pdf-kpis">' + kpi('Crédito', R.credito, 'brl', 'destaque') + kpi('Parcela inicial', R.parcelaInicial, 'brl', 'destaque') + kpi('Total de taxas', R.taxaAno, 'pct', '', 'a.a.') + kpi('Prazo', R.prazo, 'meses') + '</div>';
     const carac = [
@@ -1061,7 +1112,8 @@
       ['Projeção de contemplação', String(p.mesContemplacao || '—')]
     ];
     p1 += '<div class="pdf-bloco">' + pdfTitulo('Características do', 'Plano') + '<dl class="pdf-carac">' + carac.map(([k, v]) => '<div><dt>' + k + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl></div>';
-    const mods1 = ['sorteio', 'embutido', 'fixo'].filter((m) => nucleo(m));
+    // Sorteio, embutido, fixo e o lance retido (quando ativado), lado a lado
+    const mods1 = ['sorteio', 'embutido', 'fixo', 'retido'].filter((m) => nucleo(m));
     p1 += '<div class="pdf-bloco">' + pdfTitulo('Formas de', 'Contemplação') + '<div class="pdf-grade c' + mods1.length + '">' + mods1.map((m) => pdfCartaoForma(nucleo(m), m)).join('') + '</div></div>';
 
     // Página 2: panorama de venda e alavancagem
@@ -1264,7 +1316,7 @@
       const k = parseFloat(getComputedStyle(area).getPropertyValue('--k')) || 1;
       for (let i = 0; i < paginas.length; i++) {
         const pg = paginas[i];
-        const canvas = await window.html2canvas(pg, { scale: 2 / k, backgroundColor: '#000000', logging: false, useCORS: true });
+        const canvas = await window.html2canvas(pg, { scale: 2 / k, backgroundColor: '#FFFFFF', logging: false, useCORS: true });
         if (i) doc.addPage();
         doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297);
         // Mantém os links (botão do WhatsApp) clicáveis no PDF
@@ -1337,6 +1389,7 @@
   estadoCont = salvoCont ? mesclar(CC.estadoPadrao(), salvoCont) : exemploCont();
   if (!Array.isArray(estadoCont.cartas) || !estadoCont.cartas.length) estadoCont.cartas = [CC.cartaVazia()];
   TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, EMPRESA, numeroWhatsapp, graficoLinhas });
+  TA = window.Adesao({ esc, janela, avisar, gerarPdfArquivo, baixarArquivo, copiarTexto, nomeArquivo, LOGO, EMPRESA });
   modo = modoDaUrl() || (function () { try { return localStorage.getItem(CHAVE_MODO); } catch (e) { return null; } })() || 'primario';
   // Dados enviados pelo CRM no botão "Gerar proposta" (?nome=...&contato=..., também aceitos depois do #).
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.

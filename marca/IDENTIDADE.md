@@ -7,8 +7,8 @@ Os valores usados de fato ficam em `css/tokens.css` (temas escuro e claro) e `cs
 
 | Arquivo | Uso |
 |---|---|
-| `life-logo-claro.png` | Fundo claro (texto grafite `#201E1E`) |
-| `life-logo-escuro.png` | Fundo escuro (texto branco); é o usado no PDF |
+| `life-logo-claro.png` | Fundo claro (texto grafite `#201E1E`); é o usado no PDF |
+| `life-logo-escuro.png` | Fundo escuro (texto branco) |
 | `life-coracao.png` | O coração sozinho: ícone da página e marca discreta |
 
 Os três são embutidos em `js/logos.js` por `npm run logos` (`scripts/gerar-logos.js`).
