@@ -14,7 +14,7 @@ As abas no topo da proposta alternam entre as páginas; o menu lateral troca os 
 1. Abra `index.html` no navegador. Não há instalação nem servidor; funciona também offline.
 2. Preencha as seções do menu lateral. Os resultados são atualizados automaticamente.
 3. Clique em **Gerar proposta** e confira a prévia. Na prévia, **Gerar proposta** baixa o PDF (`Proposta_<Nome>_<data>.pdf`) e prepara a mensagem para colar no WhatsApp do cliente.
-4. Fechado o negócio, **Transmitir proposta** abre o formulário do termo de adesão. Ao finalizar, baixa `Termo_Adesao_<Nome>_<data>.pdf` e prepara o e-mail para o pós-venda (destinatário em `emailPosVenda`, `js/config.js`). É um documento interno: o cliente não recebe.
+4. Fechado o negócio, **Transmitir proposta** abre a ficha de fechamento do termo de adesão (dados do fechamento vindos da simulação, dados do cliente, endereço pelo CEP e dados bancários). Ao finalizar, baixa `Termo_Adesao_<Nome>_<data>_<hora>.pdf`, com data e hora da emissão, e prepara o e-mail para o pós-venda (destinatário em `emailPosVenda`, `js/config.js`). É um documento interno: o cliente não recebe.
 
 Na primeira abertura aparece um exemplo com valores fictícios. **Nova proposta** limpa os campos.
 
@@ -42,7 +42,7 @@ O simulador segue a identidade do **Grupo Life Brasil** (apresentação instituc
 | `js/app.js` | Interface: navegação entre as páginas, vínculo dos campos, desenho dos resultados, ações e PDF |
 | `tests/calc.test.js` | Testes do motor de cálculo da página 1 |
 | `tests/contemplada.test.js` | Testes do motor de cálculo da página 2 |
-| `tests/adesao.test.js` | Testes das validações e máscaras do termo de adesão |
+| `tests/adesao.test.js` | Testes das validações, máscaras, endereço e busca de CEP da ficha de fechamento |
 | `docs/ESPECIFICACAO.md` | Especificação funcional da página 1 (campos, regras, fórmulas, pendências) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Especificação funcional da página 2 |
 

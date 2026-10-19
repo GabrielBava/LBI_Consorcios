@@ -20,7 +20,7 @@ Versão 3.2 · Implementação: `js/calc-contemplada.js` (motor de cálculo), `j
 - As abas trocam a página por script, sem recarregar; no celular ficam no topo do menu e, com o menu oculto, no topo da proposta.
 - **Compartilhado entre as páginas:** nome e contato do cliente, tema claro/escuro, menu oculto/visível, barra de ações: **Transmitir proposta** (laranja) e, no tom claro, **Nova proposta** e **Gerar proposta** (prévia e PDF).
 - Cada página guarda seus próprios campos no navegador. **Nova proposta** limpa a página atual e os dados do cliente. O antigo **Salvar proposta** (.json) saiu na v3.2.
-- **Transmitir proposta** (uso interno): o mesmo formulário do termo de adesão da página 1 (ver `ESPECIFICACAO.md`, seção 2.13), com o resumo da carta em tela (produto, administradora, indexador, cartas, crédito, entrada, parcela, saldo devedor, maior prazo e estimativa de transferência). Gera o PDF do termo e o e-mail para o pós-venda.
+- **Transmitir proposta** (uso interno): a mesma ficha de fechamento da página 1 (ver `ESPECIFICACAO.md`, seção 2.13). O fechamento vem da carta em tela (tipo = segmento, prazo = maior prazo, valor da carta = crédito total, estratégia sugerida Aquisição; redutor e seguro prestamista ficam para o consultor), e o resumo da carta (produto, administradora, indexador, cartas, crédito, entrada, parcela, saldo devedor, maior prazo e estimativa de transferência) vai no fim do PDF e do e-mail. Gera o PDF da ficha, com data e hora da emissão, e o e-mail para o pós-venda.
 
 ## 2. Menu lateral
 

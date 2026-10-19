@@ -118,7 +118,7 @@
     periodicidadeReajuste: 12, // reajuste a cada 12 meses (mês 13, 25, ...) até o fim do plano
     vendaPct: 20, // venda da carta contemplada: 20% sobre o crédito líquido disponível
     locacaoPct: 1.6, // retorno mensal de locação: 1,6% ao mês sobre o crédito disponível
-    seguroPctPadrao: 0.038, // seguro prestamista: % ao mês sobre o crédito atualizado
+    seguroPctPadrao: 0.038, // seguro prestamista: % ao mês sobre crédito + taxa de administração + fundo de reserva (atualizados)
     embutidoPctPadrao: 25,
     fixoPctPadrao: 50
   };
@@ -340,6 +340,8 @@
     }
     const seguroPct = p.seguroAtivo ? num(p.seguroPct) : 0;
     if (p.seguroAtivo && !isNum(seguroPct)) res.pend.push('Seguro prestamista: percentual não informado');
+    // Base do seguro prestamista: crédito + taxa de administração + fundo de reserva (o valor total do plano)
+    const baseSeguro = 1 + (isNum(ta) ? ta / 100 : 0) + (isNum(fr) ? fr / 100 : 0);
 
     // Recomposição do redutor: o percentual não pago até a contemplação é diluído nas parcelas restantes
     const nRest = N - mesC;
@@ -364,7 +366,7 @@
         l.fundo = ((fr / 100) / N) * cref * fatorTaxas;
         l.plano = l.fundoComum + l.taxa + l.fundo;
         l.adesao = m <= adesaoMeses ? adesaoMes : 0;
-        l.seguro = isNum(seguroPct) ? (seguroPct / 100) * cref : null;
+        l.seguro = isNum(seguroPct) ? (seguroPct / 100) * cref * baseSeguro : null;
         l.pend = l.seguro === null ? ['Seguro prestamista: percentual não informado'] : [];
       }
       linhas.push(l);
@@ -629,7 +631,7 @@
     l.push('Reajuste anual pelo índice ' + nomeIndice(p) + (isNum(t) ? ' (' + fmtPct(t) + ' ao ano' + (indiceEstimado(p) ? ', taxa estimada' : '') + ')' : ' (taxa não informada)') + ', a cada 12 meses (meses 13, 25, 37...) até o fim do plano. O reajuste incide sobre o crédito e as parcelas são recalculadas sobre o crédito reajustado.');
     if (s.parcela.modalidade !== 'integral') l.push('Redutor de ' + fmtPct(redutorPct(s.parcela), 0) + ' aplicado da 1ª parcela até a contemplação. Depois, a diferença não paga é diluída nas parcelas restantes.');
     if (p.adesaoAtiva) l.push('Adesão de ' + fmtPct(num(p.adesaoPct)) + ' do crédito contratado, diluída em ' + (p.adesaoMeses || '—') + ' parcela(s) iguais, sem reajuste.');
-    if (p.seguroAtivo) l.push('Seguro prestamista de ' + fmtPct(num(p.seguroPct), 3) + ' ao mês sobre o crédito atualizado, somado à parcela.');
+    if (p.seguroAtivo) l.push('Seguro prestamista de ' + fmtPct(num(p.seguroPct), 3) + ' ao mês sobre o crédito atualizado somado à taxa de administração e ao fundo de reserva, somado à parcela.');
     l.push('Lance abatido por ' + (p.abatimento === 'prazo' ? 'redução do prazo (quita parcelas a partir do fim do plano)' : 'redução proporcional do valor das parcelas restantes') + ', a valores do mês da contemplação.');
     l.push('Percentuais de lance calculados sobre o crédito atualizado no mês da contemplação. Recursos próprios = lance total − lance embutido.');
     l.push('Contemplação projetada no mês ' + (p.mesContemplacao || '—') + '. A parcela desse mês é considerada paga.');
@@ -693,7 +695,7 @@
       ? V(l1.total, 'calculado', 'Parcela do mês 1 = Fundo comum ' + fmtBRL(l1.fundoComum) + ' + Taxa adm. ' + fmtBRL(l1.taxa) + ' + Fundo de reserva ' + fmtBRL(l1.fundo) + ' + Adesão ' + fmtBRL(l1.adesao) + ' + Seguro ' + fmtBRL(l1.seguro), 'Demonstrativo mensal')
       : P(nSorteio.pend, 'Parcela do mês 1');
     R.seguro = !p.seguroAtivo ? V(null, 'na', 'Seguro prestamista não contratado', '', { nota: 'Não contratado' })
-      : l1 && isNum(l1.seguro) ? V(l1.seguro, 'calculado', 'Seguro = ' + fmtPct(num(p.seguroPct), 3) + ' × crédito ' + fmtBRL(l1.credAtual), 'Percentual informado') : P('Seguro prestamista: percentual não informado');
+      : l1 && isNum(l1.seguro) ? V(l1.seguro, 'calculado', 'Seguro = ' + fmtPct(num(p.seguroPct), 3) + ' × (crédito ' + fmtBRL(l1.credAtual) + ' + taxa adm. ' + fmtPct(b.ta, 2) + ' + fundo de reserva ' + fmtPct(b.fr, 2) + ' = ' + fmtBRL(l1.credAtual * (1 + (b.ta || 0) / 100 + (b.fr || 0) / 100)) + ')', 'Percentual informado') : P('Seguro prestamista: percentual não informado');
     R.totalPago = nSorteio.ok && isNum(nSorteio.totalPlano)
       ? V(nSorteio.totalPlano, 'estimado', 'Σ parcelas dos meses 1 a ' + N + ' (cenário sem lance, contemplação no mês ' + nSorteio.mesC + ')', 'Demonstrativo mensal', { nota: MSG.estimado })
       : P(nSorteio.pend, 'Σ parcelas do plano');

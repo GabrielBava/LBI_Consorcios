@@ -29,7 +29,9 @@ test('termo de adesão: máscaras de CPF, CEP, celular e moeda', () => {
 
 test('termo de adesão: obrigatórios, formatos e idade mínima', () => {
   assert.equal(A.erroCampo(campo('nome'), '  '), 'Campo obrigatório.');
-  assert.equal(A.erroCampo(campo('rg'), ''), '');
+  assert.equal(A.erroCampo(campo('rg'), ''), 'Campo obrigatório.');
+  assert.equal(A.erroCampo(campo('cargo'), ''), '');
+  assert.equal(A.erroCampo(campo('complemento'), ''), '');
   assert.equal(A.erroCampo(campo('cpf'), '529.982.247-24'), 'CPF inválido.');
   assert.equal(A.erroCampo(campo('email'), 'maria@exemplo'), 'E-mail inválido.');
   assert.equal(A.erroCampo(campo('email'), 'maria@exemplo.com'), '');
@@ -44,4 +46,42 @@ test('termo de adesão: cônjuge só aparece para casado(a) ou união estável',
   for (const id of ['conjugeNome', 'conjugeCpf']) {
     assert.deepEqual(campo(id).mostrar, { campo: 'estadoCivil', valores: ['Casado(a)', 'União estável'] });
   }
+});
+
+test('termo de adesão: fechamento (prazo, valor, redutor) e data de emissão', () => {
+  assert.equal(A.erroCampo(campo('prazo'), '0'), 'Informe um número de 1 a 600.');
+  assert.equal(A.erroCampo(campo('prazo'), '240'), '');
+  assert.equal(A.erroCampo(campo('valorCarta'), 'R$ 0,00'), 'Informe o valor.');
+  assert.equal(A.erroCampo(campo('valorCarta'), 'R$ 200.000,00'), '');
+  assert.equal(A.erroCampo(campo('redutor'), ''), '');
+  assert.equal(A.erroCampo(campo('redutor'), '50'), '');
+  assert.equal(A.erroCampo(campo('redutor'), '12,5'), '');
+  assert.equal(A.erroCampo(campo('redutor'), '100'), 'Percentual de 0 a 99,99.');
+  assert.equal(A.mascara('percentual', '12.555'), '12,55');
+  assert.equal(A.mascara('inteiro', '24a0'), '240');
+  const dados = { nascimento: '1990-05-10' };
+  assert.equal(A.erroCampo(campo('dataEmissao'), '1989-01-01', dados), 'Data anterior à data de nascimento.');
+  assert.equal(A.erroCampo(campo('dataEmissao'), '2008-03-20', dados), '');
+  assert.equal(A.erroCampo(campo('dataEmissao'), '2010-02-30', dados), 'Data inválida.');
+});
+
+test('termo de adesão: valores da simulação no formato do campo', () => {
+  assert.equal(A.valorInicial(campo('valorCarta'), 200000).replace(/\s/g, ' '), 'R$ 200.000,00');
+  assert.equal(A.valorInicial(campo('redutor'), 50), '50');
+  assert.equal(A.valorInicial(campo('redutor'), 33.333), '33,33');
+  assert.equal(A.valorInicial(campo('prazo'), 240), '240');
+  assert.equal(A.valorInicial(campo('prazo'), null), '');
+  assert.equal(A.valorInicial(campo('seguroPrestamista'), 'Sim'), 'Sim');
+});
+
+test('termo de adesão: endereço completo e busca de CEP (ViaCEP e BrasilAPI)', () => {
+  const d = { cep: '01310-100', logradouro: 'Av. Paulista', numero: '1000', complemento: 'Ap 12', bairro: 'Bela Vista', cidade: 'São Paulo', uf: 'SP' };
+  assert.equal(A.enderecoCompleto(d), 'Av. Paulista, 1000 – Ap 12 – Bela Vista – São Paulo/SP – CEP 01310-100');
+  assert.equal(A.enderecoCompleto({}), '');
+  assert.deepEqual(A.enderecoDoCep({ cep: '01310-100', logradouro: 'Avenida Paulista', bairro: 'Bela Vista', localidade: 'São Paulo', uf: 'SP' }),
+    { logradouro: 'Avenida Paulista', bairro: 'Bela Vista', cidade: 'São Paulo', uf: 'SP' });
+  assert.deepEqual(A.enderecoDoCep({ cep: '01310100', state: 'SP', city: 'São Paulo', neighborhood: 'Bela Vista', street: 'Avenida Paulista' }),
+    { logradouro: 'Avenida Paulista', bairro: 'Bela Vista', cidade: 'São Paulo', uf: 'SP' });
+  assert.equal(A.enderecoDoCep({ erro: true }), null);
+  assert.equal(A.enderecoDoCep({ erro: 'true' }), null);
 });

@@ -835,7 +835,11 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
    ========================================================================= */
 .sobreposicao-adesao .janela { max-width: 860px; }
 .ad-resumo { margin: 10px 0 14px; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-card-2); }
-.ad-resumo > b { display: block; margin-bottom: 6px; font-family: var(--font-display); font-weight: 600; }
+.ad-resumo > summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; }
+.ad-resumo[open] > summary { margin-bottom: 6px; }
+.ad-nota { margin: 2px 0 4px; }
+.ad-status { display: block; margin-top: 3px; font-size: var(--fs-xs); color: var(--text-muted); }
+.pdf-emissao b { font-weight: 600; color: var(--text); }
 .ad-resumo dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 18px; margin: 0; font-size: var(--fs-xs); }
 .ad-resumo dl div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--border-soft); }
 .ad-resumo dt { color: var(--text-muted); }

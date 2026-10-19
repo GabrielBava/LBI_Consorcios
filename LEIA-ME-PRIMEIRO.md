@@ -26,8 +26,8 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `css/style.css` | Componentes da tela e layout das 3 páginas do PDF |
 | `tests/calc.test.js` | 30 testes do motor de cálculo da página 1 |
 | `tests/contemplada.test.js` | 37 testes do motor de cálculo da página 2 |
-| `tests/adesao.test.js` | 4 testes das validações e máscaras do termo de adesão |
-| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.2) |
+| `tests/adesao.test.js` | 7 testes das validações, máscaras, endereço e busca de CEP da ficha de fechamento |
+| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.3) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.2): campos, regras, fórmulas e validações |
 | `marca/` | Logos com fundo transparente (`life-logo-claro.png`, `life-logo-escuro.png`, `life-coracao.png`) e `IDENTIDADE.md` (cores, fontes e modelos da marca) |
 | `scripts/gerar-logos.js` | Gera `js/logos.js` a partir dos logos de `marca/` (`npm run logos`) |
@@ -47,7 +47,8 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 - **Lance Fidelidade (opcional):** 6ª parcela/30%, 12ª/27% e 18ª/25%, 100% embutido.
 - **Mecanismo de Alavancagem (opcional):** reaplica a venda (ou o lucro) em novas cartas do mesmo plano, em até 4 cenários.
 - **PDF:** 3 páginas A4 no tema claro da marca, com logo; o botão "Gerar proposta" baixa o arquivo e prepara a mensagem do WhatsApp.
-- **Transmitir proposta (uso interno):** formulário do termo de adesão; gera o PDF do termo e o e-mail para o pós-venda subir o termo e gerar o contrato.
+- **Transmitir proposta (uso interno):** ficha de fechamento do termo de adesão (fechamento vindo da simulação, dados do consorciado, endereço com busca pelo CEP, dados bancários); gera o PDF com data e hora da emissão e o e-mail para o pós-venda gerar a venda.
+- **Seguro prestamista:** % ao mês sobre crédito + taxa de administração + fundo de reserva (atualizados pelo reajuste).
 - **CRM:** o link aceita `?nome=...&contato=...&plano=<id>` e `pagina=contemplada` para abrir direto na página 2.
 
 ### Página 2 · Carta Contemplada
@@ -65,7 +66,6 @@ Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 
 - Número de WhatsApp do especialista em `js/config.js` (está vazio).
 - E-mail do time de pós-venda em `js/config.js` (`emailPosVenda`, está vazio).
-- Lista definitiva de campos do termo de adesão (hoje há uma lista mínima em `CAMPOS_ADESAO`, `js/adesao.js`).
 - Endereço do CRM ou lista real de planos em `js/config.js` (hoje há 2 planos de exemplo).
 - Fonte Klavika: comercial. Instalada no computador, ela é usada automaticamente; sem ela, vale a Titillium Web.
 - Mecanismo de Alavancagem ainda não entra no PDF.

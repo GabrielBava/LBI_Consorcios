@@ -441,8 +441,15 @@
     transmitir() {
       // Termo de adesão (uso interno): dados mínimos do cliente → PDF e e-mail para o pós-venda
       const cliente = { nome: String(estado.plano.lead || '').trim(), telefone: estado.contato.cliente || '' };
-      const resumo = modo === 'contemplada' ? TC.resumoAdesao(CC.simular(estadoCont), estadoCont) : resumoAdesao(estado, C.simular(estado));
-      TA.abrir(cliente, resumo);
+      if (modo === 'contemplada') {
+        const rc = CC.simular(estadoCont);
+        TA.abrir(cliente, TC.resumoAdesao(rc, estadoCont), TC.propostaAdesao(rc, estadoCont));
+      } else {
+        const p = estado.plano;
+        // Fechamento vindo da simulação: tipo, prazo, valor da carta, redutor e seguro prestamista
+        const proposta = { tipoCarta: C.CATEGORIAS[p.categoria].nome, prazo: C.num(p.prazo), valorCarta: C.num(p.credito), redutor: C.redutorPct(estado.parcela), seguroPrestamista: p.seguroAtivo ? 'Sim' : 'Não' };
+        TA.abrir(cliente, resumoAdesao(estado, C.simular(estado)), proposta);
+      }
     },
     pdf: gerarPdf
   };
@@ -1394,7 +1401,7 @@
   estadoCont = salvoCont ? mesclar(CC.estadoPadrao(), salvoCont) : exemploCont();
   if (!Array.isArray(estadoCont.cartas) || !estadoCont.cartas.length) estadoCont.cartas = [CC.cartaVazia()];
   TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, EMPRESA, numeroWhatsapp, graficoLinhas });
-  TA = window.Adesao({ esc, janela, avisar, gerarPdfArquivo, baixarArquivo, copiarTexto, nomeArquivo, LOGO, EMPRESA });
+  TA = window.Adesao({ esc, janela, avisar, gerarPdfArquivo, baixarArquivo, copiarTexto, nomeArquivo, lerJson, LOGO, EMPRESA });
   modo = modoDaUrl() || (function () { try { return localStorage.getItem(CHAVE_MODO); } catch (e) { return null; } })() || 'primario';
   // Dados enviados pelo CRM no botão "Gerar proposta" (?nome=...&contato=..., também aceitos depois do #).
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.

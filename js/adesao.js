@@ -1,53 +1,78 @@
-/* Transmitir proposta: formulário do termo de adesão (uso interno, backoffice).
- * O consultor preenche os dados mínimos do cliente; ao finalizar, o simulador gera um PDF
- * com os dados e um e-mail pronto para o time de pós-venda subir o termo e gerar o contrato.
- * Os campos ficam em CAMPOS_ADESAO, para trocar facilmente quando a lista definitiva chegar.
+/* Transmitir proposta: ficha de fechamento para o termo de adesão (uso interno, backoffice).
+ * O consultor confere os dados do fechamento (vindos da simulação) e preenche os dados do cliente;
+ * ao finalizar, o simulador gera um PDF com data e hora da emissão e um e-mail pronto para o time de
+ * pós-venda subir o termo e gerar a venda. Os campos ficam em CAMPOS_ADESAO.
  * Criado pelo app.js (window.Adesao(ui)), que fornece os utilitários compartilhados. */
 (function () {
   'use strict';
 
   const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+  // Sugestões do campo Banco (código Febraban · nome); outro banco pode ser digitado
+  const BANCOS = ['001 · Banco do Brasil', '104 · Caixa Econômica Federal', '237 · Bradesco', '341 · Itaú Unibanco', '033 · Santander',
+    '260 · Nubank', '077 · Banco Inter', '336 · C6 Bank', '756 · Sicoob', '748 · Sicredi', '041 · Banrisul', '070 · BRB', '212 · Banco Original', '655 · Banco Votorantim'];
+  const CASADO = { campo: 'estadoCivil', valores: ['Casado(a)', 'União estável'] };
 
   /**
-   * Campos do termo de adesão, por grupo. Tipos: texto, cpf, data, email, tel, cep, moeda, lista, area.
-   * obrigatorio: precisa ser preenchido; largura 'meia' ocupa meia linha; mostrar: condição (outro campo = valores).
+   * Campos da ficha, por grupo. Tipos: texto, cpf, data, email, tel, cep, moeda, inteiro, percentual, lista, area.
+   * obrigatorio: precisa ser preenchido (campos ocultos não contam); largura 'meia' ocupa meia linha;
+   * mostrar: condição (outro campo = valores); proposta: vem da simulação em tela ao abrir;
+   * lembrar: o navegador guarda (só os dados do consultor); sugestoes: lista para escolher ou digitar.
    */
   const CAMPOS_ADESAO = [
-    { grupo: 'Dados do consorciado', campos: [
-      { id: 'nome', rotulo: 'Nome completo', tipo: 'texto', obrigatorio: true },
-      { id: 'cpf', rotulo: 'CPF', tipo: 'cpf', obrigatorio: true, largura: 'meia' },
-      { id: 'nascimento', rotulo: 'Data de nascimento', tipo: 'data', obrigatorio: true, largura: 'meia' },
-      { id: 'rg', rotulo: 'RG', tipo: 'texto', largura: 'meia' },
-      { id: 'orgaoEmissor', rotulo: 'Órgão emissor / UF', tipo: 'texto', largura: 'meia' },
-      { id: 'estadoCivil', rotulo: 'Estado civil', tipo: 'lista', opcoes: ['Solteiro(a)', 'Casado(a)', 'União estável', 'Divorciado(a)', 'Viúvo(a)'], largura: 'meia' },
-      { id: 'profissao', rotulo: 'Profissão', tipo: 'texto', largura: 'meia' },
-      { id: 'conjugeNome', rotulo: 'Nome do cônjuge', tipo: 'texto', largura: 'meia', mostrar: { campo: 'estadoCivil', valores: ['Casado(a)', 'União estável'] } },
-      { id: 'conjugeCpf', rotulo: 'CPF do cônjuge', tipo: 'cpf', largura: 'meia', mostrar: { campo: 'estadoCivil', valores: ['Casado(a)', 'União estável'] } },
-      { id: 'renda', rotulo: 'Renda mensal (R$)', tipo: 'moeda', largura: 'meia' },
-      { id: 'telefone', rotulo: 'Celular (WhatsApp)', tipo: 'tel', obrigatorio: true, largura: 'meia' },
-      { id: 'email', rotulo: 'E-mail', tipo: 'email', obrigatorio: true }
+    { id: 'fechamento', grupo: 'Fechamento', campos: [
+      { id: 'estrategia', rotulo: 'Estratégia', tipo: 'lista', opcoes: ['Aquisição', 'Alavancagem'], obrigatorio: true, largura: 'meia' },
+      { id: 'tipoCarta', rotulo: 'Tipo da carta', tipo: 'lista', opcoes: ['Imóvel', 'Veículo', 'Serviço'], obrigatorio: true, largura: 'meia', proposta: true },
+      { id: 'prazo', rotulo: 'Prazo (meses)', tipo: 'inteiro', min: 1, max: 600, obrigatorio: true, largura: 'meia', proposta: true },
+      { id: 'valorCarta', rotulo: 'Valor da carta (R$)', tipo: 'moeda', obrigatorio: true, largura: 'meia', proposta: true },
+      { id: 'redutor', rotulo: 'Percentual redutor (%)', tipo: 'percentual', largura: 'meia', proposta: true },
+      { id: 'seguroPrestamista', rotulo: 'Seguro prestamista', tipo: 'lista', opcoes: ['Sim', 'Não'], obrigatorio: true, largura: 'meia', proposta: true }
     ] },
-    { grupo: 'Endereço', campos: [
+    { id: 'consorciado', grupo: 'Dados do consorciado', campos: [
+      { id: 'cpf', rotulo: 'CPF', tipo: 'cpf', obrigatorio: true, largura: 'meia' },
+      { id: 'nome', rotulo: 'Nome completo', tipo: 'texto', obrigatorio: true, largura: 'meia' },
+      { id: 'nascimento', rotulo: 'Data de nascimento', tipo: 'data', idadeMinima: 18, obrigatorio: true, largura: 'meia' },
+      { id: 'estadoCivil', rotulo: 'Estado civil', tipo: 'lista', opcoes: ['Solteiro(a)', 'Casado(a)', 'União estável', 'Divorciado(a)', 'Separado(a)', 'Viúvo(a)'], obrigatorio: true, largura: 'meia' },
+      { id: 'conjugeCpf', rotulo: 'CPF do cônjuge', tipo: 'cpf', obrigatorio: true, largura: 'meia', mostrar: CASADO },
+      { id: 'conjugeNome', rotulo: 'Nome do cônjuge', tipo: 'texto', obrigatorio: true, largura: 'meia', mostrar: CASADO },
+      { id: 'email', rotulo: 'E-mail', tipo: 'email', obrigatorio: true, largura: 'meia' },
+      { id: 'telefone', rotulo: 'Celular com DDD', tipo: 'tel', obrigatorio: true, largura: 'meia' },
+      { id: 'rg', rotulo: 'RG', tipo: 'texto', obrigatorio: true, largura: 'meia' },
+      { id: 'orgaoEmissor', rotulo: 'Órgão emissor', tipo: 'texto', obrigatorio: true, largura: 'meia' },
+      { id: 'dataEmissao', rotulo: 'Data de emissão', tipo: 'data', depoisDe: 'nascimento', obrigatorio: true, largura: 'meia' },
+      { id: 'cidadeNascimento', rotulo: 'Cidade de nascimento', tipo: 'texto', obrigatorio: true, largura: 'meia' },
+      { id: 'nomeMae', rotulo: 'Nome da mãe', tipo: 'texto', obrigatorio: true, largura: 'meia' },
+      { id: 'profissao', rotulo: 'Profissão', tipo: 'texto', obrigatorio: true, largura: 'meia' },
+      { id: 'cargo', rotulo: 'Cargo', tipo: 'texto', largura: 'meia' },
+      { id: 'renda', rotulo: 'Renda mensal (R$)', tipo: 'moeda', obrigatorio: true, largura: 'meia' }
+    ] },
+    { id: 'endereco', grupo: 'Endereço', campos: [
       { id: 'cep', rotulo: 'CEP', tipo: 'cep', obrigatorio: true, largura: 'meia' },
       { id: 'uf', rotulo: 'UF', tipo: 'lista', opcoes: UFS, obrigatorio: true, largura: 'meia' },
-      { id: 'logradouro', rotulo: 'Logradouro', tipo: 'texto', obrigatorio: true },
+      { id: 'logradouro', rotulo: 'Endereço (rua, avenida)', tipo: 'texto', obrigatorio: true },
       { id: 'numero', rotulo: 'Número', tipo: 'texto', obrigatorio: true, largura: 'meia' },
       { id: 'complemento', rotulo: 'Complemento', tipo: 'texto', largura: 'meia' },
       { id: 'bairro', rotulo: 'Bairro', tipo: 'texto', obrigatorio: true, largura: 'meia' },
       { id: 'cidade', rotulo: 'Cidade', tipo: 'texto', obrigatorio: true, largura: 'meia' }
     ] },
-    { grupo: 'Dados da cota', campos: [
+    { id: 'bancarios', grupo: 'Dados bancários (para futuros depósitos)', campos: [
+      { id: 'banco', rotulo: 'Banco', tipo: 'texto', sugestoes: BANCOS, obrigatorio: true },
+      { id: 'agencia', rotulo: 'Agência', tipo: 'texto', obrigatorio: true, largura: 'meia' },
+      { id: 'conta', rotulo: 'Conta (com dígito)', tipo: 'texto', obrigatorio: true, largura: 'meia' }
+    ] },
+    { id: 'cota', grupo: 'Dados da cota', campos: [
       { id: 'grupoCota', rotulo: 'Grupo', tipo: 'texto', largura: 'meia' },
       { id: 'numeroCota', rotulo: 'Cota', tipo: 'texto', largura: 'meia' },
       { id: 'vencimento', rotulo: 'Dia de vencimento', tipo: 'lista', opcoes: ['5', '10', '15', '20', '25'], largura: 'meia' },
       { id: 'pagamento', rotulo: 'Pagamento da 1ª parcela', tipo: 'lista', opcoes: ['Boleto', 'PIX', 'Cartão de crédito', 'Débito em conta'], largura: 'meia' }
     ] },
-    { grupo: 'Consultor responsável', campos: [
+    { id: 'consultor', grupo: 'Consultor responsável', campos: [
       { id: 'consultorNome', rotulo: 'Nome do consultor', tipo: 'texto', obrigatorio: true, largura: 'meia', lembrar: true },
       { id: 'consultorEmail', rotulo: 'E-mail do consultor', tipo: 'email', obrigatorio: true, largura: 'meia', lembrar: true },
       { id: 'observacoes', rotulo: 'Observações para o pós-venda', tipo: 'area' }
     ] }
   ];
+  const TODOS = CAMPOS_ADESAO.flatMap((g) => g.campos);
+  const campoPorId = (id) => TODOS.find((c) => c.id === id);
 
   // ---------------------------------------------------------------------------
   // Validações e máscaras
@@ -84,31 +109,90 @@
       return '(' + x.slice(0, 2) + ') ' + x.slice(2, 7) + '-' + x.slice(7);
     }
     if (tipo === 'moeda') return d ? (Number(d) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '';
+    if (tipo === 'inteiro') return d.slice(0, 3);
+    if (tipo === 'percentual') {
+      // Só dígitos e uma vírgula, com até 2 casas
+      const [int, ...dec] = String(t || '').replace(/\./g, ',').replace(/[^\d,]/g, '').split(',');
+      return int.slice(0, 2) + (dec.length ? ',' + dec.join('').slice(0, 2) : '');
+    }
     return t;
   }
 
-  /** Mensagem de erro do campo (ou '' quando está certo). */
-  function erroCampo(c, v) {
-    const vazio = !String(v == null ? '' : v).trim();
-    if (vazio) return c.obrigatorio ? 'Campo obrigatório.' : '';
-    if (c.tipo === 'cpf' && !cpfValido(v)) return 'CPF inválido.';
-    if (c.tipo === 'email' && !emailValido(v)) return 'E-mail inválido.';
-    if (c.tipo === 'cep' && digitos(v).length !== 8) return 'CEP com 8 dígitos.';
-    if (c.tipo === 'tel' && digitos(v).length < 10) return 'Telefone com DDD.';
+  /** Data ISO (aaaa-mm-dd) válida, a partir de 1900 e não futura; senão null. */
+  function lerData(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    if (!m || Number(m[1]) < 1900) return null;
+    const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return dt.getMonth() === Number(m[2]) - 1 && dt <= new Date() ? dt : null;
+  }
+
+  /** Mensagem de erro do campo (ou '' quando está certo). dados: o formulário inteiro, para as regras entre campos. */
+  function erroCampo(c, v, dados) {
+    const t = String(v == null ? '' : v).trim();
+    if (!t) return c.obrigatorio ? 'Campo obrigatório.' : '';
+    if (c.tipo === 'cpf' && !cpfValido(t)) return 'CPF inválido.';
+    if (c.tipo === 'email' && !emailValido(t)) return 'E-mail inválido.';
+    if (c.tipo === 'cep' && digitos(t).length !== 8) return 'CEP com 8 dígitos.';
+    if (c.tipo === 'tel' && digitos(t).length < 10) return 'Telefone com DDD.';
+    if (c.tipo === 'moeda' && c.obrigatorio && !Number(digitos(t))) return 'Informe o valor.';
+    if (c.tipo === 'inteiro') {
+      const n = Number(t);
+      if (!/^\d+$/.test(t) || n < (c.min || 0) || (c.max && n > c.max)) return 'Informe um número de ' + (c.min || 0) + ' a ' + c.max + '.';
+    }
+    if (c.tipo === 'percentual') {
+      const n = Number(t.replace(',', '.'));
+      if (!/^\d+(,\d{1,2})?$/.test(t) || n >= 100) return 'Percentual de 0 a 99,99.';
+    }
     if (c.tipo === 'data') {
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
-      const dt = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
-      if (!dt || dt > new Date() || Number(m[1]) < 1900) return 'Data inválida.';
-      const hoje = new Date();
-      const idade = hoje.getFullYear() - dt.getFullYear() - (hoje < new Date(hoje.getFullYear(), dt.getMonth(), dt.getDate()) ? 1 : 0);
-      if (idade < 18) return 'O consorciado precisa ter 18 anos ou mais.';
+      const dt = lerData(t);
+      if (!dt) return 'Data inválida.';
+      if (c.idadeMinima) {
+        const hoje = new Date();
+        const idade = hoje.getFullYear() - dt.getFullYear() - (hoje < new Date(hoje.getFullYear(), dt.getMonth(), dt.getDate()) ? 1 : 0);
+        if (idade < c.idadeMinima) return 'O consorciado precisa ter ' + c.idadeMinima + ' anos ou mais.';
+      }
+      const antes = c.depoisDe && dados ? lerData(dados[c.depoisDe]) : null;
+      if (antes && dt < antes) return 'Data anterior à ' + campoPorId(c.depoisDe).rotulo.toLowerCase() + '.';
     }
     return '';
   }
 
+  /** Endereço numa linha: "Rua, número – complemento – bairro – cidade/UF – CEP". */
+  function enderecoCompleto(d) {
+    const t = (x) => String(x || '').trim();
+    const rua = [t(d.logradouro), t(d.numero)].filter(Boolean).join(', ');
+    const partes = [rua, t(d.complemento), t(d.bairro), [t(d.cidade), t(d.uf)].filter(Boolean).join('/')].filter(Boolean);
+    return partes.join(' – ') + (t(d.cep) ? (partes.length ? ' – ' : '') + 'CEP ' + t(d.cep) : '');
+  }
+
+  /** Resposta da busca de CEP (ViaCEP ou BrasilAPI) → { logradouro, bairro, cidade, uf }, ou null se o CEP não existe. */
+  function enderecoDoCep(j) {
+    if (!j || j.erro === true || j.erro === 'true') return null;
+    const e = { logradouro: j.logradouro || j.street || '', bairro: j.bairro || j.neighborhood || '', cidade: j.localidade || j.city || '', uf: j.uf || j.state || '' };
+    return e.cidade || e.uf ? e : null;
+  }
+
   const visivel = (c, dados) => !c.mostrar || c.mostrar.valores.includes(dados[c.mostrar.campo]);
   const dataBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : iso || ''; };
-  const valorTexto = (c, v) => (c.tipo === 'data' ? dataBr(v) : String(v == null ? '' : v).trim());
+  /** Rótulo e valor no PDF e no e-mail: a unidade sai do rótulo e vai para o valor ("Prazo: 240 meses"). */
+  const rotuloSaida = (c) => c.rotulo.replace(/\s*\((R\$|%|meses)\)$/, '');
+  function valorTexto(c, v) {
+    const t = String(v == null ? '' : v).trim();
+    if (c.tipo === 'data') return dataBr(t);
+    if (c.tipo === 'percentual') return t + '%' + (Number(t.replace(',', '.')) === 0 ? ' (sem redutor)' : '');
+    if (c.tipo === 'inteiro' && /\(meses\)$/.test(c.rotulo)) return t + ' meses';
+    return t;
+  }
+
+  /** Valor vindo da simulação no formato do campo (moeda em R$, percentual com vírgula). */
+  function valorInicial(c, v) {
+    if (v == null || v === '' || (typeof v === 'number' && !isFinite(v))) return '';
+    if (typeof v !== 'number') return String(v);
+    if (c.tipo === 'moeda') return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    if (c.tipo === 'percentual') return String(Math.round(v * 100) / 100).replace('.', ',');
+    if (c.tipo === 'inteiro') return String(Math.round(v));
+    return String(v);
+  }
 
   function Adesao(ui) {
     const esc = ui.esc;
@@ -124,7 +208,7 @@
     }
     function lembrar(dados) {
       const l = {};
-      CAMPOS_ADESAO.forEach((g) => g.campos.forEach((c) => { if (c.lembrar) l[c.id] = dados[c.id] || ''; }));
+      TODOS.forEach((c) => { if (c.lembrar) l[c.id] = dados[c.id] || ''; });
       try { localStorage.setItem(CHAVE_CONSULTOR, JSON.stringify(l)); } catch (e) { /* sem armazenamento */ }
     }
 
@@ -137,17 +221,21 @@
       else if (c.tipo === 'area') input = '<textarea' + comum + ' rows="3" maxlength="600">' + esc(v || '') + '</textarea>';
       else {
         const tipoHtml = { data: 'date', email: 'email', tel: 'tel' }[c.tipo] || 'text';
-        const modo = { cpf: 'numeric', cep: 'numeric', moeda: 'numeric', tel: 'tel' }[c.tipo];
-        input = '<input type="' + tipoHtml + '"' + comum + (modo ? ' inputmode="' + modo + '"' : '') + ' value="' + esc(v || '') + '" autocomplete="off"' + (c.tipo === 'data' ? ' max="' + new Date().toISOString().slice(0, 10) + '"' : '') + '>';
+        const modo = { cpf: 'numeric', cep: 'numeric', moeda: 'numeric', inteiro: 'numeric', percentual: 'decimal', tel: 'tel' }[c.tipo];
+        input = '<input type="' + tipoHtml + '"' + comum + (modo ? ' inputmode="' + modo + '"' : '') + ' value="' + esc(v || '') + '" autocomplete="off" maxlength="120"' +
+          (c.tipo === 'data' ? ' max="' + new Date().toISOString().slice(0, 10) + '"' : '') + (c.sugestoes ? ' list="ad-lista-' + c.id + '"' : '') + '>';
+        if (c.sugestoes) input += '<datalist id="ad-lista-' + c.id + '">' + c.sugestoes.map((o) => '<option value="' + esc(o) + '"></option>').join('') + '</datalist>';
       }
-      return '<label class="f ad-campo' + (c.largura === 'meia' ? ' meia' : '') + '"' + (c.mostrar ? ' data-ad-mostrar="' + c.id + '"' : '') + '><span>' + esc(c.rotulo) + req + '</span>' + input + '<small class="ad-erro" aria-live="polite"></small></label>';
+      const status = c.tipo === 'cep' ? '<small class="ad-status" aria-live="polite">O endereço é preenchido pelo CEP.</small>' : '';
+      return '<label class="f ad-campo' + (c.largura === 'meia' ? ' meia' : '') + '"' + (c.mostrar ? ' data-ad-mostrar="' + c.id + '"' : '') + '><span>' + esc(c.rotulo) + req + '</span>' + input + status + '<small class="ad-erro" aria-live="polite"></small></label>';
     }
 
     function formularioHtml(dados, resumo) {
-      let h = '<h2>Transmitir proposta</h2><p class="nota">Dados mínimos para o termo de adesão. Uso interno: ao finalizar, o PDF e o e-mail vão para o time de pós-venda gerar o contrato. O cliente não recebe este documento.</p>';
-      h += '<div class="ad-resumo"><b>Proposta</b><dl>' + resumo.map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl></div>';
-      h += '<form class="ad-form" novalidate>' + CAMPOS_ADESAO.map((g) => '<fieldset class="ad-grupo"><legend>' + esc(g.grupo) + '</legend><div class="ad-grade">' +
-        g.campos.map((c) => campoHtml(c, dados[c.id])).join('') + '</div></fieldset>').join('') + '</form>';
+      let h = '<h2>Transmitir proposta</h2><p class="nota">Ficha de fechamento para o termo de adesão. Uso interno: ao finalizar, o PDF (com data e hora da emissão) e o e-mail vão para o time de pós-venda gerar a venda. O cliente não recebe este documento.</p>';
+      h += '<details class="ad-resumo"><summary>Resumo da simulação</summary><dl>' + resumo.map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl></details>';
+      h += '<form class="ad-form" novalidate>' + CAMPOS_ADESAO.map((g) => '<fieldset class="ad-grupo"><legend>' + esc(g.grupo) + '</legend>' +
+        (g.id === 'fechamento' ? '<p class="nota ad-nota">Tipo, prazo, valor, redutor e seguro vêm da simulação em tela; confira antes de transmitir.</p>' : '') +
+        '<div class="ad-grade">' + g.campos.map((c) => campoHtml(c, dados[c.id])).join('') + '</div></fieldset>').join('') + '</form>';
       return h;
     }
 
@@ -159,28 +247,73 @@
 
     function atualizarCondicionais(raiz) {
       const dados = lerFormulario(raiz);
-      CAMPOS_ADESAO.forEach((g) => g.campos.forEach((c) => {
+      TODOS.forEach((c) => {
         if (!c.mostrar) return;
         const el = raiz.querySelector('[data-ad-mostrar="' + c.id + '"]');
         if (el) el.hidden = !visivel(c, dados);
-      }));
+      });
+    }
+
+    function marcarErro(el, msg) {
+      el.classList.toggle('campo-erro', !!msg);
+      el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+      el.closest('.ad-campo').querySelector('.ad-erro').textContent = msg;
     }
 
     /** Valida o formulário, marca os campos com erro e devolve se está tudo certo. */
     function validarFormulario(raiz) {
       const dados = lerFormulario(raiz);
       let primeiro = null;
-      CAMPOS_ADESAO.forEach((g) => g.campos.forEach((c) => {
+      TODOS.forEach((c) => {
         const el = raiz.querySelector('#ad-' + c.id);
         if (!el) return;
-        const msg = visivel(c, dados) ? erroCampo(c, dados[c.id]) : '';
-        el.classList.toggle('campo-erro', !!msg);
-        el.setAttribute('aria-invalid', msg ? 'true' : 'false');
-        el.closest('.ad-campo').querySelector('.ad-erro').textContent = msg;
+        const msg = visivel(c, dados) ? erroCampo(c, dados[c.id], dados) : '';
+        marcarErro(el, msg);
         if (msg && !primeiro) primeiro = el;
-      }));
+      });
       if (primeiro) primeiro.focus();
       return !primeiro;
+    }
+
+    // -------------------------------------------------------------------------
+    // Busca do endereço pelo CEP (ViaCEP; se falhar, BrasilAPI)
+    // -------------------------------------------------------------------------
+
+    async function consultarCep(cep) {
+      try {
+        return enderecoDoCep(await ui.lerJson('https://viacep.com.br/ws/' + cep + '/json/'));
+      } catch (e) {
+        try {
+          return enderecoDoCep(await ui.lerJson('https://brasilapi.com.br/api/cep/v1/' + cep));
+        } catch (e2) {
+          if (/HTTP 404/.test(String(e2 && e2.message))) return null; // CEP inexistente
+          throw e2;
+        }
+      }
+    }
+
+    async function buscarCep(raiz, cep) {
+      const campoCep = raiz.querySelector('#ad-cep');
+      const status = campoCep.closest('.ad-campo').querySelector('.ad-status');
+      status.textContent = 'Buscando o endereço…';
+      let end;
+      try {
+        end = await consultarCep(cep);
+      } catch (e) {
+        if (digitos(campoCep.value) === cep) status.textContent = 'Sem conexão para buscar o CEP: preencha o endereço.';
+        return;
+      }
+      if (digitos(campoCep.value) !== cep || !raiz.isConnected) return; // o CEP mudou durante a busca
+      if (!end) { status.textContent = 'CEP não encontrado: confira o número ou preencha o endereço.'; return; }
+      Object.entries(end).forEach(([k, v]) => {
+        const el = raiz.querySelector('#ad-' + k);
+        if (!el || !v) return;
+        el.value = v;
+        marcarErro(el, '');
+      });
+      status.textContent = 'Endereço preenchido pelo CEP: confira e informe o número.';
+      const numero = raiz.querySelector('#ad-numero');
+      if (numero && !numero.value) numero.focus();
     }
 
     // -------------------------------------------------------------------------
@@ -188,27 +321,28 @@
     // -------------------------------------------------------------------------
 
     function linhasGrupo(g, dados) {
-      return g.campos.filter((c) => visivel(c, dados) && String(dados[c.id] || '').trim()).map((c) => [c.rotulo, valorTexto(c, dados[c.id])]);
+      if (g.id === 'endereco') { const e = enderecoCompleto(dados); return e ? [['Endereço completo', e]] : []; }
+      return g.campos.filter((c) => c.id !== 'observacoes' && visivel(c, dados) && String(dados[c.id] || '').trim()).map((c) => [rotuloSaida(c), valorTexto(c, dados[c.id])]);
     }
 
-    /** Blocos do termo: topo, proposta, grupos preenchidos e observações. */
-    function blocosPdf(dados, resumo, data) {
+    /** Blocos da ficha: topo com a emissão, grupos preenchidos, observações e o resumo da simulação. */
+    function blocosPdf(dados, resumo, emissao) {
       const dl = (pares) => '<dl class="pdf-carac">' + pares.map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl>';
       const blocos = ['<header class="pdf-topo">' + (ui.LOGO.claro ? '<img class="pdf-logo" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
-        '<p class="eyebrow">Uso interno · gerado em ' + data + '</p><h1>Termo de <span class="acento">Adesão</span></h1>' +
-        '<p class="pdf-cliente">' + esc(dados.nome) + '</p><p class="pdf-ident">Dados para o pós-venda subir o termo de adesão e gerar o contrato.</p></header>'];
-      blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">Dados da <span class="acento">Proposta</span></h2>' + dl(resumo) + '</div>');
+        '<p class="eyebrow">Uso interno · pós-venda</p><h1>Termo de <span class="acento">Adesão</span></h1>' +
+        '<p class="pdf-cliente">' + esc(dados.nome) + '</p><p class="pdf-ident pdf-emissao">Ficha emitida em <b>' + esc(emissao.texto) + '</b> · ' + esc(dados.consultorNome || '') + '</p></header>'];
       CAMPOS_ADESAO.forEach((g) => {
-        const pares = linhasGrupo(g, dados).filter(([k]) => k !== 'Observações para o pós-venda');
+        const pares = linhasGrupo(g, dados);
         if (pares.length) blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">' + esc(g.grupo) + '</h2>' + dl(pares) + '</div>');
       });
       if (String(dados.observacoes || '').trim()) blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">Observações</h2><p class="pdf-ident">' + esc(dados.observacoes) + '</p></div>');
+      blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">Resumo da <span class="acento">Simulação</span></h2>' + dl(resumo) + '</div>');
       return blocos;
     }
 
     /** Distribui os blocos em páginas A4 medindo cada um no tamanho final (como a proposta da carta contemplada). */
-    async function pdfHtml(dados, resumo, data) {
-      const blocos = blocosPdf(dados, resumo, data);
+    async function pdfHtml(dados, resumo, emissao) {
+      const blocos = blocosPdf(dados, resumo, emissao);
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
       const area = document.createElement('div');
       area.className = 'pdf-render pdf-medida';
@@ -233,19 +367,21 @@
       });
       if (atual.length) paginas.push(atual);
       return paginas.map((p, i) => '<section class="pdf-pagina"><div class="pdf-corpo">' + p.map((b) => '<div class="pdf-item">' + b + '</div>').join('') + '</div>' +
-        '<footer class="pdf-rodape"><span>' + esc(dados.consultorNome || '') + '</span>' + (ui.LOGO.claro ? '<img class="pdf-logo-rodape" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
+        '<footer class="pdf-rodape"><span>Emitida em ' + esc(emissao.texto) + '</span>' + (ui.LOGO.claro ? '<img class="pdf-logo-rodape" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
         '<span>Uso interno · ' + (i + 1) + ' / ' + paginas.length + '</span></footer></section>').join('');
     }
 
-    function emailTexto(dados, resumo, nomePdf) {
-      const l = ['Olá, time de pós-venda!', '', 'Segue o termo de adesão para subir e gerar o contrato do cliente.', '', 'PROPOSTA'];
-      resumo.forEach(([k, v]) => l.push('• ' + k + ': ' + v));
+    function emailTexto(dados, resumo, nomePdf, emissao) {
+      const l = ['Olá, time de pós-venda!', '', 'Segue a ficha de fechamento para subir o termo de adesão e gerar a venda.', 'Ficha emitida em ' + emissao.texto + '.'];
       CAMPOS_ADESAO.forEach((g) => {
         const pares = linhasGrupo(g, dados);
         if (!pares.length) return;
         l.push('', g.grupo.toUpperCase());
         pares.forEach(([k, v]) => l.push('• ' + k + ': ' + v));
       });
+      if (String(dados.observacoes || '').trim()) l.push('', 'OBSERVAÇÕES', String(dados.observacoes).trim());
+      l.push('', 'RESUMO DA SIMULAÇÃO');
+      resumo.forEach(([k, v]) => l.push('• ' + k + ': ' + v));
       l.push('', 'Anexo: ' + nomePdf, '', 'Obrigado!', dados.consultorNome || '');
       return l.join('\n');
     }
@@ -253,16 +389,17 @@
     // Acima disso, o link de e-mail pode ser cortado (Outlook e Windows aceitam cerca de 2.000 caracteres)
     const LIMITE_MAILTO = 1900;
 
-    function janelaEnvio(dados, resumo, blob, nomePdf, baixado) {
+    function janelaEnvio(dados, resumo, blob, nomePdf, baixado, emissao) {
       const para = String((window.CONFIG_SIMULADOR || {}).emailPosVenda || '').trim();
       const adm = (resumo.find(([k]) => k === 'Administradora') || [])[1];
-      const assunto = 'Termo de adesão · ' + dados.nome + (adm && adm !== '—' ? ' · ' + adm : '');
-      const corpo = emailTexto(dados, resumo, nomePdf);
+      const assunto = 'Termo de adesão · ' + dados.nome + (adm && adm !== '—' ? ' · ' + adm : '') + ' · ' + emissao.data + ' ' + emissao.hora;
+      const corpo = emailTexto(dados, resumo, nomePdf, emissao);
       const link = (texto) => 'mailto:' + encodeURIComponent(para) + '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
       // Texto longo: o e-mail abre com um lembrete e o texto completo vai para a área de transferência
       const longo = link(corpo).length > LIMITE_MAILTO;
       const mailto = longo ? link('Cole aqui o texto copiado do simulador e anexe o arquivo ' + nomePdf + '.') : link(corpo);
       const html = '<h2>Enviar ao pós-venda</h2>' +
+        '<p class="nota">Ficha emitida em <b>' + esc(emissao.texto) + '</b>.</p>' +
         (baixado ? '<p class="nota">O PDF <b>' + esc(nomePdf) + '</b> foi gerado. Abra o e-mail, anexe o arquivo e envie ao time de pós-venda.</p>'
           : '<p class="aviso">O PDF <b>' + esc(nomePdf) + '</b> não foi baixado. Tente <b>Baixar PDF de novo</b> ou use o arquivo index.html do simulador.</p>') +
         (para ? '' : '<p class="aviso">Sem e-mail do pós-venda configurado: informe <b>emailPosVenda</b> em js/config.js (ou preencha o destinatário no e-mail).</p>') +
@@ -281,9 +418,13 @@
     }
 
     async function finalizar(dados, resumo) {
-      const data = new Date().toLocaleDateString('pt-BR');
-      const nomePdf = 'Termo_Adesao_' + ui.nomeArquivo(dados.nome) + '_' + data.replace(/\//g, '-') + '.pdf';
-      const blob = await ui.gerarPdfArquivo(await pdfHtml(dados, resumo, data));
+      // Data e hora da emissão da ficha: no PDF, no e-mail e no nome do arquivo
+      const agora = new Date();
+      const data = agora.toLocaleDateString('pt-BR');
+      const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const emissao = { data, hora, texto: data + ' às ' + hora };
+      const nomePdf = 'Termo_Adesao_' + ui.nomeArquivo(dados.nome) + '_' + data.replace(/\//g, '-') + '_' + hora.replace(':', 'h') + '.pdf';
+      const blob = await ui.gerarPdfArquivo(await pdfHtml(dados, resumo, emissao));
       let baixado = true;
       try {
         await ui.baixarArquivo(blob, nomePdf);
@@ -291,17 +432,26 @@
         if (e && e.code === 'declined') throw e;
         baixado = false; // sem download (versão on-line): o e-mail continua disponível
       }
-      janelaEnvio(dados, resumo, blob, nomePdf, baixado);
+      janelaEnvio(dados, resumo, blob, nomePdf, baixado, emissao);
     }
 
-    /** Abre o formulário. cliente: { nome, telefone }; resumo: pares [rótulo, valor] da proposta em tela. */
-    function abrir(cliente, resumo) {
+    /**
+     * Abre o formulário. cliente: { nome, telefone }; resumo: pares [rótulo, valor] da simulação em tela;
+     * proposta: valores do fechamento vindos da simulação ({ tipoCarta, prazo, valorCarta, redutor, seguroPrestamista, estrategia }).
+     */
+    function abrir(cliente, resumo, proposta) {
       const de = String(cliente.nome || '').trim().toLowerCase() + '|' + digitos(cliente.telefone);
       if (de !== rascunhoDe) { rascunho = {}; rascunhoDe = de; }
       const dados = Object.assign({}, lembrados(), rascunho);
       if (!dados.nome) dados.nome = cliente.nome || '';
       const fone = String(cliente.telefone || '');
       if (!dados.telefone) dados.telefone = [10, 11].includes(digitos(fone).length) ? mascara('tel', fone) : fone;
+      // Os campos da simulação seguem o que está em tela; os demais valores da proposta só preenchem o que está vazio
+      Object.entries(proposta || {}).forEach(([k, v]) => {
+        const c = campoPorId(k);
+        const txt = c ? valorInicial(c, v) : '';
+        if (txt && (c.proposta || !String(dados[k] || '').trim())) dados[k] = txt;
+      });
       let ocupado = false;
       const fundo = ui.janela(formularioHtml(dados, resumo), [
         { texto: 'Cancelar', acao: (f) => { rascunho = lerFormulario(f); } },
@@ -324,11 +474,17 @@
       ], true);
       fundo.classList.add('sobreposicao-adesao');
       const form = fundo.querySelector('.ad-form');
+      let cepBuscado = digitos(dados.cep);
       form.addEventListener('input', (ev) => {
         const el = ev.target;
-        const c = CAMPOS_ADESAO.flatMap((g) => g.campos).find((x) => x.id === el.dataset.ad);
-        if (c && ['cpf', 'cep', 'tel', 'moeda'].includes(c.tipo)) el.value = mascara(c.tipo, el.value);
-        if (el.classList.contains('campo-erro')) { el.classList.remove('campo-erro'); el.closest('.ad-campo').querySelector('.ad-erro').textContent = ''; }
+        const c = campoPorId(el.dataset.ad);
+        if (c && ['cpf', 'cep', 'tel', 'moeda', 'inteiro', 'percentual'].includes(c.tipo)) el.value = mascara(c.tipo, el.value);
+        if (el.classList.contains('campo-erro')) marcarErro(el, '');
+        if (c && c.tipo === 'cep') {
+          const d = digitos(el.value);
+          if (d.length === 8 && d !== cepBuscado) { cepBuscado = d; buscarCep(fundo, d); }
+          else if (d.length < 8) cepBuscado = '';
+        }
       });
       form.addEventListener('change', () => atualizarCondicionais(fundo));
       atualizarCondicionais(fundo);
@@ -341,5 +497,5 @@
 
   if (typeof window !== 'undefined') window.Adesao = Adesao;
   // Exposto para testes (Node)
-  if (typeof module !== 'undefined' && module.exports) module.exports = { cpfValido, emailValido, erroCampo, mascara, CAMPOS_ADESAO };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { cpfValido, emailValido, erroCampo, mascara, enderecoCompleto, enderecoDoCep, valorInicial, CAMPOS_ADESAO };
 })();

@@ -1,7 +1,9 @@
 # Especificação funcional — Simulador de Cartas de Consórcio Primárias
 
-Versão 3.2 · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (termo de adesão).
+Versão 3.3 · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (termo de adesão).
 
+> **v3.3 — seguro e ficha de fechamento:** o seguro prestamista passa a incidir sobre crédito + taxa de administração + fundo de reserva; a ficha do Transmitir proposta ganhou a lista de campos de fechamento, busca do endereço pelo CEP, dados bancários e data e hora da emissão (seção 2.13).
+>
 > **v3.2 — ajustes do simulador:** administradora digitável, Recursos próprios e FGTS (com dica), FGTS travado no veículo, **Lance Retido**, seta para recolher as tabelas de venda, projeções sem o gráfico de rentabilidade, **Transmitir proposta** (termo de adesão para o pós-venda) e PDF no tema claro (seção 2.13).
 >
 > **v3.1 — identidade do Grupo Life Brasil:** a marca, as cores, as fontes e os modelos visuais passaram a ser os do **Grupo Life Brasil** (seção 2.12). Não há mais logotipos nem vínculos com a marca anterior.
@@ -43,7 +45,7 @@ Todo valor exibido tem uma etiqueta de tipo (**Informado**, **Calculado**, **Est
 | % de adesão | Número | % do crédito | Se adesão | vazio | Adesão = % × crédito contratado | Somada à parcela nos meses de diluição | 0–100% |
 | Meses de diluição | Inteiro | meses | Se adesão | vazio | Adesão dividida em parcelas iguais, sem reajuste | Idem | 1 ≤ meses ≤ prazo |
 | Seguro prestamista | Sim/Não | — | Não | Não | Abre o percentual | — | — |
-| % do seguro | Número | % ao mês | Se seguro | 0,038% | Sobre o crédito atualizado do mês | Somado à parcela todo mês | 0–100% |
+| % do seguro | Número | % ao mês | Se seguro | 0,038% | Sobre o crédito atualizado do mês somado à taxa de administração e ao fundo de reserva (v3.3) | Somado à parcela todo mês | 0–100% |
 | Abatimento do lance | Lista: Parcela, Prazo | — | Sim | Parcela | Como o lance amortiza o saldo | Parcelas após a contemplação | — |
 | Índice de reajuste | Lista: Pré-fixado 5%, Pré-fixado 6%, IPCA, INCC, INPC, Outro | — | Sim | INCC (imóvel) / IPCA (veículo) | Reajuste anual a cada 12 meses até o fim do plano, aplicado ao crédito; parcelas recalculadas sobre o crédito reajustado | Crédito e parcelas a partir do mês 13 | — |
 | Taxa estimada | Número | % ao ano | Se IPCA, INCC, INPC ou Outro | vazio | Premissa de projeção do consultor | Fator de reajuste | Erro se vazia e prazo > 12 |
@@ -229,7 +231,16 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
 - **Tabelas de venda (Simulação de Alavancagem):** além do olho (mostrar/ocultar os valores ao cliente), uma seta no canto direito do bloco recolhe a tabela de Sorteio ou de Lance Embutido, como nas tabelas da página 2 (lembrado no navegador).
 - **Projeções:** só **Parcelas** e **Crédito atualizado**; o gráfico de rentabilidade (venda) saiu.
 - **Botões do topo:** **Transmitir proposta** (laranja, principal); abaixo, no tom claro, **Nova proposta** e **Gerar proposta** (a prévia do PDF, que antes era o botão laranja). **Salvar proposta** (.json) saiu.
-- **Transmitir proposta (uso interno, backoffice):** abre o formulário do termo de adesão com o resumo da proposta em tela e os dados mínimos do cliente — consorciado (nome, CPF, nascimento, RG, órgão emissor, estado civil, cônjuge quando casado(a) ou em união estável, profissão, renda, celular, e-mail), endereço, cota (grupo, cota, dia de vencimento, pagamento da 1ª parcela), consultor e observações. Campos obrigatórios e formatos são validados (CPF com dígito verificador, e-mail, CEP, celular com DDD, 18 anos ou mais). Ao finalizar, baixa o PDF `Termo_Adesao_<Nome>_<data>.pdf` (tema claro, "Uso interno"; os blocos são medidos e seguem para uma nova página quando não cabem) e abre a janela de envio ao pós-venda: assunto, texto do e-mail pronto para copiar, **Abrir e-mail** (destinatário em `emailPosVenda`, `js/config.js`; com texto longo, o e-mail abre com um lembrete e o texto completo vai para a área de transferência) e **Baixar PDF de novo**. Se o download não for possível (versão on-line), a janela de envio abre mesmo assim, com o aviso. O cliente não recebe este documento. Os dados pessoais ficam só na memória da aba e valem para o cliente da proposta (nome e celular): outro cliente ou **Nova proposta** começam o formulário do zero. O navegador lembra apenas nome e e-mail do consultor. A lista de campos fica em `CAMPOS_ADESAO` (`js/adesao.js`), para trocar quando a lista definitiva chegar.
+- **Transmitir proposta (uso interno, backoffice):** abre a **ficha de fechamento** do termo de adesão (lista de campos da v3.3, em `CAMPOS_ADESAO`, `js/adesao.js`):
+  - **Fechamento:** Estratégia (Aquisição ou Alavancagem), Tipo da carta, Prazo, Valor da carta, Percentual redutor e Seguro prestamista (Sim/Não). Tipo, prazo, valor, redutor e seguro vêm da simulação em tela ao abrir (na página 2: segmento, maior prazo e crédito total, com a estratégia sugerida como Aquisição).
+  - **Dados do consorciado:** CPF, Nome completo, Data de nascimento, Estado civil, CPF e Nome do cônjuge (só casado(a) ou união estável, e então obrigatórios), E-mail, Celular com DDD, RG, Órgão emissor, Data de emissão, Cidade de nascimento, Nome da mãe, Profissão, Cargo e Renda.
+  - **Endereço:** CEP com **busca automática** (ViaCEP; se falhar, BrasilAPI) que preenche rua, bairro, cidade e UF e leva o cursor ao número; CEP inexistente ou sem internet mostram o aviso e o endereço é digitado. No PDF e no e-mail sai como **Endereço completo** numa linha.
+  - **Dados bancários (para futuros depósitos):** Banco (com sugestões dos principais bancos, ou digitado), Agência e Conta.
+  - **Dados da cota** (opcionais: grupo, cota, dia de vencimento, pagamento da 1ª parcela), **Consultor responsável** e **Observações**.
+  - Obrigatórios: todos os campos acima, menos Percentual redutor, Cargo, Complemento, Dados da cota e Observações. Validações: CPF com dígito verificador, e-mail, CEP com 8 dígitos, celular com DDD, 18 anos ou mais, datas válidas e não futuras, data de emissão posterior ao nascimento, prazo de 1 a 600 meses, valor da carta e renda maiores que zero, redutor de 0 a 99,99%.
+  - **Emissão com data e hora:** ao finalizar, a ficha registra a data e a hora da emissão, que aparecem no topo e no rodapé do PDF, no e-mail ("Ficha emitida em 19/10/2026 às 14:32"), no assunto e no nome do arquivo (`Termo_Adesao_<Nome>_<dd-mm-aaaa>_<hh>h<mm>.pdf`). O PDF (tema claro, "Uso interno") traz os grupos preenchidos e, no fim, o resumo da simulação; os blocos são medidos e seguem para uma nova página quando não cabem.
+  - **Envio:** a janela de envio ao pós-venda mostra a emissão, o assunto e o texto do e-mail pronto para copiar, **Abrir e-mail** (destinatário em `emailPosVenda`, `js/config.js`; com texto longo, o e-mail abre com um lembrete e o texto completo vai para a área de transferência) e **Baixar PDF de novo**. Se o download não for possível (versão on-line), a janela abre mesmo assim, com o aviso. O cliente não recebe este documento.
+  - **Privacidade:** os dados pessoais ficam só na memória da aba e valem para o cliente da proposta (nome e celular): outro cliente ou **Nova proposta** começam a ficha do zero. O navegador lembra apenas nome e e-mail do consultor.
 - **PDF da proposta:** tema claro (fundo branco, títulos laranja, texto grafite e logo na versão clara); o conteúdo é o mesmo. A página 1 traz até quatro cartões (Sorteio, Lance Embutido, Lance Fixo e Lance Retido).
 
 ## 3. Fórmulas
@@ -247,7 +258,7 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 | Taxa de administração do mês | (TA% ÷ N) × C × F |
 | Fundo de reserva do mês | (FR% ÷ N) × C × F |
 | Adesão do mês | (Adesão% × C) ÷ meses de diluição, nos primeiros meses |
-| Seguro prestamista do mês | Seguro% × C × F |
+| Seguro prestamista do mês | Seguro% × C × F × (1 + TA% + FR%) — sobre crédito + taxa de administração + fundo de reserva (v3.3; antes, só sobre o crédito) |
 | **Parcela total** | Fundo comum + Taxa adm. + Fundo de reserva + Adesão + Seguro |
 | Lance (fixo ou livre) | % × C × F(mC) |
 | Lance embutido | % embutido × C × F(mC), limitado ao lance |
@@ -291,7 +302,7 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 ## 5. Premissas adotadas (confirmar com a administradora)
 
 1. Taxa projetada do índice (IPCA, INCC, INPC ou outro) é estimativa do consultor.
-2. Seguro prestamista incide sobre o crédito atualizado do mês.
+2. Seguro prestamista incide sobre o crédito atualizado do mês somado à taxa de administração e ao fundo de reserva (o valor total do plano).
 3. Adesão incide sobre o crédito contratado e não é reajustada.
 4. Redutor vale até a contemplação; a diferença é diluída nas parcelas restantes.
 5. Percentuais de lance incidem sobre o crédito atualizado no mês da contemplação.

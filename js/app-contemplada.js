@@ -723,6 +723,12 @@
       ]);
     }
 
-    return { desenhar, htmlCartas, textoFluxo, mensagem, montarProposta, resumoAdesao };
+    /** Fechamento vindo da carta em tela: tipo, maior prazo e crédito total; a estratégia sugerida é a aquisição. */
+    function propostaAdesao(rc, s) {
+      const R = rc.resumo;
+      return { estrategia: 'Aquisição', tipoCarta: (CC.SEGMENTOS[s.segmento] || CC.SEGMENTOS.imovel).nome, prazo: R.ok ? R.prazoMax : null, valorCarta: R.ok ? R.credito : null };
+    }
+
+    return { desenhar, htmlCartas, textoFluxo, mensagem, montarProposta, resumoAdesao, propostaAdesao };
   };
 })();

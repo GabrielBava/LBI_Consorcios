@@ -64,8 +64,10 @@ test('adesão diluída e seguro prestamista somados à parcela', () => {
   const s = base();
   Object.assign(s.plano, { adesaoAtiva: true, adesaoPct: 1, adesaoMeses: 5, seguroAtivo: true });
   const n = Calc.nucleo(s, 'sorteio');
-  near(n.linhas[0].total, 1220 + 200 + 38);
-  near(n.linhas[5].total, 1220 + 38);
+  // Seguro: 0,038% sobre crédito + taxa adm. (20%) + fundo de reserva (2%) = 0,038% × 122.000 = 46,36
+  near(n.linhas[0].seguro, 46.36);
+  near(n.linhas[0].total, 1220 + 200 + 46.36);
+  near(n.linhas[5].total, 1220 + 46.36);
 });
 
 function comLances(s) {
