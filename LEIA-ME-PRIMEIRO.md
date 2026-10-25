@@ -5,7 +5,7 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 ## Como abrir
 
 - Abra `index.html` no navegador (Chrome ou Edge). Não precisa instalar nada e funciona offline.
-- Arquivo para a equipe, protegido por senha: `SIMULADOR_SENHA=1234 npm run build:protegido` gera `dist/Simulador_Life_v<versão>.html` (ver o README).
+- Arquivo para a equipe, protegido por senha: `SIMULADOR_SENHA=1234 npm run build:protegido` gera `dist/GLB_Simulador_de_Consorcio_v<versão>.html` (ver o README). Todas as formas de abrir pedem a senha de acesso na entrada (`npm run senha -- 1234` troca a senha).
 - `dist/simulador.html` (`npm run build:online`) é a versão em arquivo único usada na publicação on-line.
 - Testes do motor de cálculo: `npm test` (Node.js 18 ou superior).
 
@@ -17,6 +17,7 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `js/calc.js` | Página 1 — motor de cálculo puro, sem interface: parcelas, reajuste, redutor, lances, venda, alavancagem, CET, fidelidade, mecanismo, planos |
 | `js/calc-contemplada.js` | Página 2 — motor de cálculo puro: cartas e junção, CET aproximado, fluxo de parcelas, amortização, evolução, rendimentos e financiamento |
 | `js/app-contemplada.js` | Página 2 — proposta na tela, mensagem do WhatsApp e PDF |
+| `js/acesso.js` | Tela de senha na entrada e travas contra salvar, imprimir e copiar a página |
 | `js/adesao.js` | Finalizar venda: ficha de cadastro (campos em `CAMPOS_ADESAO`) e PDF do termo de cadastro |
 | `js/app.js` | Interface: abas entre as páginas, campos, desenho da proposta, PDF, mensagem do WhatsApp, temas, link do CRM |
 | `js/config.js` | Nome da empresa, versão e validade (`versao`, `validadeVersao`), site depois do Finalizar venda (`siteAposVenda`), endereço do CRM (`planosUrl`) e planos cadastrados |
@@ -24,9 +25,10 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
 | `css/tokens.css` | Tokens da identidade do Grupo Life Brasil (cores, fontes, raios, sombras; temas escuro e claro) |
 | `css/style.css` | Componentes da tela e layout das 3 páginas do PDF |
-| `tests/calc.test.js` | 30 testes do motor de cálculo da página 1 |
+| `tests/calc.test.js` | 34 testes do motor de cálculo da página 1 |
 | `tests/contemplada.test.js` | 37 testes do motor de cálculo da página 2 |
-| `tests/adesao.test.js` | 7 testes das validações, máscaras, endereço e busca de CEP da ficha de fechamento |
+| `tests/adesao.test.js` | 8 testes das validações, máscaras, endereço e busca de CEP da ficha de cadastro |
+| `tests/acesso.test.js` | 2 testes do resumo da senha de acesso |
 | `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.4 / versão 1.2.1) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.2): campos, regras, fórmulas e validações |
 | `marca/` | Logos com fundo transparente (`life-logo-claro.png`, `life-logo-escuro.png`, `life-coracao.png`) e `IDENTIDADE.md` (cores, fontes e modelos da marca) |

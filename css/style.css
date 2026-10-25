@@ -875,3 +875,34 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .agradecimento-caixa a { display: inline-block; margin-top: 10px; color: var(--primary-bright); font-weight: 600; }
 @keyframes agradecimento-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .agradecimento { animation: none; } }
+
+/* Acesso: tela de senha na entrada (o simulador fica oculto até a senha certa) */
+.acesso-pendente .app, .acesso-pendente .aviso-toast { visibility: hidden; }
+.tela-acesso {
+  position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 24px;
+  background: var(--bg-app); background-image: radial-gradient(60% 50% at 50% 35%, var(--glow-1), transparent 70%);
+}
+.tela-acesso-caixa {
+  width: 100%; max-width: 380px; padding: 32px 28px; border-radius: var(--radius-panel); border: 1px solid var(--border);
+  background: var(--bg-card); box-shadow: var(--shadow-float); text-align: center;
+}
+.tela-acesso-caixa .logo { width: 190px; margin: 0 auto 6px; }
+.tela-acesso-versao { margin: 0 0 22px; font-size: var(--fs-xs); color: var(--text-muted); }
+.tela-acesso-caixa label { display: block; margin-bottom: 8px; font-size: var(--fs-sm); color: var(--text-muted); }
+.tela-acesso-caixa input {
+  width: 100%; height: 52px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-card-2);
+  color: var(--text); font-size: 1.35rem; letter-spacing: .3em; text-align: center;
+}
+.tela-acesso-caixa input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--foco); }
+.tela-acesso-caixa button {
+  width: 100%; height: 46px; margin-top: 14px; border: 0; border-radius: var(--radius-pill); cursor: pointer;
+  background: var(--btn-primario); color: var(--btn-primario-texto); font: inherit; font-weight: 600; font-size: 1rem;
+}
+.tela-acesso-caixa button:disabled { opacity: .6; cursor: wait; }
+.tela-acesso-msg { min-height: 1.4em; margin: 12px 0 0; font-size: var(--fs-sm); color: var(--danger); }
+.tela-acesso-nota { margin: 16px 0 0; font-size: var(--fs-xs); color: var(--text-muted); }
+
+/* Travas: sem seleção de texto fora dos campos; imagens não são arrastadas */
+.sem-selecao body { -webkit-user-select: none; user-select: none; }
+.sem-selecao input, .sem-selecao textarea, .sem-selecao select, .sem-selecao [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
+.sem-selecao img { -webkit-user-drag: none; }

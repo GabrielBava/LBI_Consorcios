@@ -273,12 +273,19 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
   - Em seguida, uma tela breve de agradecimento ("Muito obrigado por fazer parte da Life Brasil Consórcios!") e, cerca de 2 segundos depois, o site do grupo (`siteAposVenda` em `js/config.js`, hoje https://www.grupolifebrasil.com.br/). Se o download falhar, a ficha continua aberta, com o aviso.
 - **Versão abaixo do logo:** "Simulador v1.2.1" (campo `versao` de `js/config.js`), também na tela de acesso do arquivo protegido.
 - **Acesso por senha e proteção do arquivo** (`npm run build:protegido`, ver o README):
-  - Gera `dist/Simulador_Life_v<versão>.html`, o arquivo único para distribuir à equipe (funciona sem internet, com as bibliotecas do PDF embutidas).
+  - Gera `dist/GLB_Simulador_de_Consorcio_v<versão>.html` (v3.5), o arquivo único para distribuir à equipe (funciona sem internet, com as bibliotecas do PDF embutidas).
   - Todo o simulador (HTML, CSS e JS) vai **criptografado** com AES-256-GCM, com a chave derivada da senha por PBKDF2-SHA256 (600 mil iterações). O arquivo só mostra a tela de acesso; sem a senha não há código nem texto do simulador para copiar. A senha (4 a 64 caracteres; 4 dígitos funcionam, mas o recomendável é 8 ou mais, com letras e números) é informada na hora do build e não fica gravada no arquivo nem no repositório.
   - Senha errada: "Senha incorreta"; a cada 5 erros, espera de 30 segundos.
   - **Validade da versão:** depois de `validadeVersao` (`js/config.js`, hoje 31/12/2026), o arquivo não abre mais e pede a versão atual. A versão e a validade fazem parte da autenticação da criptografia: alterar a data dentro do arquivo faz a senha deixar de funcionar. Atrasar o relógio do computador ainda contorna a validade.
   - Depois de aberto: sem menu do botão direito, sem seleção e cópia de texto fora dos campos, e sem os atalhos de salvar (Ctrl+S), ver código (Ctrl+U) e ferramentas do desenvolvedor (F12, Ctrl+Shift+I/J/C). Os scripts saem da página depois de carregados.
   - **Limites:** é uma proteção contra acesso e cópia casuais. Quem tem a senha consegue usar o simulador e, com conhecimento técnico, ler o código pelas ferramentas do navegador; uma senha de 4 dígitos também pode ser descoberta por tentativa com ferramentas próprias em poucos minutos; com 8 ou mais caracteres misturando letras e números, isso deixa de ser viável. A troca mensal da senha e a validade da versão limitam o uso de arquivos antigos.
+
+### 2.15 Ajustes v3.5 (versão 1.2.1)
+
+- **Senha na entrada em todas as formas de abrir:** `index.html`, a versão on-line e o arquivo protegido começam pela tela de senha (logo, versão, campo de senha e "Entrar"); o simulador fica oculto até a senha certa. A configuração guarda só o resumo SHA-256 da senha (`senhaAcessoHash` em `js/config.js`, trocado por `npm run senha -- <senha>`). Senha errada: "Senha incorreta"; a cada 5 erros, espera de 30 segundos. No arquivo protegido a senha é pedida uma vez só (a tela do arquivo abre o conteúdo criptografado).
+- **Título da página:** "GLB - Simulador de Consórcio" (aba do navegador e arquivo protegido `GLB_Simulador_de_Consorcio_v<versão>.html`).
+- **Pagamento da 1ª parcela (Finalizar venda):** só Boleto, PIX e Cartão de crédito.
+- **Travas contra baixar ou copiar a página:** em todas as formas de abrir, sem botão direito, sem seleção e cópia de texto fora dos campos, e sem os atalhos de salvar (Ctrl+S), imprimir (Ctrl+P), ver código (Ctrl+U) e ferramentas do desenvolvedor. O menu do próprio navegador não pode ser bloqueado por uma página: no arquivo protegido, uma cópia salva por ele não funciona (conteúdo criptografado; os scripts saem da página depois de carregados).
 
 ## 3. Fórmulas
 

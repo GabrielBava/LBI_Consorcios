@@ -11,6 +11,9 @@
  *
  * siteAposVenda: página aberta depois da tela de agradecimento do "Finalizar venda".
  *
+ * senhaAcessoHash: resumo da senha pedida na tela de entrada (a senha não fica aqui).
+ * Para trocar: npm run senha -- <nova senha>. Vazio = sem tela de senha.
+ *
  * planosUrl: endereço do CRM que devolve os planos cadastrados em JSON
  * (uma lista ou { "planos": [...] }). Quando vazio, usa a lista "planos" abaixo.
  *
@@ -36,6 +39,7 @@ window.CONFIG_SIMULADOR = {
   versao: '1.2.1',
   validadeVersao: '2026-12-31',
   siteAposVenda: 'https://www.grupolifebrasil.com.br/',
+  senhaAcessoHash: '4033d1e3ba7d7b60ae6e0e61b28e567fb20618a48f40e7c888c0b685676cc6c8',
   planosUrl: '',
   planos: [
     { id: 'EX-IMOVEL', exemplo: true, administradora: 'HS', nome: 'Imóvel 240 meses', categoria: 'imovel', creditoMinimo: 200000, prazo: 240, taxaAdm: 20, fundoReserva: 2, embutidoPct: 25, fixoPct: 50, indice: 'INCC' },

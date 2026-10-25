@@ -31,6 +31,13 @@ if (validade && !dataValida(validade)) { console.error('validadeVersao em js/con
 
 // Conteúdo do simulador: compactado e criptografado (a etiqueta do GCM vai no fim, como o WebCrypto espera)
 const m = montar({ pdfEmbutido: true });
+// A senha já foi pedida nesta tela: o js/acesso.js do conteúdo não pede de novo (mas liga as travas)
+m.scripts.unshift('window.ACESSO_LIBERADO = true;');
+// Mesma senha da tela de acesso do js/config.js (npm run senha)?
+const hashConfig = String(cfg.senhaAcessoHash || '').trim();
+if (hashConfig && crypto.createHash('sha256').update(require('../js/acesso.js').PREFIXO + senha).digest('hex') !== hashConfig) {
+  console.warn('Atenção: a senha deste arquivo é diferente da senha de acesso de js/config.js (npm run senha).');
+}
 const conteudo = zlib.gzipSync(Buffer.from(JSON.stringify({ css: m.css, corpo: m.corpo, scripts: m.scripts }), 'utf8'), { level: 9 });
 const sal = crypto.randomBytes(16);
 const iv = crypto.randomBytes(12);
@@ -65,7 +72,7 @@ html,body{margin:0;min-height:100%;background:var(--fundo);color:var(--texto);fo
 .acesso-nota{margin:16px 0 0;font-size:.75rem;color:var(--suave)}
 `;
 
-// Tela de acesso: abre o conteúdo com a senha, verifica a validade e liga as travas contra cópia
+// Tela de acesso: abre o conteúdo com a senha e verifica a validade (as travas contra cópia ficam em js/acesso.js)
 function carregador(P) {
   'use strict';
   const $ = (id) => document.getElementById(id);
@@ -95,21 +102,6 @@ function carregador(P) {
     const fluxo = new Blob([claro]).stream().pipeThrough(new DecompressionStream('gzip'));
     return JSON.parse(await new Response(fluxo).text());
   }
-  function proteger() {
-    const editavel = (el) => !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]'));
-    document.addEventListener('contextmenu', (e) => { if (!editavel(e.target)) e.preventDefault(); });
-    ['copy', 'cut'].forEach((t) => document.addEventListener(t, (e) => { if (!editavel(document.activeElement)) e.preventDefault(); }));
-    document.addEventListener('dragstart', (e) => { if (!editavel(e.target)) e.preventDefault(); });
-    document.addEventListener('keydown', (e) => {
-      const k = String(e.key || '').toLowerCase();
-      const mod = e.ctrlKey || e.metaKey;
-      const fechar = e.key === 'F12' || (mod && (k === 's' || k === 'u')) || (mod && e.shiftKey && ['i', 'j', 'c', 'k'].includes(k)) || (e.metaKey && e.altKey && ['i', 'j', 'c', 'u'].includes(k));
-      if (fechar) { e.preventDefault(); e.stopPropagation(); }
-    }, true);
-    const st = document.createElement('style');
-    st.textContent = 'body{-webkit-user-select:none;user-select:none}input,textarea,select,[contenteditable="true"]{-webkit-user-select:text;user-select:text}img{-webkit-user-drag:none}';
-    document.head.appendChild(st);
-  }
   function iniciar(c) {
     const estilo = document.createElement('style');
     estilo.textContent = c.css;
@@ -123,7 +115,6 @@ function carregador(P) {
       document.body.appendChild(el);
       el.remove();
     });
-    proteger();
   }
   let erros = 0, esperaAte = 0;
   form.addEventListener('submit', async (ev) => {
@@ -182,7 +173,7 @@ ${m.icone}
 </html>
 `;
 
-const nome = 'Simulador_Life' + (versao ? '_v' + versao : '') + '.html';
+const nome = 'GLB_Simulador_de_Consorcio' + (versao ? '_v' + versao : '') + '.html';
 fs.mkdirSync(path.join(raiz, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(raiz, 'dist', nome), pagina);
 console.log('dist/' + nome + ' gerado (' + Math.round(pagina.length / 1024) + ' KB)' + (validade ? ', válido até ' + validade.split('-').reverse().join('/') : ''));

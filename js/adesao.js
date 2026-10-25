@@ -72,7 +72,7 @@
     // Grupo e cota são definidos depois, na assinatura do termo
     { id: 'pagamento', grupo: 'Pagamento', campos: [
       { id: 'vencimento', rotulo: 'Dia de vencimento', tipo: 'lista', opcoes: ['5', '10', '15', '20', '25'], largura: 'meia' },
-      { id: 'pagamento', rotulo: 'Pagamento da 1ª parcela', tipo: 'lista', opcoes: ['Boleto', 'PIX', 'Cartão de crédito', 'Débito em conta'], largura: 'meia' }
+      { id: 'pagamento', rotulo: 'Pagamento da 1ª parcela', tipo: 'lista', opcoes: ['Boleto', 'PIX', 'Cartão de crédito'], largura: 'meia' }
     ] },
     { id: 'consultor', grupo: 'Consultor responsável', campos: [
       { id: 'consultorNome', rotulo: 'Nome do consultor', tipo: 'texto', obrigatorio: true, largura: 'meia', lembrar: true },

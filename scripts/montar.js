@@ -30,7 +30,7 @@ function montar(opcoes) {
   const scripts = [];
   if (o.artifact) scripts.push('window.MODO_ARTIFACT = true;');
   if (o.pdfEmbutido) scripts.push(ler('js/vendor/html2canvas.min.js'), ler('js/vendor/jspdf.umd.min.js'));
-  ['js/config.js', 'js/logos.js', 'js/calc.js', 'js/calc-contemplada.js', 'js/app-contemplada.js', 'js/adesao.js', 'js/app.js'].forEach((f) => scripts.push(ler(f)));
+  ['js/config.js', 'js/logos.js', 'js/acesso.js', 'js/calc.js', 'js/calc-contemplada.js', 'js/app-contemplada.js', 'js/adesao.js', 'js/app.js'].forEach((f) => scripts.push(ler(f)));
   return { titulo, fontes, icone, css, corpo, scripts };
 }
 

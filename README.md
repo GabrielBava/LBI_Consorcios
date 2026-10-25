@@ -18,18 +18,28 @@ As abas no topo da proposta alternam entre as páginas; o menu lateral troca os 
 
 Cada acesso começa do zero, só com as premissas base: nenhuma proposta fica gravada no navegador. **Nova proposta** limpa os campos.
 
+## Senha de acesso
+
+Toda forma de abrir o simulador (`index.html`, a versão on-line e o arquivo protegido) começa por uma tela de senha. A senha não fica gravada: `js/config.js` guarda só o resumo dela (`senhaAcessoHash`). Para trocar:
+
+```bash
+npm run senha -- 1234
+```
+
+Em todas as formas, depois de entrar, ficam bloqueados o botão direito, a seleção e a cópia de texto fora dos campos e os atalhos de salvar a página (Ctrl+S), imprimir (Ctrl+P), ver código (Ctrl+U) e ferramentas do desenvolvedor (F12, Ctrl+Shift+I/J/C). O menu do próprio navegador ainda permite "Salvar como": no arquivo protegido, a cópia salva não funciona (o conteúdo é criptografado e os scripts saem da página depois de carregados); no `index.html` e na versão on-line, o código está aberto. Por isso, distribua à equipe só o arquivo protegido.
+
 ## Arquivo para a equipe (protegido por senha)
 
 ```bash
 SIMULADOR_SENHA=1234 npm run build:protegido
 ```
 
-Gera `dist/Simulador_Life_v<versão>.html`: um arquivo único que funciona sem internet e abre com uma tela de senha. Todo o simulador vai criptografado (AES-256-GCM, chave derivada da senha por PBKDF2); a senha (4 a 64 caracteres; prefira 8 ou mais, com letras e números) não fica gravada no arquivo nem no repositório. A cada nova versão:
+Use a mesma senha do `npm run senha` (o build avisa se forem diferentes). Gera `dist/GLB_Simulador_de_Consorcio_v<versão>.html`: um arquivo único que funciona sem internet e abre com uma tela de senha. Todo o simulador vai criptografado (AES-256-GCM, chave derivada da senha por PBKDF2); a senha (4 a 64 caracteres; prefira 8 ou mais, com letras e números) não fica gravada no arquivo nem no repositório. A cada nova versão:
 
 1. Atualize `versao` e `validadeVersao` em `js/config.js` (depois da validade, o arquivo antigo não abre mais; a data faz parte da criptografia, então editá-la no arquivo impede a abertura).
 2. Gere o arquivo com a nova senha e distribua o arquivo e a senha por canais separados.
 
-Depois de aberto, o arquivo bloqueia o botão direito, a seleção e a cópia de texto fora dos campos e os atalhos de salvar, ver código e ferramentas do desenvolvedor. É uma proteção contra acesso e cópia casuais: quem tem a senha e conhecimento técnico ainda consegue ler o código pelo navegador, uma senha de 4 dígitos pode ser descoberta por tentativa com ferramentas próprias em poucos minutos, e atrasar o relógio do computador contorna a validade. **O código-fonte deste repositório também precisa ficar privado** (no GitHub: Settings → Danger Zone → Change visibility).
+A senha é pedida uma vez só, na tela do arquivo. É uma proteção contra acesso e cópia casuais: quem tem a senha e conhecimento técnico ainda consegue ler o código pelo navegador, uma senha de 4 dígitos pode ser descoberta por tentativa com ferramentas próprias em poucos minutos, e atrasar o relógio do computador contorna a validade. **O código-fonte deste repositório também precisa ficar privado** (no GitHub: Settings → Danger Zone → Change visibility).
 
 ## Versão on-line
 
@@ -51,13 +61,16 @@ O simulador segue a identidade do **Grupo Life Brasil** (apresentação instituc
 | `js/calc.js` | Motor de cálculo puro da página 1 (sem interface), com fórmulas, validações e memórias |
 | `js/calc-contemplada.js` | Motor de cálculo puro da página 2: cartas, CET, fluxo, amortização, evolução, rendimentos e financiamento |
 | `js/app-contemplada.js` | Página 2 na tela, textos do WhatsApp e PDF da carta contemplada |
+| `js/acesso.js` | Tela de senha na entrada e travas contra salvar, imprimir e copiar a página |
 | `js/adesao.js` | Finalizar venda: ficha de cadastro (campos em `CAMPOS_ADESAO`) e PDF do termo de cadastro |
 | `js/app.js` | Interface: navegação entre as páginas, vínculo dos campos, desenho dos resultados, ações e PDF |
 | `tests/calc.test.js` | Testes do motor de cálculo da página 1 |
 | `tests/contemplada.test.js` | Testes do motor de cálculo da página 2 |
 | `scripts/build-protegido.js` | Gera o arquivo protegido por senha para a equipe (`npm run build:protegido`) |
+| `scripts/gerar-senha.js` | Troca a senha da tela de acesso (`npm run senha -- <senha>`) |
 | `scripts/build-artifact.js` | Gera a página única para publicação on-line (`npm run build:online`) |
 | `tests/adesao.test.js` | Testes das validações, máscaras, endereço e busca de CEP da ficha de fechamento |
+| `tests/acesso.test.js` | Testes do resumo da senha de acesso |
 | `docs/ESPECIFICACAO.md` | Especificação funcional da página 1 (campos, regras, fórmulas, pendências) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Especificação funcional da página 2 |
 
