@@ -4,8 +4,10 @@
 // Todo o simulador (HTML, CSS e JS, com as bibliotecas do PDF, para funcionar sem internet) é compactado e
 // criptografado com AES-256-GCM, com a chave derivada da senha por PBKDF2-SHA256. O arquivo só traz em texto
 // a tela de acesso: sem a senha, não há como ver nem usar o simulador. Depois da validade da versão
-// (js/config.js: validadeVersao) a tela de acesso não abre mais o arquivo.
-// A senha não fica gravada em lugar nenhum: guarde-a e passe à equipe por outro canal.
+// (js/config.js: validadeVersao) a tela de acesso não abre mais o arquivo; versão e validade entram na
+// autenticação da criptografia, então editar a data no arquivo impede que ele abra.
+// A senha não fica gravada em lugar nenhum: guarde-a e passe à equipe por outro canal. Senhas curtas
+// (como 4 dígitos) podem ser descobertas por tentativa com ferramentas próprias: prefira 8+ caracteres.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -16,14 +18,16 @@ const { montar, config, raiz, lerBase64 } = require('./montar');
 const ITERACOES = 600000;
 const argSenha = (process.argv.slice(2).find((a) => a.startsWith('--senha=')) || '').slice(8);
 const senha = String(argSenha || process.env.SIMULADOR_SENHA || '').trim();
-if (!/^\d{4,8}$/.test(senha)) {
-  console.error('Informe a senha de acesso (4 a 8 dígitos), por exemplo:\n  SIMULADOR_SENHA=1234 npm run build:protegido\n  npm run build:protegido -- --senha=1234');
+if (!/^\S{4,64}$/.test(senha)) {
+  console.error('Informe a senha de acesso (4 a 64 caracteres, sem espaços), por exemplo:\n  SIMULADOR_SENHA=1234 npm run build:protegido\n  npm run build:protegido -- --senha=1234');
   process.exit(1);
 }
+const senhaFraca = senha.length < 8 || /^\d+$/.test(senha);
 const cfg = config();
 const versao = String(cfg.versao || '').trim();
 const validade = String(cfg.validadeVersao || '').trim();
-if (validade && !/^\d{4}-\d{2}-\d{2}$/.test(validade)) { console.error('validadeVersao em js/config.js deve ser aaaa-mm-dd.'); process.exit(1); }
+const dataValida = (t) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t); if (!m) return false; const d = new Date(+m[1], +m[2] - 1, +m[3]); return d.getFullYear() === +m[1] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[3]; };
+if (validade && !dataValida(validade)) { console.error('validadeVersao em js/config.js deve ser uma data válida (aaaa-mm-dd).'); process.exit(1); }
 
 // Conteúdo do simulador: compactado e criptografado (a etiqueta do GCM vai no fim, como o WebCrypto espera)
 const m = montar({ pdfEmbutido: true });
@@ -31,10 +35,14 @@ const conteudo = zlib.gzipSync(Buffer.from(JSON.stringify({ css: m.css, corpo: m
 const sal = crypto.randomBytes(16);
 const iv = crypto.randomBytes(12);
 const chave = crypto.pbkdf2Sync(senha, sal, ITERACOES, 32, 'sha256');
+// Versão e validade autenticadas junto com o conteúdo (dados adicionais do GCM): alterar a data no arquivo
+// faz a abertura falhar, mesmo com a senha certa
+const autenticado = JSON.stringify({ versao, validade });
 const cifra = crypto.createCipheriv('aes-256-gcm', chave, iv);
+cifra.setAAD(Buffer.from(autenticado, 'utf8'));
 const cifrado = Buffer.concat([cifra.update(conteudo), cifra.final(), cifra.getAuthTag()]);
 
-const PARAMS = { versao, validade, sal: sal.toString('base64'), iv: iv.toString('base64'), iteracoes: ITERACOES, digitos: senha.length };
+const PARAMS = { versao, validade, sal: sal.toString('base64'), iv: iv.toString('base64'), iteracoes: ITERACOES, numerica: /^\d+$/.test(senha) };
 
 const estiloAcesso = `
 :root{--fundo:#000;--cartao:#111;--texto:#F7F5F2;--suave:#A39E99;--borda:rgba(255,255,255,.14);--laranja:#F05A00;--botao:#CC4800;--destaque:#FF7A2E;--erro:#FF6B6B;color-scheme:dark}
@@ -48,7 +56,7 @@ html,body{margin:0;min-height:100%;background:var(--fundo);color:var(--texto);fo
 @media (prefers-color-scheme: light){.acesso-logo.escuro{display:none}.acesso-logo.claro{display:block}}
 .acesso-versao{margin:0 0 22px;font-size:.8rem;color:var(--suave)}
 .acesso label{display:block;margin:0 0 8px;font-size:.9rem;color:var(--suave)}
-.acesso input{width:100%;height:52px;border-radius:14px;border:1px solid var(--borda);background:transparent;color:var(--texto);font-size:1.6rem;letter-spacing:.5em;text-align:center;font-variant-numeric:tabular-nums}
+.acesso input{width:100%;height:52px;border-radius:14px;border:1px solid var(--borda);background:transparent;color:var(--texto);font-size:1.35rem;letter-spacing:.3em;text-align:center;font-variant-numeric:tabular-nums}
 .acesso input:focus{outline:none;border-color:var(--laranja);box-shadow:0 0 0 3px rgba(240,90,0,.3)}
 .acesso button{width:100%;height:46px;margin-top:14px;border:0;border-radius:999px;background:var(--botao);color:#fff;font:inherit;font-weight:600;font-size:1rem;cursor:pointer}
 .acesso button:disabled{opacity:.6;cursor:wait}
@@ -70,6 +78,10 @@ function carregador(P) {
       return;
     }
   }
+  if (!window.isSecureContext) {
+    bloquear('Abra o arquivo direto do computador (duplo clique) ou por um endereço https.');
+    return;
+  }
   if (!(window.crypto && crypto.subtle && window.DecompressionStream && window.TextEncoder)) {
     bloquear('Navegador sem suporte. Abra o arquivo no Google Chrome ou no Microsoft Edge atualizados.');
     return;
@@ -78,7 +90,8 @@ function carregador(P) {
   async function abrir(senha) {
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(senha), 'PBKDF2', false, ['deriveKey']);
     const chave = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: bytes(P.sal), iterations: P.iteracoes, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-    const claro = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(P.iv) }, chave, bytes($('conteudo').textContent.trim()));
+    const autenticado = new TextEncoder().encode(JSON.stringify({ versao: P.versao, validade: P.validade }));
+    const claro = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(P.iv), additionalData: autenticado }, chave, bytes($('conteudo').textContent.trim()));
     const fluxo = new Blob([claro]).stream().pipeThrough(new DecompressionStream('gzip'));
     return JSON.parse(await new Response(fluxo).text());
   }
@@ -117,7 +130,7 @@ function carregador(P) {
     ev.preventDefault();
     if (Date.now() < esperaAte) { msg.textContent = 'Muitas tentativas: aguarde alguns segundos.'; return; }
     const senha = campo.value.trim();
-    if (senha.length !== P.digitos) { msg.textContent = 'A senha tem ' + P.digitos + ' dígitos.'; campo.focus(); return; }
+    if (!senha) { msg.textContent = 'Informe a senha.'; campo.focus(); return; }
     botao.disabled = true;
     msg.textContent = '';
     let conteudo = null;
@@ -133,7 +146,7 @@ function carregador(P) {
     }
     iniciar(conteudo);
   });
-  campo.addEventListener('input', () => { campo.value = campo.value.replace(/\D/g, '').slice(0, P.digitos); });
+  if (P.numerica) campo.setAttribute('inputmode', 'numeric');
   campo.focus();
 }
 
@@ -156,7 +169,7 @@ ${m.icone}
     <p class="acesso-versao">Simulador${versao ? ' · versão ' + versao : ''}</p>
     <form id="acesso-form" autocomplete="off" novalidate>
       <label for="acesso-senha">Senha de acesso</label>
-      <input id="acesso-senha" type="password" inputmode="numeric" maxlength="${senha.length}" autocomplete="off" required>
+      <input id="acesso-senha" type="password" autocomplete="off" required>
       <button type="submit">Entrar</button>
       <p class="acesso-msg" id="acesso-msg" role="alert" aria-live="assertive"></p>
     </form>
@@ -172,4 +185,5 @@ ${m.icone}
 const nome = 'Simulador_Life' + (versao ? '_v' + versao : '') + '.html';
 fs.mkdirSync(path.join(raiz, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(raiz, 'dist', nome), pagina);
-console.log('dist/' + nome + ' gerado (' + Math.round(pagina.length / 1024) + ' KB), senha de ' + senha.length + ' dígitos' + (validade ? ', válido até ' + validade.split('-').reverse().join('/') : ''));
+console.log('dist/' + nome + ' gerado (' + Math.round(pagina.length / 1024) + ' KB)' + (validade ? ', válido até ' + validade.split('-').reverse().join('/') : ''));
+if (senhaFraca) console.warn('Atenção: senha curta ou só com números pode ser descoberta por tentativa. Para mais segurança, use 8 ou mais caracteres com letras e números.');

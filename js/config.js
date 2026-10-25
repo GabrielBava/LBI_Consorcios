@@ -7,7 +7,7 @@
  *
  * validadeVersao: (opcional, 'aaaa-mm-dd') último dia em que o arquivo protegido desta versão abre.
  * Depois dessa data a tela de acesso pede a versão atual. Vazio = sem validade.
- * A senha de acesso não fica aqui: é informada na hora de gerar o arquivo (npm run build:online).
+ * A senha de acesso não fica aqui: é informada na hora de gerar o arquivo protegido (npm run build:protegido).
  *
  * siteAposVenda: página aberta depois da tela de agradecimento do "Finalizar venda".
  *

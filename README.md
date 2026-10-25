@@ -24,12 +24,12 @@ Cada acesso começa do zero, só com as premissas base: nenhuma proposta fica gr
 SIMULADOR_SENHA=1234 npm run build:protegido
 ```
 
-Gera `dist/Simulador_Life_v<versão>.html`: um arquivo único que funciona sem internet e abre com uma tela de senha. Todo o simulador vai criptografado (AES-256-GCM, chave derivada da senha por PBKDF2); a senha não fica gravada no arquivo nem no repositório. A cada nova versão:
+Gera `dist/Simulador_Life_v<versão>.html`: um arquivo único que funciona sem internet e abre com uma tela de senha. Todo o simulador vai criptografado (AES-256-GCM, chave derivada da senha por PBKDF2); a senha (4 a 64 caracteres; prefira 8 ou mais, com letras e números) não fica gravada no arquivo nem no repositório. A cada nova versão:
 
-1. Atualize `versao` e `validadeVersao` em `js/config.js` (depois da validade, o arquivo antigo não abre mais).
+1. Atualize `versao` e `validadeVersao` em `js/config.js` (depois da validade, o arquivo antigo não abre mais; a data faz parte da criptografia, então editá-la no arquivo impede a abertura).
 2. Gere o arquivo com a nova senha e distribua o arquivo e a senha por canais separados.
 
-Depois de aberto, o arquivo bloqueia o botão direito, a seleção e a cópia de texto fora dos campos e os atalhos de salvar, ver código e ferramentas do desenvolvedor. É uma proteção contra acesso e cópia casuais: quem tem a senha e conhecimento técnico ainda consegue ler o código pelo navegador, e uma senha de 4 dígitos pode ser descoberta por tentativa com ferramentas próprias. **O código-fonte deste repositório também precisa ficar privado** (no GitHub: Settings → Danger Zone → Change visibility).
+Depois de aberto, o arquivo bloqueia o botão direito, a seleção e a cópia de texto fora dos campos e os atalhos de salvar, ver código e ferramentas do desenvolvedor. É uma proteção contra acesso e cópia casuais: quem tem a senha e conhecimento técnico ainda consegue ler o código pelo navegador, uma senha de 4 dígitos pode ser descoberta por tentativa com ferramentas próprias em poucos minutos, e atrasar o relógio do computador contorna a validade. **O código-fonte deste repositório também precisa ficar privado** (no GitHub: Settings → Danger Zone → Change visibility).
 
 ## Versão on-line
 

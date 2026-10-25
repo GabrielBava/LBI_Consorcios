@@ -448,3 +448,22 @@ test('estratégia de cartas: split divide e multiplicar repete a simulação', (
   s.estrategiaCartas.ativo = false;
   assert.equal(Calc.simular(s).cartas, null);
 });
+
+test('seguro na parcela pós-contemplação: crédito, taxa e fundo a preços da contemplação; adesão sem reajuste', () => {
+  const s = base();
+  Object.assign(s.plano, { adesaoAtiva: true, adesaoPct: 1, adesaoMeses: 5, seguroAtivo: true, indice: 'incc', indiceTaxa: 5, mesContemplacao: 20 });
+  const n = Calc.nucleo(s, 'sorteio');
+  const pa = n.linhas[20];
+  const seguro = 0.00038 * (n.credBruto * 1.22 + 1000);
+  near(n.parcelaPosAtual - pa.plano * (n.credBruto / 100000) / pa.f - pa.adesao, seguro, 'seguro = 0,038% × (crédito na contemplação × 1,22 + adesão)', 0.005);
+});
+
+test('Mecanismo de Alavancagem não vale para veículo: nem calculado nem validado', () => {
+  const s = base();
+  s.plano.categoria = 'veiculo';
+  Object.assign(s.mecanismo, { ativo: true, mesNovas: 0 });
+  assert.ok(!Calc.validar(s).some((v) => v.campo === 'mecanismo.mesNovas'));
+  assert.equal(Calc.simular(s).mecanismo, null);
+  s.plano.categoria = 'imovel';
+  assert.ok(Calc.validar(s).some((v) => v.campo === 'mecanismo.mesNovas' && v.nivel === 'erro'));
+});

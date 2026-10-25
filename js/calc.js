@@ -100,7 +100,7 @@
     // Crédito: parte do crédito mínimo do plano (pode ser aumentado depois)
     if (isNum(pl.creditoMinimo)) p.credito = pl.creditoMinimo;
     if (isNum(num(p.prazo)) && isNum(num(p.mesContemplacao)) && num(p.mesContemplacao) > num(p.prazo)) p.mesContemplacao = num(p.prazo);
-    if (isNum(pl.embutidoPct)) s.lances.embutidoPct = pl.embutidoPct;
+    if (isNum(pl.embutidoPct)) { s.lances.embutidoPct = pl.embutidoPct; s.lances.retidoEmbutidoPct = pl.embutidoPct; }
     if (isNum(pl.fixoPct)) s.lances.fixoPct = pl.fixoPct;
     return s;
   }
@@ -339,7 +339,9 @@
     const rv = num(l.retidoRecursosValor), pe = num(l.retidoEmbutidoPct);
     const recursos = l.retidoUsarRecursos && isNum(rv) ? Math.max(0, rv) : null;
     const embutido = l.retidoUsarEmbutido && isNum(pe) && ok ? (pe / 100) * base : null;
-    const total = (l.retidoUsarRecursos || l.retidoUsarEmbutido) && (recursos !== null || embutido !== null) ? (recursos || 0) + (embutido || 0) : null;
+    // Total só quando todas as partes marcadas têm valor (como no cenário do lance)
+    const completo = (l.retidoUsarRecursos || l.retidoUsarEmbutido) && (!l.retidoUsarRecursos || recursos !== null) && (!l.retidoUsarEmbutido || embutido !== null);
+    const total = completo ? (recursos || 0) + (embutido || 0) : null;
     return {
       retidoRecursosPct: recursos !== null && ok ? (recursos / base) * 100 : null,
       retidoEmbutido: embutido,
@@ -484,7 +486,9 @@
     // Valores pós-contemplação a preços do mês da contemplação (sem reajustes futuros)
     res.saldoDevedor = isNum(saldoAntes) ? Math.max(0, saldoAntes - (isNum(res.lanceTotal) ? res.lanceTotal : 0)) : null;
     const pa = posAtivas[0];
-    res.parcelaPosAtual = mesC >= N ? null : !pa ? 0 : [pa.plano, pa.adesao, pa.seguro].every(isNum) && isNum(fC) ? pa.plano * fC / pa.f + pa.adesao + pa.seguro * fC / pa.f : null;
+    // Seguro a preços da contemplação: só a parte do crédito, taxa e fundo é reajustada (a adesão, não)
+    const seguroPos = pa && pa.seguro ? (seguroPct / 100) * (C * fC * baseSeguro + adesaoTotal) : 0;
+    res.parcelaPosAtual = mesC >= N ? null : !pa ? 0 : [pa.plano, pa.adesao, pa.seguro].every(isNum) && isNum(fC) ? pa.plano * fC / pa.f + pa.adesao + seguroPos : null;
     res.totalPlano = soma(1, N, 'total');
     linhas.forEach((l) => l.pend.forEach((x) => res.pend.push(x)));
     res.pend = Array.from(new Set(res.pend));
@@ -632,7 +636,8 @@
       });
     }
     const mec = s.mecanismo;
-    if (mec && mec.ativo) {
+    // Mecanismo de Alavancagem só no imóvel (no veículo o módulo fica oculto e não é validado)
+    if (mec && mec.ativo && p.categoria !== 'veiculo') {
       const m2 = num(mec.mesNovas);
       if (!isNum(m2) || m2 < 1 || !Number.isInteger(m2) || (isNum(N) && m2 > N)) add('erro', 'mecanismo.mesNovas', 'Mecanismo de Alavancagem: mês de contemplação das novas cartas deve estar entre 1 e o prazo.');
       [1, 2, 3, 4].forEach((i) => {
@@ -872,7 +877,7 @@
 
   function mecanismo(s) {
     const m = s.mecanismo;
-    if (!m || !m.ativo) return null;
+    if (!m || !m.ativo || s.plano.categoria === 'veiculo') return null;
     const origem = m.origem === 'embutido' && s.lances.embutidoAtivo ? 'embutido' : 'sorteio';
     const base = m.base === 'lucro' ? 'lucro' : 'venda';
     const out = { ok: false, base, origem, nomeOrigem: NOMES_MOD[origem], pend: [], cenarios: [] };

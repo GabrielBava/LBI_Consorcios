@@ -274,11 +274,11 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
 - **Versão abaixo do logo:** "Simulador v1.2.1" (campo `versao` de `js/config.js`), também na tela de acesso do arquivo protegido.
 - **Acesso por senha e proteção do arquivo** (`npm run build:protegido`, ver o README):
   - Gera `dist/Simulador_Life_v<versão>.html`, o arquivo único para distribuir à equipe (funciona sem internet, com as bibliotecas do PDF embutidas).
-  - Todo o simulador (HTML, CSS e JS) vai **criptografado** com AES-256-GCM, com a chave derivada da senha por PBKDF2-SHA256 (600 mil iterações). O arquivo só mostra a tela de acesso; sem a senha não há código nem texto do simulador para copiar. A senha (4 a 8 dígitos) é informada na hora do build e não fica gravada no arquivo nem no repositório.
+  - Todo o simulador (HTML, CSS e JS) vai **criptografado** com AES-256-GCM, com a chave derivada da senha por PBKDF2-SHA256 (600 mil iterações). O arquivo só mostra a tela de acesso; sem a senha não há código nem texto do simulador para copiar. A senha (4 a 64 caracteres; 4 dígitos funcionam, mas o recomendável é 8 ou mais, com letras e números) é informada na hora do build e não fica gravada no arquivo nem no repositório.
   - Senha errada: "Senha incorreta"; a cada 5 erros, espera de 30 segundos.
-  - **Validade da versão:** depois de `validadeVersao` (`js/config.js`, hoje 31/12/2026), o arquivo não abre mais e pede a versão atual.
+  - **Validade da versão:** depois de `validadeVersao` (`js/config.js`, hoje 31/12/2026), o arquivo não abre mais e pede a versão atual. A versão e a validade fazem parte da autenticação da criptografia: alterar a data dentro do arquivo faz a senha deixar de funcionar. Atrasar o relógio do computador ainda contorna a validade.
   - Depois de aberto: sem menu do botão direito, sem seleção e cópia de texto fora dos campos, e sem os atalhos de salvar (Ctrl+S), ver código (Ctrl+U) e ferramentas do desenvolvedor (F12, Ctrl+Shift+I/J/C). Os scripts saem da página depois de carregados.
-  - **Limites:** é uma proteção contra acesso e cópia casuais. Quem tem a senha consegue usar o simulador e, com conhecimento técnico, ler o código pelas ferramentas do navegador; uma senha de 4 dígitos também pode ser descoberta por tentativa com ferramentas próprias. A troca mensal da senha e a validade da versão limitam o uso de arquivos antigos.
+  - **Limites:** é uma proteção contra acesso e cópia casuais. Quem tem a senha consegue usar o simulador e, com conhecimento técnico, ler o código pelas ferramentas do navegador; uma senha de 4 dígitos também pode ser descoberta por tentativa com ferramentas próprias em poucos minutos; com 8 ou mais caracteres misturando letras e números, isso deixa de ser viável. A troca mensal da senha e a validade da versão limitam o uso de arquivos antigos.
 
 ## 3. Fórmulas
 
