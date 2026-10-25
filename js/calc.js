@@ -118,7 +118,8 @@
     periodicidadeReajuste: 12, // reajuste a cada 12 meses (mês 13, 25, ...) até o fim do plano
     vendaPct: 20, // venda da carta contemplada: 20% sobre o crédito líquido disponível
     locacaoPct: 1.6, // retorno mensal de locação: 1,6% ao mês sobre o crédito disponível
-    seguroPctPadrao: 0.038, // seguro prestamista: % ao mês sobre crédito + taxa de administração + fundo de reserva (atualizados)
+    cartasMax: 20, // estratégia de cartas: até 20 cartas
+    seguroPctPadrao: 0.038, // seguro prestamista: % ao mês sobre o valor total do plano (crédito + taxa adm. + fundo de reserva, atualizados, + adesão)
     embutidoPctPadrao: 25,
     fixoPctPadrao: 50
   };
@@ -137,6 +138,7 @@
     return {
       plano: {
         lead: '',
+        tipoPessoa: 'fisica', // 'fisica' | 'juridica'
         categoria: 'imovel',
         administradora: '',
         planoId: '', // plano cadastrado (CRM) aplicado aos campos
@@ -172,17 +174,21 @@
         livrePct: null,
         livreUsarEmbutido: false,
         livreUsarRecursos: false,
-        // Lance Retido: valor ofertado em R$ (por exemplo, o valor do bem); o percentual é calculado
+        // Lance Retido: soma de recursos próprios (valor do bem do cliente: FIPE do veículo, avaliação do imóvel)
+        // e de lance embutido (% do crédito); cada parte é habilitada no próprio bloco
         retidoAtivo: false,
-        retidoValor: null,
+        retidoUsarRecursos: false,
+        retidoRecursosValor: null,
         retidoUsarEmbutido: false,
-        retidoUsarRecursos: false
+        retidoEmbutidoPct: REGRAS.embutidoPctPadrao
       },
       projecoes: { parcelas: false, credito: false },
       // Lance Fidelidade: desabilitado ao iniciar; cada opção tem parcela inicial e % de embutido
       fidelidade: { ativo: false, p1Parcela: 6, p1Pct: 30, p2Parcela: 12, p2Pct: 27, p3Parcela: 18, p3Pct: 25 },
       // Mecanismo de Alavancagem: reaplica a venda (ou o lucro) da carta em novas cartas do mesmo plano
       mecanismo: { ativo: false, base: 'venda', origem: 'sorteio', q1: 1, q2: 2, q3: null, q4: null, mesNovas: 12 },
+      // Estratégia de cartas: split (o crédito simulado dividido em N cartas) ou multiplicar (N cartas iguais à simulada)
+      estrategiaCartas: { ativo: false, tipo: 'split', qtd: 2 },
       contato: { cliente: '' } // WhatsApp do cliente que recebe a proposta
     };
   }
@@ -251,9 +257,11 @@
   // Dados básicos
   // ---------------------------------------------------------------------------
 
-  /** HS aplica o redutor sobre a parcela inteira (FC + taxa adm. + fundo de reserva); as demais, só no fundo comum. */
+  /** HS e Porto Seguro aplicam o redutor sobre a parcela inteira (FC + taxa adm. + fundo de reserva); as demais, só no fundo comum. */
+  const REDUTOR_PARCELA_TODA = ['hs', 'porto seguro', 'porto'];
   function redutorNaParcelaToda(p) {
-    return String(p.administradora || '').trim().toUpperCase() === 'HS';
+    const k = String(p.administradora || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+    return REDUTOR_PARCELA_TODA.includes(k);
   }
 
   function basicos(s) {
@@ -269,30 +277,47 @@
     return { ok: pend.length === 0, pend, C, N, ta, fr, r: isNum(r) ? r : 0 };
   }
 
-  /** O FGTS só pode ser usado no consórcio de imóvel. */
-  const fgtsPermitido = (s) => s.plano.categoria !== 'veiculo';
+  /** O FGTS só pode ser usado por pessoa física, no consórcio de imóvel. */
+  const fgtsPermitido = (s) => s.plano.categoria !== 'veiculo' && s.plano.tipoPessoa !== 'juridica';
+  /** Motivo de o FGTS não valer na proposta (ou '' quando vale). */
+  const motivoSemFgts = (s) => (s.plano.tipoPessoa === 'juridica' ? 'Pessoa jurídica: o FGTS é só de pessoa física' : s.plano.categoria === 'veiculo' ? 'Veículo: o FGTS só pode ser usado em imóveis' : '');
 
   /**
    * Valores do lance de uma modalidade sobre uma base de crédito.
    * 'embutido': o lance é composto só pelo lance embutido (sem recursos próprios).
-   * 'fixo' | 'livre': percentual da modalidade; 'retido': valor ofertado em R$ (o percentual é calculado).
+   * 'fixo' | 'livre': percentual da modalidade; 'retido': recursos próprios (R$) + embutido (% do crédito), o percentual é calculado.
    * Com "Usar embutido", o embutido é descontado do total. Com "Usar recursos próprios", o restante sai dos
    * recursos informados pelo cliente: primeiro o FGTS (só imóvel), depois o dinheiro; o que faltar fica em out.falta.
    */
+  /** Lance Retido: recursos próprios (valor do bem, em R$) + embutido (% do crédito); o total define o percentual. */
+  function lanceRetido(s, base) {
+    const l = s.lances;
+    const usaRecursos = !!l.retidoUsarRecursos, usaEmbutido = !!l.retidoUsarEmbutido;
+    const rv = usaRecursos ? num(l.retidoRecursosValor) : 0;
+    const pe = usaEmbutido ? num(l.retidoEmbutidoPct) : 0;
+    const out = { pct: null, pctEmbutido: usaEmbutido ? pe : 0, usaEmbutido, usaRecursos, usaFgts: false, total: null, embutido: null, fgts: 0, proprios: null, dinheiro: null, falta: 0, limitado: false };
+    if ((!usaRecursos && !usaEmbutido) || !isNum(rv) || !isNum(pe) || !isNum(base) || base <= 0) return out;
+    out.embutido = (pe / 100) * base;
+    out.proprios = Math.max(0, rv);
+    out.dinheiro = out.proprios;
+    out.total = out.embutido + out.proprios;
+    out.pct = (out.total / base) * 100;
+    return out;
+  }
+
   function lanceSobre(s, mod, base, pctFidelidade) {
+    if (mod === 'retido') return lanceRetido(s, base);
     const l = s.lances;
     const soEmbutido = mod === 'embutido' || mod === 'fidelidade';
-    const retido = mod === 'retido';
     // Lance Fidelidade: todo o lance é embutido, com o percentual da opção escolhida
     const pctE = mod === 'fidelidade' ? num(pctFidelidade) : num(l.embutidoPct);
-    const valorRetido = num(l.retidoValor);
-    let pct = soEmbutido ? pctE : retido ? (isNum(valorRetido) && isNum(base) && base > 0 ? (valorRetido / base) * 100 : null) : num(mod === 'fixo' ? l.fixoPct : l.livrePct);
+    let pct = soEmbutido ? pctE : num(mod === 'fixo' ? l.fixoPct : l.livrePct);
     const flag = (k) => !!l[mod + k];
     const usar = soEmbutido || (flag('UsarEmbutido') && l.embutidoAtivo);
     const usaRecursos = !soEmbutido && !!l.recursosAtivo && flag('UsarRecursos');
     const out = { pct, pctEmbutido: usar ? pctE : 0, usaEmbutido: usar, usaRecursos, usaFgts: false, total: null, embutido: null, fgts: null, proprios: null, dinheiro: null, falta: 0, limitado: false };
     if (!isNum(pct) || !isNum(base)) return out;
-    out.total = retido ? valorRetido : (pct / 100) * base;
+    out.total = (pct / 100) * base;
     let e = usar && isNum(pctE) ? (pctE / 100) * base : 0;
     if (e > out.total) { e = out.total; out.limitado = true; }
     out.embutido = e;
@@ -306,6 +331,21 @@
     const rv = num(l.recursosValor);
     if (usaRecursos) out.falta = Math.max(0, out.dinheiro - (isNum(rv) ? Math.max(0, rv) : 0));
     return out;
+  }
+
+  /** Valores travados do bloco Lance Retido (mostrados enquanto o consultor preenche, mesmo com uma parte em branco). */
+  function valoresRetido(l, base) {
+    const ok = isNum(base) && base > 0;
+    const rv = num(l.retidoRecursosValor), pe = num(l.retidoEmbutidoPct);
+    const recursos = l.retidoUsarRecursos && isNum(rv) ? Math.max(0, rv) : null;
+    const embutido = l.retidoUsarEmbutido && isNum(pe) && ok ? (pe / 100) * base : null;
+    const total = (l.retidoUsarRecursos || l.retidoUsarEmbutido) && (recursos !== null || embutido !== null) ? (recursos || 0) + (embutido || 0) : null;
+    return {
+      retidoRecursosPct: recursos !== null && ok ? (recursos / base) * 100 : null,
+      retidoEmbutido: embutido,
+      retidoTotal: total,
+      retidoTotalPct: total !== null && ok ? (total / base) * 100 : null
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -340,7 +380,8 @@
     }
     const seguroPct = p.seguroAtivo ? num(p.seguroPct) : 0;
     if (p.seguroAtivo && !isNum(seguroPct)) res.pend.push('Seguro prestamista: percentual não informado');
-    // Base do seguro prestamista: crédito + taxa de administração + fundo de reserva (o valor total do plano)
+    // Base do seguro prestamista: o valor total do plano — crédito (fundo comum) + taxa de administração + fundo de reserva
+    // (atualizados pelo reajuste) + adesão, quando houver
     const baseSeguro = 1 + (isNum(ta) ? ta / 100 : 0) + (isNum(fr) ? fr / 100 : 0);
 
     // Recomposição do redutor: o percentual não pago até a contemplação é diluído nas parcelas restantes
@@ -357,7 +398,7 @@
       } else {
         const cref = C * f;
         // Fundo comum = (100% ÷ prazo) × crédito; Taxa adm. = (TA% ÷ prazo) × crédito; Fundo de reserva = (FR% ÷ prazo) × crédito
-        // Com redutor: até a contemplação multiplica por (1 − r); depois recompõe a diferença (extraFC). Na HS vale para os três componentes.
+        // Com redutor: até a contemplação multiplica por (1 − r); depois recompõe a diferença (extraFC). Na HS e na Porto vale para os três componentes.
         const fator1 = m <= mesC ? 1 - r / 100 : 1 + extraFC * N;
         const fatorTaxas = redutorTodo ? fator1 : 1;
         l.credAtual = cref;
@@ -366,7 +407,7 @@
         l.fundo = ((fr / 100) / N) * cref * fatorTaxas;
         l.plano = l.fundoComum + l.taxa + l.fundo;
         l.adesao = m <= adesaoMeses ? adesaoMes : 0;
-        l.seguro = isNum(seguroPct) ? (seguroPct / 100) * cref * baseSeguro : null;
+        l.seguro = isNum(seguroPct) ? (seguroPct / 100) * (cref * baseSeguro + adesaoTotal) : null;
         l.pend = l.seguro === null ? ['Seguro prestamista: percentual não informado'] : [];
       }
       linhas.push(l);
@@ -383,9 +424,12 @@
     if (mod !== 'sorteio') {
       lance = lanceSobre(s, mod, credBruto, pctFidelidade);
       if (!isNum(lance.pct)) {
-        const retidoInformado = isNum(num(s.lances.retidoValor)) && num(s.lances.retidoValor) > 0;
+        const l = s.lances;
         res.pend.push(mod !== 'retido' ? 'Percentual do ' + NOMES_MOD[mod].toLowerCase() + ' não informado'
-          : retidoInformado ? 'Lance retido: crédito na contemplação não calculado (confira crédito e reajuste)' : 'Valor do lance retido não informado');
+          : !l.retidoUsarRecursos && !l.retidoUsarEmbutido ? 'Lance retido: habilite recursos próprios e/ou lance embutido'
+            : l.retidoUsarRecursos && !isNum(num(l.retidoRecursosValor)) ? 'Lance retido: valor dos recursos próprios não informado'
+              : l.retidoUsarEmbutido && !isNum(num(l.retidoEmbutidoPct)) ? 'Lance retido: percentual do embutido não informado'
+                : 'Lance retido: crédito na contemplação não calculado (confira crédito e reajuste)');
       }
       if (lance.usaEmbutido && !isNum(lance.pctEmbutido)) res.pend.push('Percentual do lance embutido não informado');
       const pos = linhas.slice(mesC);
@@ -489,7 +533,7 @@
       const lc = n.lance;
       const base = fmtBRL(n.credBruto);
       L.lance = mod === 'retido'
-        ? val(lc.total, 'informado', 'Lance retido = valor ofertado ' + fmtBRL(lc.total) + ' (' + fmtPct(lc.pct) + ' do crédito na contemplação ' + base + ')', 'Valor ofertado pelo consultor (por exemplo, o valor do bem)')
+        ? val(lc.total, 'estimado', 'Lance retido = recursos próprios ' + fmtBRL(lc.proprios) + ' + embutido ' + fmtBRL(lc.embutido) + ' (' + fmtPct(lc.pctEmbutido) + ') = ' + fmtPct(lc.pct) + ' do crédito na contemplação ' + base, 'Valor do bem do cliente e percentual de embutido informados')
         : val(lc.total, 'estimado', 'Lance = ' + fmtPct(lc.pct) + ' × crédito na contemplação ' + base, mod === 'fixo' ? 'Percentual do lance fixo (administradora)' : mod === 'embutido' ? 'Lance composto só pelo embutido' : 'Percentual ofertado no lance livre');
       L.embutido = lc.usaEmbutido
         ? val(lc.embutido, 'estimado', 'Lance embutido = ' + fmtPct(lc.pctEmbutido) + ' × ' + base + (lc.limitado ? ' (limitado ao valor total do lance)' : ''), 'Percentual do lance embutido (administradora)')
@@ -603,17 +647,25 @@
       if (!isNum(rv) && !(fgtsPermitido(s) && isNum(fv))) add('erro', 'lances.recursosValor', 'Recursos próprios ativados: informe o valor disponível' + (fgtsPermitido(s) ? ' (recursos próprios e/ou FGTS).' : '.'));
       if (isNum(rv) && rv < 0) add('erro', 'lances.recursosValor', 'Recursos próprios não podem ser negativos.');
       if (isNum(fv) && fv < 0) add('erro', 'lances.fgtsValor', 'O FGTS não pode ser negativo.');
-      if (!fgtsPermitido(s) && isNum(fv) && fv > 0) add('info', 'lances.fgtsValor', 'Veículo: o FGTS só pode ser usado em imóveis e não entra no lance.');
+      if (!fgtsPermitido(s) && isNum(fv) && fv > 0) add('info', 'lances.fgtsValor', motivoSemFgts(s) + ' e não entra no lance.');
     }
     if (l.embutidoAtivo) pctOk('embutidoPct', 'Lance embutido');
     if (l.fixoAtivo) pctOk('fixoPct', 'Lance fixo');
     if (l.livreAtivo) pctOk('livrePct', 'Lance livre');
     if (l.retidoAtivo) {
-      const rt = num(l.retidoValor);
-      if (!isNum(rt) || rt <= 0) add('erro', 'lances.retidoValor', 'Lance retido: informe o valor do lance (R$).');
-      else if (isNum(C) && rt > C) add('alerta', 'lances.retidoValor', 'Lance retido acima do crédito contratado: confira o valor ofertado.');
+      if (!l.retidoUsarRecursos && !l.retidoUsarEmbutido) add('erro', 'lances.retidoUsarRecursos', 'Lance retido: marque "Usar recursos próprios" e/ou "Usar lance embutido".');
+      const rv = num(l.retidoRecursosValor), pe = num(l.retidoEmbutidoPct);
+      if (l.retidoUsarRecursos && (!isNum(rv) || rv <= 0)) add('erro', 'lances.retidoRecursosValor', 'Lance retido: informe o valor dos recursos próprios (R$).');
+      if (l.retidoUsarEmbutido && (!isNum(pe) || pe <= 0 || pe >= 100)) add('erro', 'lances.retidoEmbutidoPct', 'Lance retido: percentual do embutido entre 0% e 100%.');
+      const total = (l.retidoUsarRecursos && isNum(rv) ? rv : 0) + (l.retidoUsarEmbutido && isNum(pe) && isNum(C) ? (pe / 100) * C : 0);
+      if (isNum(C) && total > C) add('alerta', 'lances.retidoRecursosValor', 'Lance retido acima do crédito contratado: confira os valores.');
     }
-    if ((l.fixoAtivo && l.fixoUsarEmbutido) || (l.livreAtivo && l.livreUsarEmbutido) || (l.retidoAtivo && l.retidoUsarEmbutido)) {
+    const ec = s.estrategiaCartas;
+    if (ec && ec.ativo) {
+      const q = num(ec.qtd), min = ec.tipo === 'multiplicar' ? 1 : 2;
+      if (!isNum(q) || !Number.isInteger(q) || q < min || q > REGRAS.cartasMax) add('erro', 'estrategiaCartas.qtd', 'Estratégia de cartas: quantidade de ' + min + ' a ' + REGRAS.cartasMax + ' cartas.');
+    }
+    if ((l.fixoAtivo && l.fixoUsarEmbutido) || (l.livreAtivo && l.livreUsarEmbutido)) {
       if (!l.embutidoAtivo) add('alerta', 'lances.embutidoAtivo', '"Usar embutido" marcado, mas o lance embutido está desativado: o embutido não será considerado.');
     }
     return a;
@@ -631,7 +683,7 @@
     l.push('Reajuste anual pelo índice ' + nomeIndice(p) + (isNum(t) ? ' (' + fmtPct(t) + ' ao ano' + (indiceEstimado(p) ? ', taxa estimada' : '') + ')' : ' (taxa não informada)') + ', a cada 12 meses (meses 13, 25, 37...) até o fim do plano. O reajuste incide sobre o crédito e as parcelas são recalculadas sobre o crédito reajustado.');
     if (s.parcela.modalidade !== 'integral') l.push('Redutor de ' + fmtPct(redutorPct(s.parcela), 0) + ' aplicado da 1ª parcela até a contemplação. Depois, a diferença não paga é diluída nas parcelas restantes.');
     if (p.adesaoAtiva) l.push('Adesão de ' + fmtPct(num(p.adesaoPct)) + ' do crédito contratado, diluída em ' + (p.adesaoMeses || '—') + ' parcela(s) iguais, sem reajuste.');
-    if (p.seguroAtivo) l.push('Seguro prestamista de ' + fmtPct(num(p.seguroPct), 3) + ' ao mês sobre o crédito atualizado somado à taxa de administração e ao fundo de reserva, somado à parcela.');
+    if (p.seguroAtivo) l.push('Seguro prestamista de ' + fmtPct(num(p.seguroPct), 3) + ' ao mês sobre o valor total do plano (crédito atualizado + taxa de administração + fundo de reserva' + (p.adesaoAtiva ? ' + adesão' : '') + '), somado à parcela.');
     l.push('Lance abatido por ' + (p.abatimento === 'prazo' ? 'redução do prazo (quita parcelas a partir do fim do plano)' : 'redução proporcional do valor das parcelas restantes') + ', a valores do mês da contemplação.');
     l.push('Percentuais de lance calculados sobre o crédito atualizado no mês da contemplação. Recursos próprios = lance total − lance embutido.');
     l.push('Contemplação projetada no mês ' + (p.mesContemplacao || '—') + '. A parcela desse mês é considerada paga.');
@@ -686,7 +738,7 @@
       const pr = isNum(r) ? parcelaDataBase(s, r) : null;
       R.parcelaRedutor = isNum(pr)
         ? V(pr, 'calculado', redutorNaParcelaToda(p)
-          ? 'Parcela com redutor (HS) = [(' + fmtBRL(C) + ' ÷ ' + N + ') + (' + fmtBRL(R.taxaAdm.v) + ' ÷ ' + N + ') + (' + fmtBRL(R.fundoReserva.v) + ' ÷ ' + N + ')] × (1 − ' + fmtPct(r, 0) + ')'
+          ? 'Parcela com redutor (' + p.administradora + ') = [(' + fmtBRL(C) + ' ÷ ' + N + ') + (' + fmtBRL(R.taxaAdm.v) + ' ÷ ' + N + ') + (' + fmtBRL(R.fundoReserva.v) + ' ÷ ' + N + ')] × (1 − ' + fmtPct(r, 0) + ')'
           : 'Parcela com redutor = (' + fmtBRL(C) + ' ÷ ' + N + ') × (1 − ' + fmtPct(r, 0) + ') + (' + fmtBRL(R.taxaAdm.v) + ' ÷ ' + N + ') + (' + fmtBRL(R.fundoReserva.v) + ' ÷ ' + N + ')', 'Fórmula da parcela; sem adesão, seguro e reajuste')
         : P(b.pend, 'Parcela com redutor');
     }
@@ -695,7 +747,7 @@
       ? V(l1.total, 'calculado', 'Parcela do mês 1 = Fundo comum ' + fmtBRL(l1.fundoComum) + ' + Taxa adm. ' + fmtBRL(l1.taxa) + ' + Fundo de reserva ' + fmtBRL(l1.fundo) + ' + Adesão ' + fmtBRL(l1.adesao) + ' + Seguro ' + fmtBRL(l1.seguro), 'Demonstrativo mensal')
       : P(nSorteio.pend, 'Parcela do mês 1');
     R.seguro = !p.seguroAtivo ? V(null, 'na', 'Seguro prestamista não contratado', '', { nota: 'Não contratado' })
-      : l1 && isNum(l1.seguro) ? V(l1.seguro, 'calculado', 'Seguro = ' + fmtPct(num(p.seguroPct), 3) + ' × (crédito ' + fmtBRL(l1.credAtual) + ' + taxa adm. ' + fmtPct(b.ta, 2) + ' + fundo de reserva ' + fmtPct(b.fr, 2) + ' = ' + fmtBRL(l1.credAtual * (1 + (b.ta || 0) / 100 + (b.fr || 0) / 100)) + ')', 'Percentual informado') : P('Seguro prestamista: percentual não informado');
+      : l1 && isNum(l1.seguro) ? V(l1.seguro, 'calculado', 'Seguro = ' + fmtPct(num(p.seguroPct), 3) + ' × valor total do plano ' + fmtBRL(l1.seguro / (num(p.seguroPct) / 100)) + ' (crédito ' + fmtBRL(l1.credAtual) + ' + taxa adm. ' + fmtPct(b.ta, 2) + ' + fundo de reserva ' + fmtPct(b.fr, 2) + (p.adesaoAtiva ? ' + adesão' : '') + ')', 'Percentual informado') : P('Seguro prestamista: percentual não informado');
     R.totalPago = nSorteio.ok && isNum(nSorteio.totalPlano)
       ? V(nSorteio.totalPlano, 'estimado', 'Σ parcelas dos meses 1 a ' + N + ' (cenário sem lance, contemplação no mês ' + nSorteio.mesC + ')', 'Demonstrativo mensal', { nota: MSG.estimado })
       : P(nSorteio.pend, 'Σ parcelas do plano');
@@ -895,6 +947,46 @@
   // Função principal
   // ---------------------------------------------------------------------------
 
+  /**
+   * Estratégia de cartas sobre a simulação em tela. Split: o crédito simulado é dividido em N cartas iguais;
+   * multiplicar: N cartas iguais à simulada. Parcelas, lances, créditos e saldos são proporcionais ao crédito,
+   * então cada carta = simulação × fator da carta e o total = simulação × fator do total.
+   */
+  function estrategiaCartas(s, cenarios) {
+    const e = s.estrategiaCartas || {};
+    if (!e.ativo) return null;
+    const tipo = e.tipo === 'multiplicar' ? 'multiplicar' : 'split';
+    const n = num(e.qtd);
+    const out = { tipo, n, ok: false, pend: [] };
+    const min = tipo === 'split' ? 2 : 1;
+    if (!isNum(n) || !Number.isInteger(n) || n < min || n > REGRAS.cartasMax) { out.pend.push('Quantidade de cartas entre ' + min + ' e ' + REGRAS.cartasMax); return out; }
+    const sorteio = cenarios.find((c) => c.mod === 'sorteio');
+    const C = num(s.plano.credito);
+    if (!sorteio || !sorteio.nucleo.ok || !isNum(C)) { out.pend.push('Complete os dados do plano'); return out; }
+    const fCarta = tipo === 'split' ? 1 / n : 1;
+    const fTotal = tipo === 'split' ? 1 : n;
+    const par = (v) => (isNum(v) ? { carta: v * fCarta, total: v * fTotal } : { carta: null, total: null });
+    Object.assign(out, {
+      ok: true,
+      credito: par(C),
+      parcelaInicial: par(sorteio.nucleo.linhas[0] && sorteio.nucleo.linhas[0].total),
+      formas: cenarios.filter((c) => c.nucleo.ok).map((c) => {
+        const k = c.nucleo;
+        return {
+          mod: c.mod, nome: c.nome,
+          lance: par(k.lance ? k.lance.total : 0),
+          proprios: par(isNum(k.proprios) ? k.proprios : 0),
+          credLiquido: par(k.credLiquido),
+          parcelaPos: par(k.parcelaPosAtual),
+          saldoDevedor: par(k.saldoDevedor)
+        };
+      })
+    });
+    const minimo = num(s.plano.creditoMinimo);
+    if (isNum(minimo) && out.credito.carta < minimo - 0.005) out.alerta = 'Cada carta (' + fmtBRL(out.credito.carta) + ') fica abaixo do crédito mínimo do plano (' + fmtBRL(minimo) + ').';
+    return out;
+  }
+
   function simular(s) {
     const validacoes = validar(s);
     const mods = modsAtivas(s);
@@ -913,9 +1005,8 @@
       cenarios,
       valoresLance: Object.assign({
         embutido: valor(s.lances.embutidoPct), fixo: valor(s.lances.fixoPct), livre: valor(s.lances.livrePct), mecCapital: mec ? mec.capital : null,
-        // Lance Retido: percentual do valor ofertado sobre o crédito na contemplação e quanto sai em dinheiro
-        retidoPct: nucleos.retido && nucleos.retido.lance ? nucleos.retido.lance.pct : null,
-        retidoDinheiro: nucleos.retido && nucleos.retido.lance ? nucleos.retido.lance.dinheiro : null
+        // Lance Retido: recursos próprios (R$ → %), embutido (% → R$) e o total somado, sobre o crédito na contemplação
+        ...valoresRetido(s.lances, baseLance)
       },
         ...fid.map((f) => ({ ['fid' + f.i]: f.nucleo.ok ? f.nucleo.embutido : null }))),
       baseLance,
@@ -923,6 +1014,7 @@
       alavancagem: alavancagem(s),
       fidelidade: fid,
       mecanismo: mec,
+      cartas: estrategiaCartas(s, cenarios),
       aquisicao: ['sorteio'].concat(s.lances.embutidoAtivo ? ['embutido'] : []).map((m) => aquisicao(s, m)),
       premissas: premissas(s),
       pontosConfirmar: pontosConfirmar(s),
@@ -933,8 +1025,8 @@
 
   return {
     normalizarPlano, aplicarPlanoCadastrado, normalizarIndice, mecanismo, redutorNaParcelaToda, INDICES, CATEGORIAS, ADMINISTRADORAS, MODALIDADES_PARCELA, REGRAS, MSG, NOMES_MOD,
-    estadoPadrao, aplicarCategoria, simular, nucleo, aquisicao, tirMensal, vpl, cenario, validar, fator, qtdReajustes, parcelaDataBase, redutorPct,
-    nomeIndice, taxaIndice, indiceEstimado, lanceSobre, fgtsPermitido,
+    estadoPadrao, aplicarCategoria, simular, nucleo, aquisicao, estrategiaCartas, tirMensal, vpl, cenario, validar, fator, qtdReajustes, parcelaDataBase, redutorPct,
+    nomeIndice, taxaIndice, indiceEstimado, lanceSobre, fgtsPermitido, motivoSemFgts,
     fmtBRL, fmtPct, fmtNum, num, isNum
   };
 });

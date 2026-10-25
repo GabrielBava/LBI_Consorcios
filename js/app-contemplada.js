@@ -653,13 +653,15 @@
     }
 
     async function montarProposta(rc, s, lead, ctx) {
-      const hoje = new Date().toLocaleDateString('pt-BR');
+      const agora = new Date();
+      const hoje = agora.toLocaleDateString('pt-BR');
+      const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const R = rc.resumo;
       const blocos = [];
       // Topo e resumo
       const kpi = (rot, val, cls, suf) => '<div class="pdf-kpi' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + val + (suf ? '<small> ' + suf + '</small>' : '') + '</b></div>';
       blocos.push('<header class="pdf-topo">' + (ui.LOGO.claro ? '<img class="pdf-logo" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
-        '<p class="eyebrow">Emitida em ' + hoje + '</p><h1>Proposta de <span class="acento">Carta Contemplada</span></h1>' +
+        '<p class="eyebrow">Emitido em ' + hoje + ' às ' + hora + '</p><h1>Proposta de <span class="acento">Carta Contemplada</span></h1>' +
         '<p class="pdf-cliente">' + esc(lead) + '</p><p class="pdf-ident">' + identificacao(rc, s) + '</p></header>' +
         '<div class="pdf-kpis pdf-kpis-cont">' + kpi('Crédito contrato', R.ok ? brl(R.credito) : '—', 'destaque') + kpi('Parcela atual', R.ok ? brl(R.parcelaAtual) : '—', 'destaque') +
         kpi('CET mensal', R.ok ? pct(R.cetMes) : '—', '', 'a.m.') + kpi('CET anual', R.ok ? pct(R.cetAno) : '—', 'cet-indice', 'a.a.&nbsp;+&nbsp;' + esc(rc.indice.nome)) + '</div>');
@@ -697,14 +699,10 @@
         blocos.push(h + '</div>');
         blocos.push(blocoTabela(['Custos invisíveis do', 'financiamento'], subCustos(Fi), CAB_CUSTOS(Fi), linhasCustos(Fi), rodapeCustos(Fi)));
       }
-      // Chamada para o especialista e avisos
-      const wa = ui.numeroWhatsapp((window.CONFIG_SIMULADOR || {}).whatsappEspecialista);
-      const msg = encodeURIComponent('Olá! Recebi a proposta de carta contemplada' + (lead ? ' de ' + lead : '') + ' e gostaria de conversar.');
-      blocos.push('<div class="pdf-cta"><div><h3>Vamos dar o próximo passo?</h3><p>Fale com o especialista para tirar dúvidas e seguir com a proposta.</p></div>' +
-        (wa ? '<a class="pdf-botao" href="https://wa.me/' + wa + '?text=' + msg + '">Falar no WhatsApp</a>' : '<span class="pdf-botao inativo">Falar no WhatsApp</span>') + '</div>' +
-        '<div class="pdf-disclaimer"><b>Importante</b><p>' + esc(AVISO) + '</p></div>');
+      // Aviso no fim da última página
+      blocos.push('<div class="pdf-disclaimer"><b>Importante</b><p>' + esc(AVISO) + '</p></div>');
       const paginas = await paginar(blocos);
-      return { html: paginas.map((c, i) => pdfPagina(i + 1, paginas.length, lead, c)).join(''), data: hoje, semWhatsapp: !wa, paginas: paginas.length };
+      return { html: paginas.map((c, i) => pdfPagina(i + 1, paginas.length, lead, c)).join(''), data: hoje, paginas: paginas.length };
     }
 
     /** Dados da proposta da página 2 que acompanham o termo de adesão (pares rótulo, valor). */

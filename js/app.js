@@ -5,6 +5,7 @@
 
   const C = window.Calc;
   const CC = window.CalcCont;
+  // Chaves de versões anteriores, que guardavam a proposta no navegador (apagadas ao abrir)
   const CHAVE_ATUAL = 'simconsorcio.v2.atual';
   const CHAVE_CONT = 'simconsorcio.v2.contemplada';
   const CHAVE_MODO = 'simconsorcio.modo';
@@ -17,40 +18,12 @@
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 
   // ---------------------------------------------------------------------------
-  // Estado e persistência (localStorage apenas como conveniência local)
+  // Estado: cada acesso começa do zero, só com as premissas base (nenhuma proposta fica gravada no navegador)
   // ---------------------------------------------------------------------------
 
-  const clone = (o) => JSON.parse(JSON.stringify(o));
-
-  function mesclar(base, extra) {
-    if (Array.isArray(base)) return Array.isArray(extra) ? extra : base;
-    if (base && typeof base === 'object') {
-      const out = {};
-      for (const k of Object.keys(base)) out[k] = extra && k in extra ? mesclar(base[k], extra[k]) : base[k];
-      return out;
-    }
-    return extra === undefined ? base : extra;
-  }
-
-  function ler(chave) {
-    try { const t = localStorage.getItem(chave); return t ? JSON.parse(t) : null; } catch (e) { return null; }
-  }
-  function gravar(chave, valor) {
-    try { localStorage.setItem(chave, JSON.stringify(valor)); return true; } catch (e) { return false; }
-  }
-
-  /** Propostas salvas antes de "Recursos próprios": o antigo FGTS vira recursos próprios (com o mesmo valor de FGTS). */
-  function migrarLances(sv) {
-    const l = sv && sv.lances;
-    if (!l || 'recursosAtivo' in l) return sv;
-    if (l.fgtsAtivo) l.recursosAtivo = true;
-    if (l.fixoUsarFgts) l.fixoUsarRecursos = true;
-    if (l.livreUsarFgts) l.livreUsarRecursos = true;
-    return sv;
-  }
-  const salvo = migrarLances(ler(CHAVE_ATUAL));
-  const salvoCont = ler(CHAVE_CONT);
-  let estado = null; // página 1 (consórcio primário); definido na inicialização (exemplo ilustrativo na primeira visita)
+  // Propostas de versões anteriores ficavam no navegador: são apagadas ao abrir (dados de clientes)
+  try { localStorage.removeItem(CHAVE_ATUAL); localStorage.removeItem(CHAVE_CONT); localStorage.removeItem(CHAVE_MODO); } catch (e) { /* sem armazenamento */ }
+  let estado = null; // página 1 (consórcio primário); começa nas premissas base a cada acesso
   let estadoCont = null; // página 2 (carta contemplada)
   let modo = 'primario'; // página exibida
   let TC = null; // interface da página da carta contemplada (js/app-contemplada.js)
@@ -257,12 +230,19 @@
 
   function aplicarVisibilidade() {
     $$('[data-show]').forEach((el) => { el.hidden = !avaliarCondicao(el.dataset.show); });
-    // FGTS só no consórcio de imóvel: no veículo o campo fica travado
+    // FGTS só para pessoa física no consórcio de imóvel: no veículo e na pessoa jurídica o campo fica travado
     const fgts = $('#f-fgtsValor');
     if (fgts && estado) {
-      const travado = estado.plano.categoria === 'veiculo';
-      fgts.disabled = travado;
-      fgts.title = travado ? 'O FGTS só pode ser usado em imóveis.' : '';
+      const motivo = C.motivoSemFgts(estado);
+      fgts.disabled = !!motivo;
+      fgts.title = motivo ? motivo + '.' : '';
+      // Redutor: HS e Porto Seguro aplicam sobre a parcela inteira; as demais, só no fundo comum
+      const notaRed = $('#nota-redutor');
+      if (notaRed) notaRed.textContent = C.redutorNaParcelaToda(estado.plano)
+        ? estado.plano.administradora + ': redutor sobre a parcela inteira (fundo comum + taxa adm. + fundo de reserva). Vale até a contemplação; a diferença é diluída depois.'
+        : 'Redutor só no fundo comum. Vale até a contemplação; a diferença é diluída depois.';
+      const nota = $('#nota-fgts');
+      if (nota) { nota.hidden = !(motivo && estado.lances.recursosAtivo); nota.textContent = motivo ? motivo + '.' : ''; }
     }
   }
 
@@ -297,6 +277,8 @@
         if (selecionarPlano(estado.plano.planoId)) avisar('Plano aplicado: crédito, prazo, taxas, lances e índice atualizados.');
         escreverCampos();
         preencherPlanos();
+      } else if (el.dataset.k === 'plano.tipoPessoa') {
+        escreverCampos(); // o tipo de pessoa aparece nas duas páginas
       } else if (el.dataset.k === 'cont.segmento') {
         // Segmento sugere o indexador (Imóvel → INCC; Veículo e Serviço → IPCA), editável depois
         estadoCont.indice = (CC.SEGMENTOS[estadoCont.segmento] || CC.SEGMENTOS.imovel).indice;
@@ -319,6 +301,7 @@
       else if (b.dataset.removerCarta) acoesCont.removerCarta(Number(b.dataset.removerCarta));
       else if (b.dataset.prazoFin) { estadoCont.financiamento.prazo = Number(b.dataset.prazoFin); escreverCampos(); atualizar(); }
       else if (b.dataset.prazoVeic) { estadoCont.financiamento.veiculo.prazo = Number(b.dataset.prazoVeic); escreverCampos(); atualizar(); }
+      else if (b.dataset.qtdCartas) { estado.estrategiaCartas.qtd = Number(b.dataset.qtdCartas); escreverCampos(); atualizar(); }
     });
     document.addEventListener('toggle', (ev) => {
       const d = ev.target;
@@ -401,20 +384,16 @@
   // Ações da barra de ferramentas
   // ---------------------------------------------------------------------------
 
-  function exemplo() {
-    // Valores fictícios, apenas para demonstrar o funcionamento.
+  /** Premissas base da página 1: valores padrão da categoria, contemplação no mês 12 e índice estimado em 5% a.a. */
+  function inicial() {
     const s = C.estadoPadrao();
-    // Parcela integral e sem seguro: a parcela inicial mostra só fundo comum + taxa adm. + fundo de reserva
-    Object.assign(s.plano, { lead: 'Exemplo ilustrativo', mesContemplacao: 12, indiceTaxa: 5 });
-    Object.assign(s.lances, { embutidoAtivo: true, fixoAtivo: true, fixoUsarEmbutido: true, livreAtivo: true, livrePct: 35, livreUsarEmbutido: true });
-    s.projecoes = { parcelas: true, credito: true };
+    s.plano.indiceTaxa = 5;
     return s;
   }
 
-  /** Carta contemplada de exemplo (valores fictícios, do simulador de cartas contempladas). */
-  function exemploCont() {
+  /** Premissas base da página 2: uma carta em branco e o indexador estimado em 5% a.a. */
+  function inicialCont() {
     const s = CC.estadoPadrao();
-    s.cartas = [{ credito: 1200000, entrada: 436800, parcela: 6165.6, prazo: 233 }];
     s.indiceTaxa = 5;
     return s;
   }
@@ -424,13 +403,13 @@
       const cont = modo === 'contemplada';
       confirmar('Iniciar uma nova proposta? Os campos desta página e os dados do cliente voltarão aos valores iniciais.', 'Nova proposta', () => {
         if (cont) {
-          estadoCont = CC.estadoPadrao();
+          estadoCont = inicialCont();
           aplicarTaxasRef(); // mantém as taxas já atualizadas pelo Banco Central
-          Object.assign(estado.plano, { lead: '' });
+          Object.assign(estado.plano, { lead: '', tipoPessoa: 'fisica' });
           estado.contato.cliente = '';
           desenharCartas();
         } else {
-          estado = C.estadoPadrao();
+          estado = inicial();
           revelados.clear();
         }
         if (TA) TA.limpar(); // o rascunho do termo de adesão era do cliente anterior
@@ -438,16 +417,17 @@
         $('#f-lead').focus();
       });
     },
-    transmitir() {
-      // Termo de adesão (uso interno): dados mínimos do cliente → PDF e e-mail para o pós-venda
+    finalizar() {
+      // Finalizar venda (uso interno): ficha de cadastro do cliente → PDF baixado para o consultor encaminhar ao pós-venda
       const cliente = { nome: String(estado.plano.lead || '').trim(), telefone: estado.contato.cliente || '' };
+      const tipoPessoa = estado.plano.tipoPessoa === 'juridica' ? 'Jurídica' : 'Física';
       if (modo === 'contemplada') {
         const rc = CC.simular(estadoCont);
-        TA.abrir(cliente, TC.resumoAdesao(rc, estadoCont), TC.propostaAdesao(rc, estadoCont));
+        TA.abrir(cliente, TC.resumoAdesao(rc, estadoCont), Object.assign({ tipoPessoa }, TC.propostaAdesao(rc, estadoCont)));
       } else {
         const p = estado.plano;
-        // Fechamento vindo da simulação: tipo, prazo, valor da carta, redutor e seguro prestamista
-        const proposta = { tipoCarta: C.CATEGORIAS[p.categoria].nome, prazo: C.num(p.prazo), valorCarta: C.num(p.credito), redutor: C.redutorPct(estado.parcela), seguroPrestamista: p.seguroAtivo ? 'Sim' : 'Não' };
+        // Fechamento vindo da simulação: tipo de pessoa, tipo da carta, prazo, valor da carta, redutor e seguro prestamista
+        const proposta = { tipoPessoa, tipoCarta: C.CATEGORIAS[p.categoria].nome, prazo: C.num(p.prazo), valorCarta: C.num(p.credito), redutor: C.redutorPct(estado.parcela), seguroPrestamista: p.seguroAtivo ? 'Sim' : 'Não' };
         TA.abrir(cliente, resumoAdesao(estado, C.simular(estado)), proposta);
       }
     },
@@ -734,6 +714,23 @@
   // ---------------------------------------------------------------------------
 
   const AVISO = 'Esta simulação depende dos dados do grupo, do contrato, das regras da administradora e das premissas inseridas. Os valores são estimativas e não constituem valores contratuais. Não há garantia de contemplação, venda, lucro, valorização ou rentabilidade.';
+  /** Aviso "Importante" do fim da proposta de consórcio (PDF): simulação, contemplação, desempate, cotas, desistência e seguro. */
+  function avisoProposta(s) {
+    return 'Esta proposta é uma simulação e pode ter pequenos ajustes de valores na transmissão à administradora. ' +
+      'Conforme a legislação vigente, é expressamente proibida qualquer garantia ou promessa de data para contemplação: o mês de contemplação é uma projeção. ' +
+      'Na modalidade de lance fixo, o critério de desempate é a aproximação do número da cota sorteada pela Loteria Federal. ' +
+      'A adesão está sujeita à disponibilidade de cotas no grupo no momento da contratação. ' +
+      'O cliente pode cancelar a adesão em até 7 (sete) dias da data de adesão ou até a primeira assembleia. ' +
+      'Valores de venda e CET são estimativas baseadas nas premissas informadas e no índice de reajuste estimado.' +
+      (s.plano.seguroAtivo ? ' O seguro prestamista garante a quitação integral da cota em caso de morte ou invalidez. Proteja seu patrimônio e sua família!' : '');
+  }
+  /** Data e hora da emissão da proposta ("25/10/2026 às 14:32"). */
+  function emissaoAgora() {
+    const agora = new Date();
+    const data = agora.toLocaleDateString('pt-BR');
+    const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return { data, hora, texto: data + ' às ' + hora };
+  }
 
   const OLHO = {
     aberto: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
@@ -766,6 +763,7 @@
     const t = C.taxaIndice(p);
     const lista = [
       ['Tipo do plano', C.CATEGORIAS[p.categoria].nome],
+      ['Tipo de pessoa', p.tipoPessoa === 'juridica' ? 'Jurídica' : 'Física'],
       ['Administradora', p.administradora || 'Não selecionada'],
       ['Taxa administrativa', C.isNum(C.num(p.taxaAdm)) ? C.fmtPct(C.num(p.taxaAdm)) : '—'],
       ['Fundo de reserva', C.isNum(C.num(p.fundoReserva)) ? C.fmtPct(C.num(p.fundoReserva)) : '—'],
@@ -840,6 +838,29 @@
     const aberta = !recolhidos.has(id);
     return '<button type="button" class="seta-tabela" data-recolher="' + id + '" aria-expanded="' + aberta + '" aria-controls="tab-' + id + '" aria-label="' + (aberta ? 'Recolher ' : 'Mostrar ') + esc(rotulo) + '" title="' + (aberta ? 'Recolher' : 'Mostrar') + '">' +
       '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>';
+  }
+
+  /** Estratégia de cartas: split ou multiplicação, com os valores por carta e o total das cartas. */
+  function secEstrategiaCartas(r, pdf) {
+    const e = r.cartas;
+    if (!e) return '';
+    const titulo = tituloSecao('Estratégia de', 'Cartas', e.tipo === 'split' ? 'Split do crédito' : 'Multiplicação de cartas');
+    if (!e.ok) return '<section class="bloco-res vitrine">' + titulo + '<p class="nc">Não calculado: ' + esc(e.pend.join('; ')) + '.</p></section>';
+    const f = (x) => (C.isNum(x) ? C.fmtBRL(x) : '<span class="nc">n/c</span>');
+    const frase = e.tipo === 'split'
+      ? 'Crédito de ' + C.fmtBRL(e.credito.total) + ' dividido em ' + e.n + ' cartas de ' + C.fmtBRL(e.credito.carta) + '.'
+      : e.n + (e.n > 1 ? ' cartas' : ' carta') + ' de ' + C.fmtBRL(e.credito.carta) + ', somando ' + C.fmtBRL(e.credito.total) + '.';
+    const kpi = (rot, val, cls) => '<div class="kpi' + (cls ? ' ' + cls : '') + '"><div class="kpi-rot">' + rot + '</div><div class="kpi-val">' + f(val) + '</div></div>';
+    const tot = 'Total (' + e.n + ')';
+    return '<section class="bloco-res vitrine' + (pdf ? '' : ' sec-cartas') + '">' + titulo +
+      '<p class="sub-vitrine">' + esc(frase) + ' Valores de cada carta e o total das cartas, a partir da simulação acima.</p>' +
+      (e.alerta ? '<p class="aviso">' + esc(e.alerta) + '</p>' : '') +
+      '<div class="kpis">' + kpi('Crédito por carta', e.credito.carta, 'kpi-destaque') + kpi('Crédito total', e.credito.total, 'kpi-destaque') +
+      kpi('Parcela inicial por carta', e.parcelaInicial.carta) + kpi('Parcela inicial · ' + tot, e.parcelaInicial.total) + '</div>' +
+      '<div class="rolagem-x"><table class="tab-alav tab-cartas"><thead><tr><th>Forma</th><th>Lance por carta</th><th>Crédito disponível por carta</th><th>Parcela pós-contemplação por carta</th>' +
+      '<th>Lance · ' + tot + '</th><th>Crédito disponível · ' + tot + '</th><th>Parcela pós-contemplação · ' + tot + '</th></tr></thead><tbody>' +
+      e.formas.map((x) => '<tr><td>' + esc(x.nome) + '</td><td>' + f(x.lance.carta) + '</td><td>' + f(x.credLiquido.carta) + '</td><td>' + f(x.parcelaPos.carta) + '</td><td>' + f(x.lance.total) + '</td><td>' + f(x.credLiquido.total) + '</td><td>' + f(x.parcelaPos.total) + '</td></tr>').join('') +
+      '</tbody></table></div></section>';
   }
 
   function secAlavancagem(r, pdf) {
@@ -965,8 +986,9 @@
     h += secCaracteristicas(s, r);
     h += secFormas(s, r, false);
     h += secFidelidade(s, r);
-    h += secAlavancagem(r, false);
-    h += secMecanismo(r);
+    h += secEstrategiaCartas(r, false);
+    // Alavancagem (venda da carta) não serve para veículo: só no consórcio de imóvel
+    if (s.plano.categoria !== 'veiculo') h += secAlavancagem(r, false) + secMecanismo(r);
     h += secAquisicao(r);
     const proj = secProjecoes(r, false);
     if (proj) h += '<section class="bloco-res vitrine">' + tituloSecao('Cenários', 'futuros', 'Projeções') + proj + '</section>';
@@ -1033,7 +1055,6 @@
     document.body.classList.toggle('modo-contemplada', modo === 'contemplada');
     $$('.painel-modo').forEach((el) => { el.hidden = el.dataset.painel !== modo; });
     $$('.paginas-menu').forEach((el) => { el.innerHTML = htmlPaginas(); });
-    try { localStorage.setItem(CHAVE_MODO, modo); } catch (e) { /* sem armazenamento */ }
     if (!semHistorico && location.hash !== '#' + modo) {
       // Clique nas abas empilha no histórico (voltar retorna à outra página); a abertura só ajusta o link
       try { history[empilhar ? 'pushState' : 'replaceState'](null, '', '#' + modo); } catch (e) { /* histórico indisponível */ }
@@ -1046,7 +1067,7 @@
   function atualizarValoresTravados(r) {
     $$('[data-valor]').forEach((o) => {
       const v = r.valoresLance[o.dataset.valor];
-      o.textContent = !C.isNum(v) ? '—' : o.dataset.valor === 'retidoPct' ? C.fmtPct(v, 2) : C.fmtBRL(v);
+      o.textContent = !C.isNum(v) ? '—' : /Pct$/.test(o.dataset.valor) ? C.fmtPct(v, 2) : C.fmtBRL(v);
     });
   }
 
@@ -1096,23 +1117,23 @@
     ])) + '</article>';
   }
 
-  function montarProposta(s, r) {
-    const data = new Date().toLocaleDateString('pt-BR');
+  async function montarProposta(s, r) {
+    const emissao = emissaoAgora();
     const p = s.plano;
     const R = r.resumo;
     const t = C.taxaIndice(p);
     const fid = r.fidelidade || [];
-    const total = 3;
     const nucleo = (mod) => { const c = r.cenarios.find((x) => x.mod === mod); return c ? c.nucleo : null; };
 
     // Página 1: dados da proposta, características e formas de contemplação
     const kpi = (rot, val, formato, cls, suf) => '<div class="pdf-kpi' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + fmt(val, formato) + (suf && val && val.v != null ? '<small> ' + suf + '</small>' : '') + '</b></div>';
     const ident = [C.CATEGORIAS[p.categoria].nome, p.administradora].filter(Boolean).map(esc).join(' · ');
-    let p1 = '<header class="pdf-topo">' + (LOGO.claro ? '<img class="pdf-logo" src="' + LOGO.claro + '" alt="' + esc(EMPRESA) + '">' : '') + '<p class="eyebrow">Emitida em ' + data + '</p><h1>Proposta de <span class="acento">Consórcio</span></h1>' +
+    let p1 = '<header class="pdf-topo">' + (LOGO.claro ? '<img class="pdf-logo" src="' + LOGO.claro + '" alt="' + esc(EMPRESA) + '">' : '') + '<p class="eyebrow">Emitido em ' + emissao.texto + '</p><h1>Proposta de <span class="acento">Consórcio</span></h1>' +
       '<p class="pdf-cliente">' + esc(p.lead) + '</p><p class="pdf-ident">' + ident + '</p></header>';
     p1 += '<div class="pdf-kpis">' + kpi('Crédito', R.credito, 'brl', 'destaque') + kpi('Parcela inicial', R.parcelaInicial, 'brl', 'destaque') + kpi('Total de taxas', R.taxaAno, 'pct', '', 'a.a.') + kpi('Prazo', R.prazo, 'meses') + '</div>';
     const carac = [
       ['Tipo do plano', C.CATEGORIAS[p.categoria].nome],
+      ['Tipo de pessoa', p.tipoPessoa === 'juridica' ? 'Jurídica' : 'Física'],
       ['Administradora', p.administradora || '—'],
       ['Taxa administrativa', C.isNum(C.num(p.taxaAdm)) ? C.fmtPct(C.num(p.taxaAdm)) : '—'],
       ['Fundo de reserva', C.isNum(C.num(p.fundoReserva)) ? C.fmtPct(C.num(p.fundoReserva)) : '—'],
@@ -1128,7 +1149,7 @@
     const mods1 = ['sorteio', 'embutido', 'fixo', 'retido'].filter((m) => nucleo(m));
     p1 += '<div class="pdf-bloco">' + pdfTitulo('Formas de', 'Contemplação') + '<div class="pdf-grade c' + mods1.length + '">' + mods1.map((m) => pdfCartaoForma(nucleo(m), m)).join('') + '</div></div>';
 
-    // Página 2: panorama de venda e alavancagem
+    // Página 2: panorama de venda e alavancagem (não vale para veículo: a proposta de veículo fica com as páginas 1 e 3)
     const f = (x) => (C.isNum(x) ? C.fmtBRL(x) : '—');
     const cor = (x) => (C.isNum(x) ? (x >= 0 ? 'positivo' : 'negativo') : '');
     let p2 = '<header class="pdf-topo menor"><p class="eyebrow">Cenários de venda</p><h1>Panorama de <span class="acento">Alavancagem</span></h1>' +
@@ -1142,6 +1163,7 @@
     if (!r.alavancagem.length) p2 += '<p class="nc">Não calculado: complete os dados do plano.</p>';
 
     // Página 3: aquisição, contato e avisos
+    const ultimas = [];
     let p3 = '<header class="pdf-topo menor"><p class="eyebrow">Cenário de aquisição</p><h1>Simulação de <span class="acento">Aquisição</span></h1>' +
       '<p class="pdf-ident">Uso da carta para comprar o ' + (p.categoria === 'veiculo' ? 'veículo' : 'imóvel') + ': custo efetivo total (CET) com os reajustes das parcelas até o fim do plano.</p></header>';
     const aq = r.aquisicao;
@@ -1158,21 +1180,90 @@
         ['Prazo total', a.prazoEfetivo + ' meses']
       ]) + '</article>';
     }).join('') + '</div>';
-    // Bônus Fidelidade (quando habilitado): abaixo da aquisição e antes do contato com o especialista
+    ultimas.push(p3);
+    // Bônus Fidelidade (quando habilitado): abaixo da aquisição
     if (fid.length) {
-      p3 += '<div class="pdf-bloco pdf-fid">' + pdfTitulo('Bônus', 'Fidelidade') +
+      ultimas.push('<div class="pdf-bloco pdf-fid">' + pdfTitulo('Bônus', 'Fidelidade') +
         '<p class="pdf-ident">Extra · Lance 100% embutido liberado a partir da parcela de cada opção, sem recursos próprios; percentual sobre o crédito atualizado no mês da contemplação.</p>' +
         '<div class="pdf-grade c' + fid.length + '">' + fid.map((x) => pdfCartaoForma(x.nucleo, 'fidelidade', x.nome,
-        'A partir da ' + (C.isNum(x.parcela) ? x.parcela + 'ª' : '—') + ' parcela · ' + (C.isNum(x.pct) ? C.fmtNum(x.pct, Number.isInteger(x.pct) ? 0 : 2) + '%' : '—') + ' de embutido')).join('') + '</div></div>';
+        'A partir da ' + (C.isNum(x.parcela) ? x.parcela + 'ª' : '—') + ' parcela · ' + (C.isNum(x.pct) ? C.fmtNum(x.pct, Number.isInteger(x.pct) ? 0 : 2) + '%' : '—') + ' de embutido')).join('') + '</div></div>');
     }
-    const wa = numeroWhatsapp((window.CONFIG_SIMULADOR || {}).whatsappEspecialista);
-    const msg = encodeURIComponent('Olá! Recebi a proposta de consórcio' + (p.lead ? ' de ' + p.lead : '') + ' e gostaria de conversar.');
-    p3 += '<div class="pdf-cta"><div><h3>Vamos dar o próximo passo?</h3><p>Fale com o especialista para tirar dúvidas e seguir com a proposta.</p></div>' +
-      (wa ? '<a class="pdf-botao" href="https://wa.me/' + wa + '?text=' + msg + '">Falar no WhatsApp</a>' : '<span class="pdf-botao inativo">Falar no WhatsApp</span>') + '</div>';
-    p3 += '<div class="pdf-disclaimer"><b>Importante</b><p>' + esc(AVISO) + ' Mês de contemplação projetado, sem garantia de ocorrência. Valores de venda e CET são estimativas baseadas nas premissas informadas e no índice de reajuste estimado.</p></div>';
+    // Estratégia de cartas (quando habilitada): valores por carta e total
+    if (r.cartas) ultimas.push(pdfEstrategiaCartas(r));
+    ultimas.push('<div class="pdf-disclaimer"><b>Importante</b><p>' + esc(avisoProposta(s)) + '</p></div>');
+    // Aquisição, fidelidade, estratégia de cartas e aviso: o que não couber segue para uma página a mais
+    const finais = await distribuirBlocos(ultimas);
 
-    const html = [p1, p2, p3].map((c, i) => pdfPagina(i + 1, total, s, c)).join('');
-    return { html, data, semWhatsapp: !wa };
+    const paginas = (p.categoria === 'veiculo' ? [p1] : [p1, p2]).concat(finais);
+    const html = paginas.map((c, i) => pdfPagina(i + 1, paginas.length, s, c)).join('');
+    return { html, data: emissao.data };
+  }
+
+  /** Distribui blocos de PDF em páginas A4 pela altura medida no tamanho final; devolve o HTML do corpo de cada página. */
+  async function distribuirBlocos(blocos) {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const area = document.createElement('div');
+    area.className = 'pdf-render pdf-medida';
+    area.innerHTML = '<section class="pdf-pagina"><div class="pdf-corpo">' + blocos.map((b) => '<div class="pdf-item">' + b + '</div>').join('') + '</div></section>';
+    document.body.appendChild(area);
+    let util, gap, alturas;
+    try {
+      const pg = area.querySelector('.pdf-pagina');
+      const cs = getComputedStyle(pg);
+      util = (pg.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) * 0.994;
+      gap = parseFloat(getComputedStyle(area.querySelector('.pdf-corpo')).rowGap) || 0;
+      alturas = Array.from(area.querySelectorAll('.pdf-corpo > .pdf-item')).map((el) => el.getBoundingClientRect().height);
+    } finally {
+      area.remove();
+    }
+    const paginas = [];
+    let atual = [], usado = 0;
+    blocos.forEach((b, i) => {
+      if (atual.length && usado + gap + alturas[i] > util) { paginas.push(atual); atual = []; usado = 0; }
+      usado += (atual.length ? gap : 0) + alturas[i];
+      atual.push(b);
+    });
+    if (atual.length) paginas.push(atual);
+    // O aviso final não fica sozinho numa página: leva junto o bloco anterior
+    const n = paginas.length;
+    if (n > 1 && paginas[n - 1].length === 1 && paginas[n - 2].length > 1) paginas[n - 1].unshift(paginas[n - 2].pop());
+    return paginas.map((p) => p.join(''));
+  }
+
+  /** Estratégia de cartas no PDF: indicadores por carta e total e a tabela por forma de contemplação. */
+  function pdfEstrategiaCartas(r) {
+    const e = r.cartas;
+    if (!e) return '';
+    if (!e.ok) return '<div class="pdf-bloco">' + pdfTitulo('Estratégia de', 'Cartas') + '<p class="nc">Não calculado: ' + esc(e.pend.join('; ')) + '.</p></div>';
+    const f = (x) => (C.isNum(x) ? C.fmtBRL(x) : '—');
+    const tot = 'total (' + e.n + ')';
+    const frase = e.tipo === 'split'
+      ? 'Split: crédito de ' + f(e.credito.total) + ' dividido em ' + e.n + ' cartas de ' + f(e.credito.carta) + '.'
+      : 'Multiplicar: ' + e.n + (e.n > 1 ? ' cartas' : ' carta') + ' de ' + f(e.credito.carta) + ', somando ' + f(e.credito.total) + '.';
+    const kpi = (rot, val, cls) => '<div class="pdf-kpi' + (cls ? ' ' + cls : '') + '"><span>' + rot + '</span><b>' + f(val) + '</b></div>';
+    return '<div class="pdf-bloco">' + pdfTitulo('Estratégia de', 'Cartas') + '<p class="pdf-ident pdf-sub-bloco">' + esc(frase) + '</p>' +
+      '<div class="pdf-kpis">' + kpi('Crédito por carta', e.credito.carta, 'destaque') + kpi('Crédito ' + tot, e.credito.total, 'destaque') + kpi('Parcela inicial por carta', e.parcelaInicial.carta) + kpi('Parcela inicial ' + tot, e.parcelaInicial.total) + '</div>' +
+      '<table class="pdf-tab pdf-tab-dir"><thead><tr><th>Forma</th><th>Lance por carta</th><th>Crédito disp. por carta</th><th>Parcela pós por carta</th><th>Lance ' + tot + '</th><th>Crédito disp. ' + tot + '</th><th>Parcela pós ' + tot + '</th></tr></thead><tbody>' +
+      e.formas.map((x) => '<tr><td>' + esc(x.nome) + '</td><td>' + f(x.lance.carta) + '</td><td>' + f(x.credLiquido.carta) + '</td><td>' + f(x.parcelaPos.carta) + '</td><td>' + f(x.lance.total) + '</td><td>' + f(x.credLiquido.total) + '</td><td>' + f(x.parcelaPos.total) + '</td></tr>').join('') +
+      '</tbody></table></div>';
+  }
+
+  /** Depois de concluir a venda: agradecimento breve e, em seguida, o site do grupo (js/config.js: siteAposVenda). */
+  function agradecer() {
+    const site = String((window.CONFIG_SIMULADOR || {}).siteAposVenda || '').trim();
+    const tela = document.createElement('div');
+    tela.className = 'agradecimento';
+    tela.setAttribute('role', 'alertdialog');
+    tela.setAttribute('aria-live', 'assertive');
+    tela.innerHTML = '<div class="agradecimento-caixa">' + logoPar('agradecimento-logo') +
+      '<h2>Muito obrigado por fazer parte da <span class="acento">' + esc(EMPRESA.replace(/^Grupo\s+/i, '')) + ' Consórcios</span>!</h2>' +
+      '<p>Cadastro concluído. O termo foi baixado para envio ao pós-venda.</p>' +
+      (site ? '<p class="nota">Abrindo o site do ' + esc(EMPRESA) + '…</p><a href="' + esc(site) + '">Ir agora</a>' : '') + '</div>';
+    document.body.appendChild(tela);
+    const ir = tela.querySelector('a');
+    if (ir) ir.focus();
+    if (site) setTimeout(() => { window.location.href = site; }, 2200);
+    else setTimeout(() => tela.remove(), 2200);
   }
 
   function imprimir(lead, data) {
@@ -1202,13 +1293,12 @@
     } else {
       const r = C.simular(s);
       erros = r.validacoes.filter((v) => v.nivel === 'erro');
-      prop = montarProposta(s, r);
+      prop = await montarProposta(s, r);
       mensagem = mensagemWhatsapp(s, r);
       prefixo = 'Proposta_';
     }
     $('#proposta').innerHTML = prop.html;
-    const nota = (erros.length ? '<p class="aviso">Há ' + erros.length + ' erro(s) de preenchimento. Os itens afetados aparecem como "Não calculado".</p>' : '') +
-      (prop.semWhatsapp ? '<p class="aviso">O botão "Falar no WhatsApp" da ' + (cont ? 'última página' : 'página 3') + ' está sem número: informe o WhatsApp do especialista em js/config.js.</p>' : '');
+    const nota = erros.length ? '<p class="aviso">Há ' + erros.length + ' erro(s) de preenchimento. Os itens afetados aparecem como "Não calculado".</p>' : '';
     const envio = '<div class="envio"><div><b>Enviar ao cliente</b><p>Clique em <b>Gerar proposta</b>: o PDF é baixado e a mensagem para o WhatsApp de ' + esc(s.contato.cliente) + ' fica pronta para copiar.</p></div>' +
       '<button type="button" class="botao-whats" data-gerar-proposta>Gerar proposta</button></div>' +
       '<div class="mensagem-envio" hidden><div class="mensagem-topo"><b>Mensagem para o WhatsApp</b><button type="button" class="botao-copiar" data-copiar-msg>Copiar mensagem</button></div>' +
@@ -1346,8 +1436,9 @@
   }
 
   async function baixarArquivo(blob, nome) {
-    if (window.MODO_ARTIFACT) {
-      const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    // Página publicada no claude.ai: o download passa pelo recurso de downloads; fora dela, link de download comum
+    if (window.MODO_ARTIFACT && window.claude && window.claude.use) {
+      const downloads = await window.claude.use('downloads');
       if (!downloads) throw { code: 'unavailable' };
       await downloads.save({ filename: nome, data: blob });
       return;
@@ -1382,8 +1473,6 @@
         atualizarValoresTravados(r);
         marcarCampos(r.validacoes, '');
       }
-      gravar(CHAVE_ATUAL, estado);
-      gravar(CHAVE_CONT, estadoCont);
     });
   }
 
@@ -1397,12 +1486,11 @@
     if (prefixo && !String(estado.plano.lead || '').trim()) $$('[data-k="plano.lead"]').forEach((el) => el.classList.add('campo-erro'));
   }
 
-  estado = salvo ? mesclar(C.estadoPadrao(), salvo) : exemplo();
-  estadoCont = salvoCont ? mesclar(CC.estadoPadrao(), salvoCont) : exemploCont();
-  if (!Array.isArray(estadoCont.cartas) || !estadoCont.cartas.length) estadoCont.cartas = [CC.cartaVazia()];
-  TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, EMPRESA, numeroWhatsapp, graficoLinhas });
-  TA = window.Adesao({ esc, janela, avisar, gerarPdfArquivo, baixarArquivo, copiarTexto, nomeArquivo, lerJson, LOGO, EMPRESA });
-  modo = modoDaUrl() || (function () { try { return localStorage.getItem(CHAVE_MODO); } catch (e) { return null; } })() || 'primario';
+  estado = inicial();
+  estadoCont = inicialCont();
+  TC = window.TelaContemplada({ esc, tituloSecao, logoPar, LOGO, EMPRESA, graficoLinhas });
+  TA = window.Adesao({ esc, janela, avisar, gerarPdfArquivo, baixarArquivo, nomeArquivo, lerJson, agradecer, LOGO, EMPRESA });
+  modo = modoDaUrl() || 'primario';
   // Dados enviados pelo CRM no botão "Gerar proposta" (?nome=...&contato=..., também aceitos depois do #).
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.
   let planoCrm = '';
@@ -1430,6 +1518,9 @@
   };
   const comUrlCrm = !!(window.CONFIG_SIMULADOR || {}).planosUrl;
   document.querySelectorAll('img[data-logo]').forEach((img) => { img.src = LOGO[img.dataset.logo] || ''; img.alt = EMPRESA; });
+  // Versão do simulador abaixo do logo (js/config.js)
+  const versao = String((window.CONFIG_SIMULADOR || {}).versao || '').trim();
+  if (versao && $('#versao-simulador')) $('#versao-simulador').textContent = 'v' + versao;
   preencherSelects();
   let planoAplicado = aplicarPlanoCrm(!comUrlCrm);
   ligarMenu();

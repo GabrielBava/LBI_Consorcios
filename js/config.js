@@ -3,10 +3,13 @@
  *
  * empresa: nome da empresa exibido na proposta, no PDF e na mensagem do WhatsApp.
  *
- * emailPosVenda: e-mail do time de pós-venda que recebe o termo de adesão ("Transmitir proposta").
+ * versao: versão do simulador, exibida abaixo do logo. Troque a cada nova versão distribuída.
  *
- * whatsappEspecialista: número do especialista usado no botão "Falar no WhatsApp"
- * da página 3 do PDF. Informe com DDD, por exemplo '11987654321'.
+ * validadeVersao: (opcional, 'aaaa-mm-dd') último dia em que o arquivo protegido desta versão abre.
+ * Depois dessa data a tela de acesso pede a versão atual. Vazio = sem validade.
+ * A senha de acesso não fica aqui: é informada na hora de gerar o arquivo (npm run build:online).
+ *
+ * siteAposVenda: página aberta depois da tela de agradecimento do "Finalizar venda".
  *
  * planosUrl: endereço do CRM que devolve os planos cadastrados em JSON
  * (uma lista ou { "planos": [...] }). Quando vazio, usa a lista "planos" abaixo.
@@ -30,8 +33,9 @@
  */
 window.CONFIG_SIMULADOR = {
   empresa: 'Grupo Life Brasil',
-  emailPosVenda: '',
-  whatsappEspecialista: '',
+  versao: '1.2.1',
+  validadeVersao: '2026-12-31',
+  siteAposVenda: 'https://www.grupolifebrasil.com.br/',
   planosUrl: '',
   planos: [
     { id: 'EX-IMOVEL', exemplo: true, administradora: 'HS', nome: 'Imóvel 240 meses', categoria: 'imovel', creditoMinimo: 200000, prazo: 240, taxaAdm: 20, fundoReserva: 2, embutidoPct: 25, fixoPct: 50, indice: 'INCC' },

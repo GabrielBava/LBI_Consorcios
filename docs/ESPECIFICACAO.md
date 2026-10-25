@@ -1,7 +1,9 @@
 # Especificação funcional — Simulador de Cartas de Consórcio Primárias
 
-Versão 3.3 · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (termo de adesão).
+Versão 3.4 (exibida aos usuários como **versão 1.2.1**, em `js/config.js`) · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (ficha de cadastro do Finalizar venda).
 
+> **v3.4 (versão 1.2.1) — acesso protegido e fechamento:** tipo de pessoa, Estratégia de Cartas (split ou multiplicação), Lance Retido com recursos próprios + embutido, seguro sobre o valor total do plano (com adesão), regra do redutor da Porto igual à da HS, cada acesso começa do zero, **Finalizar venda** (download do termo e tela de agradecimento), PDF com data e hora e sem o botão de WhatsApp, novo aviso da proposta, veículo sem alavancagem, versão abaixo do logo e arquivo protegido por senha (seção 2.14).
+>
 > **v3.3 — seguro e ficha de fechamento:** o seguro prestamista passa a incidir sobre crédito + taxa de administração + fundo de reserva; a ficha do Transmitir proposta ganhou a lista de campos de fechamento, busca do endereço pelo CEP, dados bancários e data e hora da emissão (seção 2.13).
 >
 > **v3.2 — ajustes do simulador:** administradora digitável, Recursos próprios e FGTS (com dica), FGTS travado no veículo, **Lance Retido**, seta para recolher as tabelas de venda, projeções sem o gráfico de rentabilidade, **Transmitir proposta** (termo de adesão para o pós-venda) e PDF no tema claro (seção 2.13).
@@ -243,6 +245,41 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
   - **Privacidade:** os dados pessoais ficam só na memória da aba e valem para o cliente da proposta (nome e celular): outro cliente ou **Nova proposta** começam a ficha do zero. O navegador lembra apenas nome e e-mail do consultor.
 - **PDF da proposta:** tema claro (fundo branco, títulos laranja, texto grafite e logo na versão clara); o conteúdo é o mesmo. A página 1 traz até quatro cartões (Sorteio, Lance Embutido, Lance Fixo e Lance Retido).
 
+### 2.14 Ajustes v3.4 (versão 1.2.1)
+
+- **Tipo de pessoa:** Física ou Jurídica, logo abaixo da Categoria (na página 2, abaixo do Segmento; é o mesmo campo nas duas páginas). Aparece nas Características do Plano e vai para a ficha do Finalizar venda. **Pessoa jurídica não usa FGTS:** o campo fica travado, como no veículo.
+- **Estratégia de Cartas** (último módulo do menu da página 1; desligado ao iniciar):
+  - **Split do crédito:** o crédito simulado é dividido em N cartas iguais (2 a 20).
+  - **Multiplicar:** N cartas iguais à simulada (1 a 20).
+  - A proposta ganha a seção **Estratégia de Cartas** (tela e PDF): a frase de resumo ("Crédito de R$ 1.000.000,00 dividido em 4 cartas de R$ 250.000,00"), crédito por carta e total, parcela inicial por carta e total, e a tabela por forma de contemplação com lance, crédito disponível e parcela pós-contemplação por carta e no total. Como parcelas, lances e saldos são proporcionais ao crédito, cada carta é a simulação × (1 ÷ N) no split; no multiplicar, o total é a simulação × N.
+  - Com plano cadastrado, aviso quando cada carta fica abaixo do crédito mínimo do plano.
+- **Lance Retido** (substitui o modelo da v3.2): o bloco tem as suas próprias caixas, nesta ordem:
+  - **Usar recursos próprios:** valor em R$ (o valor do bem do cliente: tabela FIPE do veículo ou avaliação do imóvel) e, travado, o % do crédito.
+  - **Usar lance embutido:** % do crédito (padrão 25%) e, travado, o valor em R$.
+  - **Total:** % do crédito e valor (R$), a soma das duas partes. Erro quando nenhuma caixa está marcada ou quando a parte marcada está sem valor; alerta quando o total passa do crédito ou do saldo devedor. Não depende do bloco Recursos próprios (dinheiro e FGTS) nem do Lance Embutido.
+- **Modalidade Parcela:** o seletor ocupa a largura do bloco. O aviso do redutor diz se ele vale para a parcela inteira (HS e Porto Seguro) ou só para o fundo comum.
+- **Redutor da Porto Seguro igual ao da HS:** com Porto Seguro (ou "Porto"), o redutor incide sobre a parcela inteira (fundo comum + taxa de administração + fundo de reserva) até a contemplação, e a diferença é recomposta depois.
+- **Seguro prestamista sobre o valor total do plano:** % ao mês × (crédito atualizado × (1 + taxa de administração + fundo de reserva) + adesão, quando houver).
+- **Cada acesso começa do zero:** nenhuma proposta fica gravada no navegador. Ao abrir, valem só as premissas base (valores padrão da categoria, contemplação no mês 12, índice estimado em 5% a.a.; na página 2, uma carta em branco). Propostas guardadas por versões anteriores são apagadas ao abrir. O navegador continua lembrando só preferências de tela (tema, menu, tabelas recolhidas) e o nome e o e-mail do consultor.
+- **Proposta em PDF:**
+  - Topo com **"Emitido em dd/mm/aaaa às hh:mm"** (as duas páginas).
+  - Sem o bloco "Vamos dar o próximo passo? / Falar no WhatsApp" (as duas páginas).
+  - **Aviso "Importante" da proposta de consórcio:** simulação sujeita a pequenos ajustes na transmissão; proibida garantia ou promessa de data de contemplação; desempate do lance fixo pela aproximação do número da cota sorteada pela Loteria Federal; adesão sujeita à disponibilidade de cotas; desistência em até 7 (sete) dias da adesão ou até a primeira assembleia; valores de venda e CET estimados; com seguro prestamista, a quitação integral da cota em caso de morte ou invalidez.
+  - **Veículo:** só as páginas 1 e 3 (sem o Panorama de Alavancagem, que não serve para veículo). Na tela, a Simulação e o Mecanismo de Alavancagem também ficam ocultos no veículo.
+  - A última página (aquisição, Bônus Fidelidade, Estratégia de Cartas e aviso) é medida: o que não couber segue para uma página a mais, e o aviso nunca fica sozinho.
+- **Finalizar venda** (substitui "Transmitir proposta", que dava a ideia de envio; é uma etapa preliminar de coleta de dados):
+  - Ficha sem grupo e cota (definidos depois, na assinatura do termo); o tipo de pessoa vem da simulação. **Pessoa jurídica:** grupo **Dados da empresa** (CNPJ com dígito verificador, razão social, nome fantasia, data de abertura, faturamento mensal) e os dados pessoais passam a ser do **representante legal**.
+  - **Concluir e baixar termo** baixa o PDF **`Termo_Cadastro_Consorcio_<cliente>_<administradora>.pdf`** ("Cadastro de Consórcio", com data e hora da emissão). Não há mais e-mail: o consultor encaminha o arquivo ao pós-venda.
+  - Em seguida, uma tela breve de agradecimento ("Muito obrigado por fazer parte da Life Brasil Consórcios!") e, cerca de 2 segundos depois, o site do grupo (`siteAposVenda` em `js/config.js`, hoje https://www.grupolifebrasil.com.br/). Se o download falhar, a ficha continua aberta, com o aviso.
+- **Versão abaixo do logo:** "Simulador v1.2.1" (campo `versao` de `js/config.js`), também na tela de acesso do arquivo protegido.
+- **Acesso por senha e proteção do arquivo** (`npm run build:protegido`, ver o README):
+  - Gera `dist/Simulador_Life_v<versão>.html`, o arquivo único para distribuir à equipe (funciona sem internet, com as bibliotecas do PDF embutidas).
+  - Todo o simulador (HTML, CSS e JS) vai **criptografado** com AES-256-GCM, com a chave derivada da senha por PBKDF2-SHA256 (600 mil iterações). O arquivo só mostra a tela de acesso; sem a senha não há código nem texto do simulador para copiar. A senha (4 a 8 dígitos) é informada na hora do build e não fica gravada no arquivo nem no repositório.
+  - Senha errada: "Senha incorreta"; a cada 5 erros, espera de 30 segundos.
+  - **Validade da versão:** depois de `validadeVersao` (`js/config.js`, hoje 31/12/2026), o arquivo não abre mais e pede a versão atual.
+  - Depois de aberto: sem menu do botão direito, sem seleção e cópia de texto fora dos campos, e sem os atalhos de salvar (Ctrl+S), ver código (Ctrl+U) e ferramentas do desenvolvedor (F12, Ctrl+Shift+I/J/C). Os scripts saem da página depois de carregados.
+  - **Limites:** é uma proteção contra acesso e cópia casuais. Quem tem a senha consegue usar o simulador e, com conhecimento técnico, ler o código pelas ferramentas do navegador; uma senha de 4 dígitos também pode ser descoberta por tentativa com ferramentas próprias. A troca mensal da senha e a validade da versão limitam o uso de arquivos antigos.
+
 ## 3. Fórmulas
 
 Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = redutor; F(m) = fator de reajuste.
@@ -258,13 +295,14 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 | Taxa de administração do mês | (TA% ÷ N) × C × F |
 | Fundo de reserva do mês | (FR% ÷ N) × C × F |
 | Adesão do mês | (Adesão% × C) ÷ meses de diluição, nos primeiros meses |
-| Seguro prestamista do mês | Seguro% × C × F × (1 + TA% + FR%) — sobre crédito + taxa de administração + fundo de reserva (v3.3; antes, só sobre o crédito) |
+| Seguro prestamista do mês | Seguro% × [C × F × (1 + TA% + FR%) + Adesão% × C] — sobre o valor total do plano: crédito, taxa de administração e fundo de reserva atualizados, mais a adesão (v3.4; v3.3 sem a adesão; antes, só sobre o crédito) |
 | **Parcela total** | Fundo comum + Taxa adm. + Fundo de reserva + Adesão + Seguro |
 | Lance (fixo ou livre) | % × C × F(mC) |
 | Lance embutido | % embutido × C × F(mC), limitado ao lance |
 | Recursos próprios | Lance − Embutido |
 | Uso dos recursos informados (v3.2) | FGTS usado = min(FGTS informado, recursos próprios) — só imóvel; dinheiro = recursos próprios − FGTS usado; falta = max(0, dinheiro − recursos próprios informados) |
-| Lance Retido (v3.2) | Lance = valor ofertado (R$); % do crédito = valor ÷ (C × F(mC)); em dinheiro = lance − embutido − FGTS usado |
+| Lance Retido (v3.4) | Recursos próprios = valor do bem informado (R$); embutido = % × C × F(mC); lance = recursos próprios + embutido; % do crédito = lance ÷ (C × F(mC)) |
+| Estratégia de cartas (v3.4) | Split: por carta = simulação ÷ N, total = simulação; multiplicar: por carta = simulação, total = simulação × N |
 | **Crédito líquido** | C × F(mC) − Embutido |
 | Saldo na contemplação | Σ (fundo comum + taxa + fundo de reserva) das parcelas restantes, a valores do mês da contemplação |
 | Abatimento por parcela | Parcelas restantes × (1 − Lance ÷ Saldo) |
@@ -293,8 +331,11 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 | Recursos próprios marcado sem valor (nem FGTS, no imóvel); valores negativos | Erro |
 | Recursos próprios insuficientes para o lance | Alerta (mostra quanto falta) |
 | FGTS informado com categoria Veículo | Informação (o FGTS não entra no lance) |
-| Lance Retido ativado sem valor | Erro |
+| Lance Retido sem nenhuma parte marcada; parte marcada sem valor; embutido fora de 0–100% | Erro |
 | Lance Retido acima do crédito; lance acima do saldo devedor na contemplação | Alerta |
+| Estratégia de cartas com quantidade fora de 2–20 (split) ou 1–20 (multiplicar) | Erro |
+| Cada carta do split abaixo do crédito mínimo do plano cadastrado | Alerta (na seção) |
+| FGTS informado com pessoa jurídica | Informação (o FGTS não entra no lance) |
 | Embutido maior que o lance | Alerta (limitado ao lance) |
 | Índice com taxa estimada | Informação — "A projeção usa uma taxa estimada para o índice selecionado." |
 | Sempre nos cenários | "Mês de contemplação projetado, sem garantia de ocorrência." · "Resultado estimado: depende das premissas informadas." |
@@ -320,5 +361,5 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 
 - Motor de cálculo puro em `js/calc.js`, testado em `tests/calc.test.js` (`npm test`).
 - Cada valor carrega fórmula, números usados e origem.
-- As entradas ficam guardadas no navegador, para reabrir a simulação (o antigo **Salvar proposta** em .json saiu na v3.2).
+- As entradas não ficam guardadas: cada acesso começa do zero (v3.4). O antigo **Salvar proposta** em .json saiu na v3.2.
 - Regras fixas (reajuste a cada 12 meses, venda de 20%, padrões de 0,038%, 25% e 50%) ficam em `REGRAS`, em `js/calc.js`.

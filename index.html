@@ -19,12 +19,12 @@
     <div class="marca">
       <img class="logo logo-escuro" data-logo="escuro" alt="Grupo Life Brasil">
       <img class="logo logo-claro" data-logo="claro" alt="Grupo Life Brasil">
-      <span class="marca-modulo">Simulador</span>
+      <span class="marca-modulo">Simulador <span class="marca-versao" id="versao-simulador"></span></span>
     </div>
     <!-- Páginas do simulador (no celular; na tela larga ficam no topo da proposta) -->
     <nav class="paginas paginas-menu" aria-label="Páginas do simulador"></nav>
     <div class="toolbar">
-      <button type="button" data-acao="transmitir" class="primario"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 21.7a.5.5 0 0 0 .9 0l6.5-19a.5.5 0 0 0-.6-.6l-19 6.5a.5.5 0 0 0 0 .9l7.9 3.2a2 2 0 0 1 1.1 1.1z"/><path d="m21.9 2.1-10.9 10.9"/></svg>Transmitir proposta</button>
+      <button type="button" data-acao="finalizar" class="primario"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/></svg>Finalizar venda</button>
       <button type="button" data-acao="nova"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Nova proposta</button>
       <button type="button" data-acao="pdf"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5Z"/><path d="M14 3v5h5"/><path d="M12 11v6"/><path d="m9 14 3 3 3-3"/></svg>Gerar proposta</button>
     </div>
@@ -47,6 +47,13 @@
         <div class="seg-opcoes">
           <label><input type="radio" name="categoria" id="f-categoria-imovel" data-k="plano.categoria" value="imovel"><span>Imóvel</span></label>
           <label><input type="radio" name="categoria" id="f-categoria-veiculo" data-k="plano.categoria" value="veiculo"><span>Veículo</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="f segmentado">
+        <legend>Tipo de pessoa</legend>
+        <div class="seg-opcoes">
+          <label><input type="radio" name="tipoPessoa" id="f-pessoa-fisica" data-k="plano.tipoPessoa" value="fisica"><span>Física</span></label>
+          <label><input type="radio" name="tipoPessoa" id="f-pessoa-juridica" data-k="plano.tipoPessoa" value="juridica"><span>Jurídica</span></label>
         </div>
       </fieldset>
       <label class="f"><span>Administradora</span>
@@ -104,19 +111,18 @@
     <!-- 2. Modalidade Parcela -->
     <details class="secao" open data-secao="parcela">
       <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 10h18"/><path d="M7 15h3"/></svg>Modalidade Parcela</summary>
-      <div class="grid2">
-        <label class="f"><span>Modalidade</span>
-          <select id="f-modalidade" data-k="parcela.modalidade">
-            <option value="integral">Parcela integral</option>
-            <option value="r50">Redutor de 50%</option>
-            <option value="r25">Redutor de 25%</option>
-            <option value="outro">Outro percentual</option>
-          </select></label>
-        <label class="f" data-show="parcela.modalidade=outro"><span>% de redução</span>
+      <label class="f"><span>Modalidade</span>
+        <select id="f-modalidade" data-k="parcela.modalidade">
+          <option value="integral">Parcela integral</option>
+          <option value="r50">Redutor de 50%</option>
+          <option value="r25">Redutor de 25%</option>
+          <option value="outro">Outro percentual</option>
+        </select></label>
+      <div class="grid2" data-show="parcela.modalidade=outro">
+        <label class="f"><span>% de redução</span>
           <input type="number" id="f-redutorOutro" data-k="parcela.redutorOutro" min="0" max="99" step="any"></label>
       </div>
-      <small class="nota" data-show="parcela.modalidade!=integral&plano.administradora!=HS">Redutor só no fundo comum. Vale até a contemplação; a diferença é diluída depois.</small>
-      <small class="nota" data-show="parcela.modalidade!=integral&plano.administradora=HS">HS: redutor sobre a parcela inteira (fundo comum + taxa adm. + fundo de reserva). Vale até a contemplação; a diferença é diluída depois.</small>
+      <small class="nota" id="nota-redutor" data-show="parcela.modalidade!=integral"></small>
     </details>
 
     <!-- 3. Estratégias de Contemplação -->
@@ -130,7 +136,7 @@
           <label class="f"><span>FGTS (R$)</span>
             <input type="text" id="f-fgtsValor" data-k="lances.fgtsValor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
         </div>
-        <small class="nota" data-show="lances.recursosAtivo&amp;plano.categoria=veiculo">Veículo: o FGTS só pode ser usado em imóveis.</small>
+        <small class="nota" id="nota-fgts" hidden></small>
       </div>
       <div class="bloco">
         <label class="chk chk-titulo"><input type="checkbox" id="f-embutidoAtivo" data-k="lances.embutidoAtivo"> Lance Embutido</label>
@@ -165,20 +171,25 @@
           </div>
         </div>
       </div>
-      <div class="bloco">
+      <div class="bloco bloco-retido">
         <label class="chk chk-titulo"><input type="checkbox" id="f-retidoAtivo" data-k="lances.retidoAtivo"> Lance Retido</label>
         <div data-show="lances.retidoAtivo">
-          <label class="f"><span>Valor do lance (R$)</span>
-            <input type="text" id="f-retidoValor" data-k="lances.retidoValor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
-          <div class="grid2">
-            <label class="f"><span>% do Crédito</span><output class="valor-travado" id="v-retidoPct" data-valor="retidoPct" aria-live="polite">—</output></label>
-            <label class="f"><span>Em dinheiro (R$)</span><output class="valor-travado" id="v-retidoDinheiro" data-valor="retidoDinheiro" aria-live="polite">—</output></label>
+          <label class="chk chk-sub"><input type="checkbox" id="f-retidoUsarRecursos" data-k="lances.retidoUsarRecursos"> Usar recursos próprios</label>
+          <div class="grid2" data-show="lances.retidoUsarRecursos">
+            <label class="f"><span>Valor (R$)</span>
+              <input type="text" id="f-retidoRecursosValor" data-k="lances.retidoRecursosValor" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
+            <label class="f"><span>% do Crédito</span><output class="valor-travado" id="v-retidoRecursosPct" data-valor="retidoRecursosPct" aria-live="polite">—</output></label>
           </div>
-          <div class="linha-chk">
-            <label class="chk chk-sub"><input type="checkbox" id="f-retidoUsarEmbutido" data-k="lances.retidoUsarEmbutido"> Usar Embutido</label>
-            <label class="chk chk-sub" data-show="lances.recursosAtivo"><input type="checkbox" id="f-retidoUsarRecursos" data-k="lances.retidoUsarRecursos"> Usar Recursos próprios</label>
+          <small class="nota" data-show="lances.retidoUsarRecursos">Valor do bem do cliente: tabela FIPE do veículo ou avaliação do imóvel.</small>
+          <label class="chk chk-sub"><input type="checkbox" id="f-retidoUsarEmbutido" data-k="lances.retidoUsarEmbutido"> Usar lance embutido</label>
+          <div class="grid2" data-show="lances.retidoUsarEmbutido">
+            <label class="f"><span>% do Crédito</span><input type="number" id="f-retidoEmbutidoPct" data-k="lances.retidoEmbutidoPct" min="0" max="100" step="any"></label>
+            <label class="f"><span>Valor (R$)</span><output class="valor-travado" id="v-retidoEmbutido" data-valor="retidoEmbutido" aria-live="polite">—</output></label>
           </div>
-          <small class="nota">Oferta pelo valor do bem (por exemplo, o veículo): informe o valor em R$; o percentual sobre o crédito e a parte em dinheiro são calculados.</small>
+          <div class="grid2 retido-total">
+            <label class="f"><span>Total · % do Crédito</span><output class="valor-travado" id="v-retidoTotalPct" data-valor="retidoTotalPct" aria-live="polite">—</output></label>
+            <label class="f"><span>Total · Valor (R$)</span><output class="valor-travado" id="v-retidoTotal" data-valor="retidoTotal" aria-live="polite">—</output></label>
+          </div>
         </div>
       </div>
     </details>
@@ -216,7 +227,7 @@
     </details>
 
     <!-- 5. Mecanismo de Alavancagem (opcional) -->
-    <details class="secao" open data-secao="mecanismo">
+    <details class="secao" open data-secao="mecanismo" data-show="plano.categoria!=veiculo">
       <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>Mecanismo de Alavancagem</summary>
       <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="f-mecanismoAtivo" data-k="mecanismo.ativo"> Habilitar Mecanismo de Alavancagem</label>
       <div data-show="mecanismo.ativo">
@@ -254,6 +265,32 @@
         <label class="chk"><input type="checkbox" id="f-projCredito" data-k="projecoes.credito"> Crédito</label>
       </div>
     </details>
+
+    <!-- 7. Estratégia de Cartas -->
+    <details class="secao" open data-secao="estrategiaCartas">
+      <summary><svg class="icone" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="13" height="10" rx="2"/><path d="M6 4h12a2 2 0 0 1 2 2v8"/><path d="M10 1h10a2 2 0 0 1 2 2v8"/></svg>Estratégia de Cartas</summary>
+      <label class="chk chk-titulo linha-habilitar"><input type="checkbox" id="f-cartasAtivo" data-k="estrategiaCartas.ativo"> Habilitar estratégia de cartas</label>
+      <div data-show="estrategiaCartas.ativo">
+        <fieldset class="f segmentado">
+          <legend>Estratégia</legend>
+          <div class="seg-opcoes">
+            <label><input type="radio" name="estrategiaCartas" id="f-cartas-split" data-k="estrategiaCartas.tipo" value="split"><span>Split do crédito</span></label>
+            <label><input type="radio" name="estrategiaCartas" id="f-cartas-multiplicar" data-k="estrategiaCartas.tipo" value="multiplicar"><span>Multiplicar</span></label>
+          </div>
+        </fieldset>
+        <div class="grid2">
+          <label class="f"><span>Quantidade de cartas</span>
+            <input type="number" id="f-cartasQtd" data-k="estrategiaCartas.qtd" min="1" max="20" step="1"></label>
+          <div class="chips" role="group" aria-label="Atalhos de quantidade">
+            <button type="button" class="chip" data-qtd-cartas="2">2</button>
+            <button type="button" class="chip" data-qtd-cartas="3">3</button>
+            <button type="button" class="chip" data-qtd-cartas="4">4</button>
+          </div>
+        </div>
+        <small class="nota" data-show="estrategiaCartas.tipo=split">Split: o crédito simulado é dividido em cartas iguais. A proposta mostra os valores por carta e o total.</small>
+        <small class="nota" data-show="estrategiaCartas.tipo=multiplicar">Multiplicar: cartas iguais à simulada. A proposta mostra os valores por carta e o total das cartas.</small>
+      </div>
+    </details>
     </div>
 
     <!-- ===================== PÁGINA 2: CARTA CONTEMPLADA ===================== -->
@@ -268,6 +305,13 @@
           <label><input type="radio" name="c-segmento" data-k="cont.segmento" value="imovel"><span>Imóvel</span></label>
           <label><input type="radio" name="c-segmento" data-k="cont.segmento" value="veiculo"><span>Veículo</span></label>
           <label><input type="radio" name="c-segmento" data-k="cont.segmento" value="servico"><span>Serviço</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="f segmentado">
+        <legend>Tipo de pessoa</legend>
+        <div class="seg-opcoes">
+          <label><input type="radio" name="c-tipoPessoa" id="c-pessoa-fisica" data-k="plano.tipoPessoa" value="fisica"><span>Física</span></label>
+          <label><input type="radio" name="c-tipoPessoa" id="c-pessoa-juridica" data-k="plano.tipoPessoa" value="juridica"><span>Jurídica</span></label>
         </div>
       </fieldset>
       <label class="f"><span>Administradora</span>

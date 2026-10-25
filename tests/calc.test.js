@@ -64,10 +64,11 @@ test('adesão diluída e seguro prestamista somados à parcela', () => {
   const s = base();
   Object.assign(s.plano, { adesaoAtiva: true, adesaoPct: 1, adesaoMeses: 5, seguroAtivo: true });
   const n = Calc.nucleo(s, 'sorteio');
-  // Seguro: 0,038% sobre crédito + taxa adm. (20%) + fundo de reserva (2%) = 0,038% × 122.000 = 46,36
-  near(n.linhas[0].seguro, 46.36);
-  near(n.linhas[0].total, 1220 + 200 + 46.36);
-  near(n.linhas[5].total, 1220 + 46.36);
+  // Seguro: 0,038% sobre o valor total do plano = crédito 100.000 + taxa adm. 20% + fundo de reserva 2% + adesão 1%
+  // = 123.000 → 46,74
+  near(n.linhas[0].seguro, 46.74);
+  near(n.linhas[0].total, 1220 + 200 + 46.74);
+  near(n.linhas[5].total, 1220 + 46.74);
 });
 
 function comLances(s) {
@@ -365,25 +366,85 @@ test('veículo: o FGTS fica de fora do lance', () => {
   assert.ok(Calc.validar(s).some((v) => v.campo === 'lances.recursosValor' && v.nivel === 'erro'));
 });
 
-test('Lance Retido: valor em R$, percentual calculado, embutido e recursos como nas outras modalidades', () => {
+test('Lance Retido: recursos próprios (R$) + embutido (% do crédito) = total; cada parte só quando habilitada', () => {
   const s = base();
-  Object.assign(s.lances, { embutidoAtivo: true, embutidoPct: 25, retidoAtivo: true, retidoValor: 30000, retidoUsarEmbutido: true });
+  Object.assign(s.lances, { retidoAtivo: true, retidoUsarRecursos: true, retidoRecursosValor: 30000, retidoUsarEmbutido: true, retidoEmbutidoPct: 25 });
   const n = Calc.nucleo(s, 'retido');
   assert.ok(n.ok);
-  near(n.lance.total, 30000, 'o lance é o valor ofertado');
-  near(n.lance.pct, 30000 / n.credBruto * 100);
-  near(n.embutido, 25000);
-  near(n.proprios, 5000);
-  near(n.credLiquido, n.credBruto - 25000);
+  near(n.embutido, 0.25 * n.credBruto, 'embutido = % × crédito na contemplação');
+  near(n.proprios, 30000, 'recursos próprios = valor do bem');
+  near(n.lance.total, 30000 + 0.25 * n.credBruto, 'total = soma');
+  near(n.lance.pct, n.lance.total / n.credBruto * 100);
+  near(n.credLiquido, n.credBruto - n.embutido);
   const r = Calc.simular(s);
   assert.ok(r.cenarios.some((c) => c.mod === 'retido' && c.nome === 'Lance Retido'));
-  near(r.valoresLance.retidoPct, n.lance.pct);
-  near(r.valoresLance.retidoDinheiro, 5000);
-  // Sem valor: pendência e erro de validação
-  s.lances.retidoValor = null;
-  assert.ok(Calc.nucleo(s, 'retido').pend.includes('Valor do lance retido não informado'));
-  assert.ok(Calc.validar(s).some((v) => v.campo === 'lances.retidoValor' && v.nivel === 'erro'));
+  near(r.valoresLance.retidoRecursosPct, 30000 / r.baseLance * 100);
+  near(r.valoresLance.retidoEmbutido, 0.25 * r.baseLance);
+  near(r.valoresLance.retidoTotal, 30000 + 0.25 * r.baseLance);
+  near(r.valoresLance.retidoTotalPct, r.valoresLance.retidoTotal / r.baseLance * 100);
+  // Só recursos próprios: o embutido fica de fora (independe do bloco Lance Embutido)
+  s.lances.retidoUsarEmbutido = false;
+  s.lances.embutidoAtivo = false;
+  near(Calc.nucleo(s, 'retido').lance.total, 30000);
+  near(Calc.nucleo(s, 'retido').embutido, 0);
+  // Só embutido
+  Object.assign(s.lances, { retidoUsarRecursos: false, retidoUsarEmbutido: true });
+  near(Calc.nucleo(s, 'retido').proprios, 0);
+  // Nenhuma parte habilitada: pendência e erro
+  Object.assign(s.lances, { retidoUsarRecursos: false, retidoUsarEmbutido: false });
+  assert.ok(Calc.nucleo(s, 'retido').pend.includes('Lance retido: habilite recursos próprios e/ou lance embutido'));
+  assert.ok(Calc.validar(s).some((v) => v.campo === 'lances.retidoUsarRecursos' && v.nivel === 'erro'));
+  // Recursos habilitados sem valor: erro no campo
+  Object.assign(s.lances, { retidoUsarRecursos: true, retidoRecursosValor: null });
+  assert.ok(Calc.validar(s).some((v) => v.campo === 'lances.retidoRecursosValor' && v.nivel === 'erro'));
   // Lance acima do saldo devedor: aviso de excedente
-  s.lances.retidoValor = 500000;
+  s.lances.retidoRecursosValor = 500000;
   assert.ok(Calc.simular(s).validacoes.some((v) => /passa do saldo devedor/.test(v.msg)));
+});
+
+test('redutor na parcela inteira: HS e Porto Seguro; nas demais, só no fundo comum', () => {
+  const parcela1 = (adm) => {
+    const s = base();
+    s.plano.administradora = adm;
+    s.parcela.modalidade = 'r50';
+    return Calc.nucleo(s, 'sorteio').linhas[0].plano;
+  };
+  near(parcela1('HS'), 1220 * 0.5, 'HS: (FC + TA + FR) × 50%');
+  near(parcela1('Porto Seguro'), 1220 * 0.5, 'Porto Seguro: igual à HS');
+  near(parcela1('porto'), 1220 * 0.5, 'porto (digitado): igual à HS');
+  near(parcela1('Embracon'), 1000 * 0.5 + 220, 'demais: redutor só no fundo comum');
+});
+
+test('estratégia de cartas: split divide e multiplicar repete a simulação', () => {
+  const s = comLances(base());
+  s.estrategiaCartas = { ativo: true, tipo: 'split', qtd: 4 };
+  const r = Calc.simular(s);
+  const e = r.cartas;
+  assert.ok(e.ok);
+  near(e.credito.carta, 25000, 'split: 100.000 em 4 cartas de 25.000');
+  near(e.credito.total, 100000);
+  const sorteio = r.cenarios.find((c) => c.mod === 'sorteio').nucleo;
+  near(e.parcelaInicial.carta, sorteio.linhas[0].total / 4);
+  near(e.parcelaInicial.total, sorteio.linhas[0].total);
+  const fixo = e.formas.find((f) => f.mod === 'fixo');
+  const nf = r.cenarios.find((c) => c.mod === 'fixo').nucleo;
+  near(fixo.lance.carta, nf.lance.total / 4);
+  near(fixo.credLiquido.total, nf.credLiquido);
+  // A carta de 25.000 simulada sozinha dá a mesma parcela (tudo é proporcional ao crédito)
+  const umaCarta = base();
+  umaCarta.plano.credito = 25000;
+  near(Calc.nucleo(umaCarta, 'sorteio').linhas[0].total, e.parcelaInicial.carta);
+  // Multiplicar: 3 cartas iguais à simulada
+  s.estrategiaCartas = { ativo: true, tipo: 'multiplicar', qtd: 3 };
+  const m = Calc.simular(s).cartas;
+  near(m.credito.carta, 100000);
+  near(m.credito.total, 300000);
+  near(m.formas.find((f) => f.mod === 'fixo').parcelaPos.total, nf.parcelaPosAtual * 3);
+  // Quantidade inválida: split pede ao menos 2 cartas
+  s.estrategiaCartas = { ativo: true, tipo: 'split', qtd: 1 };
+  assert.equal(Calc.simular(s).cartas.ok, false);
+  assert.ok(Calc.validar(s).some((v) => v.campo === 'estrategiaCartas.qtd' && v.nivel === 'erro'));
+  // Desligada: sem resultado
+  s.estrategiaCartas.ativo = false;
+  assert.equal(Calc.simular(s).cartas, null);
 });

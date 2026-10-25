@@ -1,8 +1,8 @@
-/* Transmitir proposta: ficha de fechamento para o termo de adesão (uso interno, backoffice).
+/* Finalizar venda: ficha de cadastro para o termo de adesão (uso interno, backoffice).
  * O consultor confere os dados do fechamento (vindos da simulação) e preenche os dados do cliente;
- * ao finalizar, o simulador gera um PDF com data e hora da emissão e um e-mail pronto para o time de
- * pós-venda subir o termo e gerar a venda. Os campos ficam em CAMPOS_ADESAO.
- * Criado pelo app.js (window.Adesao(ui)), que fornece os utilitários compartilhados. */
+ * ao concluir, o simulador baixa o PDF "Termo de cadastro de consórcio" (com data e hora da emissão),
+ * que o consultor encaminha ao pós-venda, e mostra a tela de agradecimento antes de abrir o site.
+ * Os campos ficam em CAMPOS_ADESAO. Criado pelo app.js (window.Adesao(ui)). */
 (function () {
   'use strict';
 
@@ -11,9 +11,11 @@
   const BANCOS = ['001 · Banco do Brasil', '104 · Caixa Econômica Federal', '237 · Bradesco', '341 · Itaú Unibanco', '033 · Santander',
     '260 · Nubank', '077 · Banco Inter', '336 · C6 Bank', '756 · Sicoob', '748 · Sicredi', '041 · Banrisul', '070 · BRB', '212 · Banco Original', '655 · Banco Votorantim'];
   const CASADO = { campo: 'estadoCivil', valores: ['Casado(a)', 'União estável'] };
+  const PJ = { campo: 'tipoPessoa', valores: ['Jurídica'] };
 
   /**
-   * Campos da ficha, por grupo. Tipos: texto, cpf, data, email, tel, cep, moeda, inteiro, percentual, lista, area.
+   * Campos da ficha, por grupo. Tipos: texto, cpf, cnpj, data, email, tel, cep, moeda, inteiro, percentual, lista, area.
+   * grupoPJ: nome do grupo quando o cliente é pessoa jurídica.
    * obrigatorio: precisa ser preenchido (campos ocultos não contam); largura 'meia' ocupa meia linha;
    * mostrar: condição (outro campo = valores); proposta: vem da simulação em tela ao abrir;
    * lembrar: o navegador guarda (só os dados do consultor); sugestoes: lista para escolher ou digitar.
@@ -21,13 +23,21 @@
   const CAMPOS_ADESAO = [
     { id: 'fechamento', grupo: 'Fechamento', campos: [
       { id: 'estrategia', rotulo: 'Estratégia', tipo: 'lista', opcoes: ['Aquisição', 'Alavancagem'], obrigatorio: true, largura: 'meia' },
+      { id: 'tipoPessoa', rotulo: 'Tipo de pessoa', tipo: 'lista', opcoes: ['Física', 'Jurídica'], obrigatorio: true, largura: 'meia', proposta: true },
       { id: 'tipoCarta', rotulo: 'Tipo da carta', tipo: 'lista', opcoes: ['Imóvel', 'Veículo', 'Serviço'], obrigatorio: true, largura: 'meia', proposta: true },
       { id: 'prazo', rotulo: 'Prazo (meses)', tipo: 'inteiro', min: 1, max: 600, obrigatorio: true, largura: 'meia', proposta: true },
       { id: 'valorCarta', rotulo: 'Valor da carta (R$)', tipo: 'moeda', obrigatorio: true, largura: 'meia', proposta: true },
       { id: 'redutor', rotulo: 'Percentual redutor (%)', tipo: 'percentual', largura: 'meia', proposta: true },
       { id: 'seguroPrestamista', rotulo: 'Seguro prestamista', tipo: 'lista', opcoes: ['Sim', 'Não'], obrigatorio: true, largura: 'meia', proposta: true }
     ] },
-    { id: 'consorciado', grupo: 'Dados do consorciado', campos: [
+    { id: 'empresa', grupo: 'Dados da empresa', campos: [
+      { id: 'cnpj', rotulo: 'CNPJ', tipo: 'cnpj', obrigatorio: true, largura: 'meia', mostrar: PJ },
+      { id: 'razaoSocial', rotulo: 'Razão social', tipo: 'texto', obrigatorio: true, largura: 'meia', mostrar: PJ },
+      { id: 'nomeFantasia', rotulo: 'Nome fantasia', tipo: 'texto', largura: 'meia', mostrar: PJ },
+      { id: 'dataAbertura', rotulo: 'Data de abertura', tipo: 'data', obrigatorio: true, largura: 'meia', mostrar: PJ },
+      { id: 'faturamento', rotulo: 'Faturamento mensal (R$)', tipo: 'moeda', obrigatorio: true, largura: 'meia', mostrar: PJ }
+    ] },
+    { id: 'consorciado', grupo: 'Dados do consorciado', grupoPJ: 'Dados do representante legal', campos: [
       { id: 'cpf', rotulo: 'CPF', tipo: 'cpf', obrigatorio: true, largura: 'meia' },
       { id: 'nome', rotulo: 'Nome completo', tipo: 'texto', obrigatorio: true, largura: 'meia' },
       { id: 'nascimento', rotulo: 'Data de nascimento', tipo: 'data', idadeMinima: 18, obrigatorio: true, largura: 'meia' },
@@ -59,9 +69,8 @@
       { id: 'agencia', rotulo: 'Agência', tipo: 'texto', obrigatorio: true, largura: 'meia' },
       { id: 'conta', rotulo: 'Conta (com dígito)', tipo: 'texto', obrigatorio: true, largura: 'meia' }
     ] },
-    { id: 'cota', grupo: 'Dados da cota', campos: [
-      { id: 'grupoCota', rotulo: 'Grupo', tipo: 'texto', largura: 'meia' },
-      { id: 'numeroCota', rotulo: 'Cota', tipo: 'texto', largura: 'meia' },
+    // Grupo e cota são definidos depois, na assinatura do termo
+    { id: 'pagamento', grupo: 'Pagamento', campos: [
       { id: 'vencimento', rotulo: 'Dia de vencimento', tipo: 'lista', opcoes: ['5', '10', '15', '20', '25'], largura: 'meia' },
       { id: 'pagamento', rotulo: 'Pagamento da 1ª parcela', tipo: 'lista', opcoes: ['Boleto', 'PIX', 'Cartão de crédito', 'Débito em conta'], largura: 'meia' }
     ] },
@@ -92,6 +101,17 @@
     };
     return dv(9) === Number(d[9]) && dv(10) === Number(d[10]);
   }
+  /** CNPJ com dígitos verificadores válidos. */
+  function cnpjValido(t) {
+    const d = digitos(t);
+    if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+    const dv = (n) => {
+      const pesos = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+      const r = pesos.reduce((a, p, i) => a + p * Number(d[i]), 0) % 11;
+      return r < 2 ? 0 : 11 - r;
+    };
+    return dv(12) === Number(d[12]) && dv(13) === Number(d[13]);
+  }
   const emailValido = (t) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(t || '').trim());
 
   function mascara(tipo, t) {
@@ -99,6 +119,10 @@
     if (tipo === 'cpf') {
       const x = d.slice(0, 11);
       return x.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2');
+    }
+    if (tipo === 'cnpj') {
+      const x = d.slice(0, 14);
+      return x.replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
     }
     if (tipo === 'cep') return d.slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
     if (tipo === 'tel') {
@@ -131,6 +155,7 @@
     const t = String(v == null ? '' : v).trim();
     if (!t) return c.obrigatorio ? 'Campo obrigatório.' : '';
     if (c.tipo === 'cpf' && !cpfValido(t)) return 'CPF inválido.';
+    if (c.tipo === 'cnpj' && !cnpjValido(t)) return 'CNPJ inválido.';
     if (c.tipo === 'email' && !emailValido(t)) return 'E-mail inválido.';
     if (c.tipo === 'cep' && digitos(t).length !== 8) return 'CEP com 8 dígitos.';
     if (c.tipo === 'tel' && digitos(t).length < 10) return 'Telefone com DDD.';
@@ -173,6 +198,8 @@
   }
 
   const visivel = (c, dados) => !c.mostrar || c.mostrar.valores.includes(dados[c.mostrar.campo]);
+  const ehPJ = (dados) => dados.tipoPessoa === 'Jurídica';
+  const nomeGrupo = (g, dados) => (ehPJ(dados) && g.grupoPJ ? g.grupoPJ : g.grupo);
   const dataBr = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : iso || ''; };
   /** Rótulo e valor no PDF e no e-mail: a unidade sai do rótulo e vai para o valor ("Prazo: 240 meses"). */
   const rotuloSaida = (c) => c.rotulo.replace(/\s*\((R\$|%|meses)\)$/, '');
@@ -221,7 +248,7 @@
       else if (c.tipo === 'area') input = '<textarea' + comum + ' rows="3" maxlength="600">' + esc(v || '') + '</textarea>';
       else {
         const tipoHtml = { data: 'date', email: 'email', tel: 'tel' }[c.tipo] || 'text';
-        const modo = { cpf: 'numeric', cep: 'numeric', moeda: 'numeric', inteiro: 'numeric', percentual: 'decimal', tel: 'tel' }[c.tipo];
+        const modo = { cpf: 'numeric', cnpj: 'numeric', cep: 'numeric', moeda: 'numeric', inteiro: 'numeric', percentual: 'decimal', tel: 'tel' }[c.tipo];
         input = '<input type="' + tipoHtml + '"' + comum + (modo ? ' inputmode="' + modo + '"' : '') + ' value="' + esc(v || '') + '" autocomplete="off" maxlength="120"' +
           (c.tipo === 'data' ? ' max="' + new Date().toISOString().slice(0, 10) + '"' : '') + (c.sugestoes ? ' list="ad-lista-' + c.id + '"' : '') + '>';
         if (c.sugestoes) input += '<datalist id="ad-lista-' + c.id + '">' + c.sugestoes.map((o) => '<option value="' + esc(o) + '"></option>').join('') + '</datalist>';
@@ -231,10 +258,10 @@
     }
 
     function formularioHtml(dados, resumo) {
-      let h = '<h2>Transmitir proposta</h2><p class="nota">Ficha de fechamento para o termo de adesão. Uso interno: ao finalizar, o PDF (com data e hora da emissão) e o e-mail vão para o time de pós-venda gerar a venda. O cliente não recebe este documento.</p>';
+      let h = '<h2>Finalizar venda</h2><p class="nota">Ficha de cadastro para o termo de adesão. Uso interno: ao concluir, o PDF "Termo de cadastro de consórcio" (com data e hora da emissão) é baixado para você encaminhar ao pós-venda. O cliente não recebe este documento.</p>';
       h += '<details class="ad-resumo"><summary>Resumo da simulação</summary><dl>' + resumo.map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl></details>';
-      h += '<form class="ad-form" novalidate>' + CAMPOS_ADESAO.map((g) => '<fieldset class="ad-grupo"><legend>' + esc(g.grupo) + '</legend>' +
-        (g.id === 'fechamento' ? '<p class="nota ad-nota">Tipo, prazo, valor, redutor e seguro vêm da simulação em tela; confira antes de transmitir.</p>' : '') +
+      h += '<form class="ad-form" novalidate>' + CAMPOS_ADESAO.map((g) => '<fieldset class="ad-grupo" data-ad-grupo="' + g.id + '"><legend>' + esc(g.grupo) + '</legend>' +
+        (g.id === 'fechamento' ? '<p class="nota ad-nota">Tipo de pessoa, tipo da carta, prazo, valor, redutor e seguro vêm da simulação em tela; confira antes de concluir.</p>' : '') +
         '<div class="ad-grade">' + g.campos.map((c) => campoHtml(c, dados[c.id])).join('') + '</div></fieldset>').join('') + '</form>';
       return h;
     }
@@ -251,6 +278,13 @@
         if (!c.mostrar) return;
         const el = raiz.querySelector('[data-ad-mostrar="' + c.id + '"]');
         if (el) el.hidden = !visivel(c, dados);
+      });
+      // Grupo sem nenhum campo visível some (dados da empresa só para pessoa jurídica); o nome do grupo segue o tipo de pessoa
+      CAMPOS_ADESAO.forEach((g) => {
+        const fs = raiz.querySelector('[data-ad-grupo="' + g.id + '"]');
+        if (!fs) return;
+        fs.hidden = g.campos.every((c) => !visivel(c, dados));
+        fs.querySelector('legend').textContent = nomeGrupo(g, dados);
       });
     }
 
@@ -317,7 +351,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // Saídas: PDF interno e e-mail para o pós-venda
+    // Saída: PDF interno "Termo de cadastro de consórcio"
     // -------------------------------------------------------------------------
 
     function linhasGrupo(g, dados) {
@@ -328,12 +362,14 @@
     /** Blocos da ficha: topo com a emissão, grupos preenchidos, observações e o resumo da simulação. */
     function blocosPdf(dados, resumo, emissao) {
       const dl = (pares) => '<dl class="pdf-carac">' + pares.map(([k, v]) => '<div><dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd></div>').join('') + '</dl>';
+      const pj = ehPJ(dados);
       const blocos = ['<header class="pdf-topo">' + (ui.LOGO.claro ? '<img class="pdf-logo" src="' + ui.LOGO.claro + '" alt="' + esc(ui.EMPRESA) + '">' : '') +
-        '<p class="eyebrow">Uso interno · pós-venda</p><h1>Termo de <span class="acento">Adesão</span></h1>' +
-        '<p class="pdf-cliente">' + esc(dados.nome) + '</p><p class="pdf-ident pdf-emissao">Ficha emitida em <b>' + esc(emissao.texto) + '</b> · ' + esc(dados.consultorNome || '') + '</p></header>'];
+        '<p class="eyebrow">Termo de cadastro · uso interno</p><h1>Cadastro de <span class="acento">Consórcio</span></h1>' +
+        '<p class="pdf-cliente">' + esc(pj ? dados.razaoSocial : dados.nome) + '</p>' + (pj ? '<p class="pdf-ident">Representante legal: ' + esc(dados.nome) + '</p>' : '') +
+        '<p class="pdf-ident pdf-emissao">Ficha emitida em <b>' + esc(emissao.texto) + '</b> · ' + esc(dados.consultorNome || '') + '</p></header>'];
       CAMPOS_ADESAO.forEach((g) => {
         const pares = linhasGrupo(g, dados);
-        if (pares.length) blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">' + esc(g.grupo) + '</h2>' + dl(pares) + '</div>');
+        if (pares.length) blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">' + esc(nomeGrupo(g, dados)) + '</h2>' + dl(pares) + '</div>');
       });
       if (String(dados.observacoes || '').trim()) blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">Observações</h2><p class="pdf-ident">' + esc(dados.observacoes) + '</p></div>');
       blocos.push('<div class="pdf-bloco"><h2 class="pdf-h2">Resumo da <span class="acento">Simulação</span></h2>' + dl(resumo) + '</div>');
@@ -371,73 +407,27 @@
         '<span>Uso interno · ' + (i + 1) + ' / ' + paginas.length + '</span></footer></section>').join('');
     }
 
-    function emailTexto(dados, resumo, nomePdf, emissao) {
-      const l = ['Olá, time de pós-venda!', '', 'Segue a ficha de fechamento para subir o termo de adesão e gerar a venda.', 'Ficha emitida em ' + emissao.texto + '.'];
-      CAMPOS_ADESAO.forEach((g) => {
-        const pares = linhasGrupo(g, dados);
-        if (!pares.length) return;
-        l.push('', g.grupo.toUpperCase());
-        pares.forEach(([k, v]) => l.push('• ' + k + ': ' + v));
-      });
-      if (String(dados.observacoes || '').trim()) l.push('', 'OBSERVAÇÕES', String(dados.observacoes).trim());
-      l.push('', 'RESUMO DA SIMULAÇÃO');
-      resumo.forEach(([k, v]) => l.push('• ' + k + ': ' + v));
-      l.push('', 'Anexo: ' + nomePdf, '', 'Obrigado!', dados.consultorNome || '');
-      return l.join('\n');
-    }
-
-    // Acima disso, o link de e-mail pode ser cortado (Outlook e Windows aceitam cerca de 2.000 caracteres)
-    const LIMITE_MAILTO = 1900;
-
-    function janelaEnvio(dados, resumo, blob, nomePdf, baixado, emissao) {
-      const para = String((window.CONFIG_SIMULADOR || {}).emailPosVenda || '').trim();
+    /** Nome do arquivo: Termo_Cadastro_Consorcio_<cliente>_<administradora>.pdf */
+    function nomeArquivoTermo(dados, resumo) {
       const adm = (resumo.find(([k]) => k === 'Administradora') || [])[1];
-      const assunto = 'Termo de adesão · ' + dados.nome + (adm && adm !== '—' ? ' · ' + adm : '') + ' · ' + emissao.data + ' ' + emissao.hora;
-      const corpo = emailTexto(dados, resumo, nomePdf, emissao);
-      const link = (texto) => 'mailto:' + encodeURIComponent(para) + '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
-      // Texto longo: o e-mail abre com um lembrete e o texto completo vai para a área de transferência
-      const longo = link(corpo).length > LIMITE_MAILTO;
-      const mailto = longo ? link('Cole aqui o texto copiado do simulador e anexe o arquivo ' + nomePdf + '.') : link(corpo);
-      const html = '<h2>Enviar ao pós-venda</h2>' +
-        '<p class="nota">Ficha emitida em <b>' + esc(emissao.texto) + '</b>.</p>' +
-        (baixado ? '<p class="nota">O PDF <b>' + esc(nomePdf) + '</b> foi gerado. Abra o e-mail, anexe o arquivo e envie ao time de pós-venda.</p>'
-          : '<p class="aviso">O PDF <b>' + esc(nomePdf) + '</b> não foi baixado. Tente <b>Baixar PDF de novo</b> ou use o arquivo index.html do simulador.</p>') +
-        (para ? '' : '<p class="aviso">Sem e-mail do pós-venda configurado: informe <b>emailPosVenda</b> em js/config.js (ou preencha o destinatário no e-mail).</p>') +
-        '<div class="mensagem-envio"><div class="mensagem-topo"><b>' + esc(assunto) + '</b><button type="button" class="botao-copiar" data-copiar-email>Copiar e-mail</button></div>' +
-        '<textarea readonly rows="12" aria-label="Texto do e-mail para o pós-venda">' + esc(corpo) + '</textarea></div>';
-      const fundo = ui.janela(html, [
-        { texto: 'Baixar PDF de novo', acao: () => { ui.baixarArquivo(blob, nomePdf).catch(() => ui.avisar('Não foi possível baixar o PDF.')); return false; } },
-        { texto: 'Abrir e-mail', primario: true, acao: () => {
-          if (longo) ui.copiarTexto(corpo, 'Texto do e-mail copiado: cole no corpo do e-mail e anexe o PDF.');
-          window.location.href = mailto;
-          return false;
-        } },
-        { texto: 'Concluir' }
-      ], true);
-      fundo.querySelector('[data-copiar-email]').addEventListener('click', () => ui.copiarTexto(corpo, 'E-mail copiado. Cole no seu e-mail e anexe o PDF.'));
+      const partes = ['Termo_Cadastro_Consorcio', ui.nomeArquivo(ehPJ(dados) ? dados.razaoSocial : dados.nome)];
+      if (adm && adm !== '—') partes.push(ui.nomeArquivo(adm));
+      return partes.join('_') + '.pdf';
     }
 
+    /** Gera o PDF da ficha (com data e hora da emissão) e baixa o arquivo; o consultor encaminha ao pós-venda. */
     async function finalizar(dados, resumo) {
-      // Data e hora da emissão da ficha: no PDF, no e-mail e no nome do arquivo
       const agora = new Date();
       const data = agora.toLocaleDateString('pt-BR');
       const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       const emissao = { data, hora, texto: data + ' às ' + hora };
-      const nomePdf = 'Termo_Adesao_' + ui.nomeArquivo(dados.nome) + '_' + data.replace(/\//g, '-') + '_' + hora.replace(':', 'h') + '.pdf';
       const blob = await ui.gerarPdfArquivo(await pdfHtml(dados, resumo, emissao));
-      let baixado = true;
-      try {
-        await ui.baixarArquivo(blob, nomePdf);
-      } catch (e) {
-        if (e && e.code === 'declined') throw e;
-        baixado = false; // sem download (versão on-line): o e-mail continua disponível
-      }
-      janelaEnvio(dados, resumo, blob, nomePdf, baixado, emissao);
+      await ui.baixarArquivo(blob, nomeArquivoTermo(dados, resumo));
     }
 
     /**
      * Abre o formulário. cliente: { nome, telefone }; resumo: pares [rótulo, valor] da simulação em tela;
-     * proposta: valores do fechamento vindos da simulação ({ tipoCarta, prazo, valorCarta, redutor, seguroPrestamista, estrategia }).
+     * proposta: valores do fechamento vindos da simulação ({ tipoPessoa, tipoCarta, prazo, valorCarta, redutor, seguroPrestamista, estrategia }).
      */
     function abrir(cliente, resumo, proposta) {
       const de = String(cliente.nome || '').trim().toLowerCase() + '|' + digitos(cliente.telefone);
@@ -455,7 +445,7 @@
       let ocupado = false;
       const fundo = ui.janela(formularioHtml(dados, resumo), [
         { texto: 'Cancelar', acao: (f) => { rascunho = lerFormulario(f); } },
-        { texto: 'Finalizar e gerar termo', primario: true, acao: (f) => {
+        { texto: 'Concluir e baixar termo', primario: true, acao: (f) => {
           if (ocupado) return false;
           rascunho = lerFormulario(f);
           if (!validarFormulario(f)) { ui.avisar('Confira os campos destacados.'); return false; }
@@ -465,9 +455,10 @@
           finalizar(lidos, resumo).then(() => {
             rascunho = {};
             f.remove();
+            ui.agradecer(); // tela de agradecimento e, em seguida, o site
           }).catch((e) => {
             ocupado = false;
-            ui.avisar(e && e.code === 'declined' ? 'Download cancelado.' : 'Não foi possível gerar o PDF do termo. Tente de novo.');
+            ui.avisar(e && e.code === 'declined' ? 'Download cancelado.' : 'Não foi possível baixar o PDF do termo. Tente de novo.');
           });
           return false;
         } }
@@ -478,7 +469,7 @@
       form.addEventListener('input', (ev) => {
         const el = ev.target;
         const c = campoPorId(el.dataset.ad);
-        if (c && ['cpf', 'cep', 'tel', 'moeda', 'inteiro', 'percentual'].includes(c.tipo)) el.value = mascara(c.tipo, el.value);
+        if (c && ['cpf', 'cnpj', 'cep', 'tel', 'moeda', 'inteiro', 'percentual'].includes(c.tipo)) el.value = mascara(c.tipo, el.value);
         if (el.classList.contains('campo-erro')) marcarErro(el, '');
         if (c && c.tipo === 'cep') {
           const d = digitos(el.value);
@@ -492,10 +483,10 @@
       if (primeiro) primeiro.focus({ preventScroll: true });
     }
 
-    return { abrir, limpar, CAMPOS_ADESAO, cpfValido, emailValido, erroCampo };
+    return { abrir, limpar, CAMPOS_ADESAO, cpfValido, cnpjValido, emailValido, erroCampo };
   }
 
   if (typeof window !== 'undefined') window.Adesao = Adesao;
   // Exposto para testes (Node)
-  if (typeof module !== 'undefined' && module.exports) module.exports = { cpfValido, emailValido, erroCampo, mascara, enderecoCompleto, enderecoDoCep, valorInicial, CAMPOS_ADESAO };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { cpfValido, cnpjValido, emailValido, erroCampo, mascara, enderecoCompleto, enderecoDoCep, valorInicial, CAMPOS_ADESAO };
 })();

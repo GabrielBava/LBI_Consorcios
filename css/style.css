@@ -125,6 +125,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .logo-claro { display: var(--logo-claro); }
 .marca .logo { width: 190px; }
 .marca-modulo { padding-bottom: 3px; font-size: var(--fs-xs); font-weight: 300; color: var(--text-muted); white-space: nowrap; }
+.marca-versao { margin-left: 2px; font-size: 0.7rem; font-weight: 400; letter-spacing: .02em; color: var(--text-muted); }
 
 /* Ações */
 .toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
@@ -703,15 +704,6 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .pdf-cet b { font-family: var(--font-display); font-weight: 600; font-size: calc(21px * var(--k)); letter-spacing: -0.02em; }
 .pdf-cet b small { font-family: var(--font); font-size: calc(9px * var(--k)); font-weight: 400; color: var(--text-muted); }
 .pdf-cet em { font-style: normal; font-size: calc(8.5px * var(--k)); color: var(--text-muted); }
-.pdf-cta {
-  display: flex; align-items: center; justify-content: space-between; gap: calc(16px * var(--k)); padding: calc(22px * var(--k)) calc(24px * var(--k));
-  border-radius: calc(22px * var(--k)); border: calc(1px * var(--k)) solid rgba(240, 90, 0, .55);
-  background: linear-gradient(135deg, rgba(240, 90, 0, .10), #FFFFFF 70%);
-}
-.pdf-cta h3 { margin: 0 0 calc(3px * var(--k)); font-size: calc(20px * var(--k)); font-weight: 500; }
-.pdf-cta p { margin: 0; font-size: calc(11.5px * var(--k)); font-weight: 300; color: var(--text-muted); }
-.pdf-botao { flex: none; display: inline-block; padding: calc(14px * var(--k)) calc(24px * var(--k)); border-radius: calc(999px * var(--k)); background: var(--btn-primario); color: var(--btn-primario-texto); font-size: calc(13px * var(--k)); font-weight: 500; text-decoration: none; white-space: nowrap; }
-.pdf-botao.inativo { opacity: .45; }
 .pdf-disclaimer { margin-top: auto; padding: calc(10px * var(--k)) calc(13px * var(--k)); border-radius: calc(12px * var(--k)); border: calc(1px * var(--k)) solid var(--border); background: var(--pill-bg); font-size: calc(8.8px * var(--k)); font-weight: 300; line-height: 1.4; color: var(--text-muted); }
 .pdf-disclaimer b { font-size: calc(9.5px * var(--k)); font-weight: 600; color: var(--text); }
 .pdf-disclaimer p { margin: calc(3px * var(--k)) 0 0; }
@@ -720,11 +712,8 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .pdf-medida .pdf-corpo { height: auto; }
 .pdf-item { flex: none; min-width: 0; }
 .pdf-fim { margin-top: auto; display: flex; flex-direction: column; gap: calc(13px * var(--k)); }
-/* Fechamento mais compacto na carta contemplada, para a proposta completa caber em três páginas */
+/* Aviso final mais próximo do conteúdo na carta contemplada, para a proposta completa caber em três páginas */
 .pdf-fim { gap: calc(9px * var(--k)); }
-.pdf-fim .pdf-cta { padding: calc(14px * var(--k)) calc(20px * var(--k)); border-radius: calc(18px * var(--k)); }
-.pdf-fim .pdf-cta h3 { font-size: calc(17px * var(--k)); }
-.pdf-fim .pdf-botao { padding: calc(11px * var(--k)) calc(20px * var(--k)); }
 .pdf-sub-bloco { margin: calc(-4px * var(--k)) 0 calc(9px * var(--k)); }
 .pdf-tab-dir th:not(:first-child), .pdf-tab-dir td:not(:first-child) { text-align: right; }
 .pdf-tab tfoot td { padding: calc(5px * var(--k)) calc(8px * var(--k)); border-top: calc(1px * var(--k)) solid var(--border); white-space: nowrap; font-family: var(--font-display); font-weight: 600; font-size: calc(9.4px * var(--k)); }
@@ -827,6 +816,10 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .dica:hover .dica-texto, .dica:focus-within .dica-texto { display: flex; }
 .f input:disabled { opacity: .55; cursor: not-allowed; }
 
+/* Lance Retido: recursos próprios e embutido, cada um com a sua caixa, e o total somado abaixo */
+.bloco-retido .chk-sub { display: flex; margin: 10px 0 2px; }
+.retido-total { margin-top: 8px; padding-top: 4px; border-top: 1px dashed var(--border); }
+
 /* Tabelas de venda: seta no canto direito do bloco para recolher a tabela */
 .alav-titulo .seta-tabela { margin-left: auto; }
 
@@ -861,3 +854,24 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
   .ad-grade { grid-template-columns: minmax(0, 1fr); }
   .ad-campo.meia { grid-column: 1 / -1; }
 }
+
+/* Estratégia de cartas: frase de resumo, indicadores e a tabela por carta e total */
+.sub-vitrine { margin: -4px 0 14px; font-size: var(--fs-sm); color: var(--text-muted); }
+.tab-cartas { margin-top: var(--gap); }
+.tab-cartas th:not(:first-child), .tab-cartas td:not(:first-child) { text-align: right; }
+.tab-cartas th { white-space: normal; min-width: 96px; vertical-align: bottom; }
+
+/* Finalizar venda: tela breve de agradecimento antes de abrir o site do grupo */
+.agradecimento {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 24px;
+  background: var(--bg-app); background-image: radial-gradient(60% 50% at 50% 40%, var(--glow-1), transparent 70%);
+  animation: agradecimento-entra .35s ease-out both;
+}
+.agradecimento-caixa { max-width: 520px; text-align: center; }
+.agradecimento-caixa .logo { width: 200px; margin: 0 auto 18px; }
+.agradecimento-caixa h2 { margin: 0 0 10px; font-family: var(--font-display); font-weight: 300; font-size: clamp(1.4rem, 3.4vw, 2rem); line-height: 1.2; }
+.agradecimento-caixa h2 .acento { font-weight: 700; color: var(--primary-bright); }
+.agradecimento-caixa p { margin: 0 0 6px; color: var(--text-muted); }
+.agradecimento-caixa a { display: inline-block; margin-top: 10px; color: var(--primary-bright); font-weight: 600; }
+@keyframes agradecimento-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .agradecimento { animation: none; } }

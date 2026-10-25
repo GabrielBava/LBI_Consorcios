@@ -1,37 +1,15 @@
-// Gera dist/simulador.html: página única (CSS e JS embutidos) para publicação on-line.
-// Nesse modo (window.MODO_ARTIFACT) a proposta é exibida em prévia e o JSON é copiado,
-// porque impressão e downloads podem estar bloqueados pelo ambiente de hospedagem.
+// Gera dist/simulador.html: página única (CSS e JS embutidos) para publicação on-line no claude.ai.
+// Nesse modo (window.MODO_ARTIFACT) os arquivos são baixados pelo recurso de downloads da página publicada.
+// Para distribuir à equipe, use o arquivo protegido por senha: npm run build:protegido.
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const raiz = path.join(__dirname, '..');
-const ler = (f) => fs.readFileSync(path.join(raiz, f), 'utf8');
+const { montar, raiz } = require('./montar');
 
-const html = ler('index.html');
-const titulo = html.match(/<title>[\s\S]*?<\/title>/)[0];
-const fontes = (html.match(/<link[^>]*fonts\.g[^>]*>/g) || []).join('\n');
-// Ícone da página (o coração da marca) embutido, para o arquivo único não depender de marca/
-const icone = '<link rel="icon" type="image/png" href="data:image/png;base64,' + fs.readFileSync(path.join(raiz, 'marca', 'life-coracao.png')).toString('base64') + '">';
-const corpo = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script src="js/config.js">')).trim();
 const semEntidade = (js) => js.replace(/<\/script/gi, '<\\/script');
-
-const saida = [
-  titulo,
-  fontes,
-  icone,
-  // Klavika: só a instalada no computador (local); sem ela, vale a Titillium Web do Google Fonts
-  '<style>\n' + ler('css/tokens.css').replace(/,url\("fonts\/[^"]+"\) format\("woff2"\)/g, '') + '\n' + ler('css/style.css') + '\n</style>',
-  corpo,
-  '<script>window.MODO_ARTIFACT = true;</script>',
-  '<script>\n' + semEntidade(ler('js/config.js')) + '\n</script>',
-  '<script>\n' + semEntidade(ler('js/logos.js')) + '\n</script>',
-  '<script>\n' + semEntidade(ler('js/calc.js')) + '\n</script>',
-  '<script>\n' + semEntidade(ler('js/calc-contemplada.js')) + '\n</script>',
-  '<script>\n' + semEntidade(ler('js/app-contemplada.js')) + '\n</script>',
-  '<script>\n' + semEntidade(ler('js/adesao.js')) + '\n</script>',
-  '<script>\n' + semEntidade(ler('js/app.js')) + '\n</script>',
-  ''
-].join('\n');
+const m = montar({ artifact: true });
+const saida = [m.titulo, m.fontes, m.icone, '<style>\n' + m.css + '\n</style>', m.corpo]
+  .concat(m.scripts.map((js) => '<script>\n' + semEntidade(js) + '\n</script>'), '').join('\n');
 
 fs.mkdirSync(path.join(raiz, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(raiz, 'dist', 'simulador.html'), saida);

@@ -85,3 +85,17 @@ test('termo de adesão: endereço completo e busca de CEP (ViaCEP e BrasilAPI)',
   assert.equal(A.enderecoDoCep({ erro: true }), null);
   assert.equal(A.enderecoDoCep({ erro: 'true' }), null);
 });
+
+test('ficha de cadastro: CNPJ e dados da empresa só para pessoa jurídica; sem grupo e cota', () => {
+  assert.equal(A.cnpjValido('11.222.333/0001-81'), true);
+  assert.equal(A.cnpjValido('11.222.333/0001-82'), false);
+  assert.equal(A.cnpjValido('11111111111111'), false);
+  assert.equal(A.mascara('cnpj', '11222333000181'), '11.222.333/0001-81');
+  assert.equal(A.erroCampo(campo('cnpj'), '11.222.333/0001-82'), 'CNPJ inválido.');
+  for (const id of ['cnpj', 'razaoSocial', 'nomeFantasia', 'dataAbertura', 'faturamento']) {
+    assert.deepEqual(campo(id).mostrar, { campo: 'tipoPessoa', valores: ['Jurídica'] }, id);
+  }
+  assert.equal(campo('tipoPessoa').proposta, true);
+  assert.equal(campo('grupoCota'), undefined);
+  assert.equal(campo('numeroCota'), undefined);
+});
