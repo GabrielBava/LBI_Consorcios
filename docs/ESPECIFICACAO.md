@@ -1,7 +1,9 @@
 # Especificação funcional — Simulador de Cartas de Consórcio Primárias
 
-Versão 3.4 (exibida aos usuários como **versão 1.2.1**, em `js/config.js`) · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (ficha de cadastro do Finalizar venda).
+Versão 3.6 (exibida aos usuários como **versão 1.2.1**, em `js/config.js`) · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (ficha de cadastro do Finalizar venda).
 
+> **v3.6 — cadastro de planos em planilha:** administradoras e planos em `planos/Cadastro_de_Planos.xlsx`, importados por `npm run planos`; crédito máximo do plano (seção 2.16).
+>
 > **v3.4 (versão 1.2.1) — acesso protegido e fechamento:** tipo de pessoa, Estratégia de Cartas (split ou multiplicação), Lance Retido com recursos próprios + embutido, seguro sobre o valor total do plano (com adesão), regra do redutor da Porto igual à da HS, cada acesso começa do zero, **Finalizar venda** (download do termo e tela de agradecimento), PDF com data e hora e sem o botão de WhatsApp, novo aviso da proposta, veículo sem alavancagem, versão abaixo do logo e arquivo protegido por senha (seção 2.14).
 >
 > **v3.3 — seguro e ficha de fechamento:** o seguro prestamista passa a incidir sobre crédito + taxa de administração + fundo de reserva; a ficha do Transmitir proposta ganhou a lista de campos de fechamento, busca do endereço pelo CEP, dados bancários e data e hora da emissão (seção 2.13).
@@ -200,9 +202,9 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
   - percentuais de lance embutido e lance fixo;
   - índice de reajuste (e a taxa estimada do índice, quando informada);
   - categoria (Imóvel/Veículo).
-  Os campos continuam editáveis. Crédito abaixo do mínimo do plano é sinalizado como erro.
-- **Origem dos planos:** `planosUrl` em `js/config.js` (endereço do CRM que devolve os planos em JSON, como lista ou `{ "planos": [...] }`); sem endereço, vale a lista `planos` do mesmo arquivo (hoje com dois planos de exemplo, a substituir).
-- **Campos de cada plano:** `id`, `administradora`, `nome`, `categoria`, `creditoMinimo`, `prazo`, `taxaAdm`, `fundoReserva`, `embutidoPct`, `fixoPct`, `indice`, `indiceTaxa` (opcional). Também aceita os nomes `codigo`, `adm`, `descricao`, `tipo`, `credito_minimo`, `prazo_grupo`, `taxa_adm`, `fundo_reserva`, `lance_embutido`, `lance_fixo`, `indice_reajuste` e `taxa_indice`.
+  Os campos continuam editáveis. Crédito abaixo do mínimo ou acima do máximo do plano é sinalizado como erro (v3.6).
+- **Origem dos planos:** `planosUrl` em `js/config.js` (endereço do CRM que devolve os planos em JSON, como lista ou `{ "planos": [...] }`); sem endereço, valem os planos de `js/planos.js`, gerado da planilha `planos/Cadastro_de_Planos.xlsx` (seção 2.16).
+- **Campos de cada plano:** `id`, `administradora`, `nome`, `categoria`, `creditoMinimo`, `prazo`, `taxaAdm`, `fundoReserva`, `embutidoPct`, `fixoPct`, `indice`, `indiceTaxa` (opcional) e, desde a v3.6, os opcionais `creditoMaximo`, `adesaoPct`, `adesaoMeses`, `seguroPct`, `redutorPct`, `abatimento` e `ativo` (seção 2.16). Também aceita os nomes `codigo`, `adm`, `descricao`, `tipo`, `credito_minimo`, `prazo_grupo`, `taxa_adm`, `fundo_reserva`, `lance_embutido`, `lance_fixo`, `indice_reajuste` e `taxa_indice`.
 - **Link do CRM:** além de `nome` e `contato`, aceita `plano=<id>` para já abrir com o plano aplicado.
 - Trocar a categoria ou a administradora desfaz a seleção do plano.
 
@@ -287,6 +289,14 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
 - **Pagamento da 1ª parcela (Finalizar venda):** só Boleto, PIX e Cartão de crédito.
 - **Travas contra baixar ou copiar a página:** em todas as formas de abrir, sem botão direito, sem seleção e cópia de texto fora dos campos, e sem os atalhos de salvar (Ctrl+S), imprimir (Ctrl+P), ver código (Ctrl+U) e ferramentas do desenvolvedor. O menu do próprio navegador não pode ser bloqueado por uma página: no arquivo protegido, uma cópia salva por ele não funciona (conteúdo criptografado; os scripts saem da página depois de carregados).
 
+### 2.16 Cadastro de planos em planilha (v3.6)
+
+- **Planilha:** `planos/Cadastro_de_Planos.xlsx`, aba **Planos**, uma linha por plano. Colunas (título laranja = obrigatória): **Administradora**, **Plano**, **Tipo** (Imóvel/Veículo), **Prazo (meses)**, **Crédito mínimo (R$)**, Crédito máximo (R$), **Taxa de administração (%)**, **Fundo de reserva (%)**, Lance embutido (%), Lance fixo (%) e Índice de reajuste. Percentuais em número (20 = 20%; célula formatada como percentual também é aceita). Aba **Instruções** com o passo a passo.
+- **Padrões das colunas opcionais:** crédito máximo vazio = sem limite; lance embutido e fixo vazios = valores do simulador (25% e 50%); 0% = a administradora não oferece (a modalidade fica desmarcada); índice vazio = INCC (imóvel) ou IPCA (veículo).
+- **Importação:** `npm run planos [arquivo.xlsx]` lê a planilha (sem dependências), confere cada linha e gera `js/planos.js`. Erros por linha (obrigatório ausente, valor fora da faixa, tipo ou índice inválido, crédito máximo menor que o mínimo, plano repetido na mesma administradora) impedem a gravação. A grafia da administradora segue a lista do simulador (ex.: "porto seguro" → "Porto Seguro"). Linhas com "(exemplo)" no nome viram planos de exemplo (aviso no comando e "(exemplo)" na lista do simulador). O código do plano (para o link do CRM, `plano=<código>`) é criado da administradora e do nome, ou vem da coluna Código do plano, se existir.
+- **Colunas opcionais aceitas**, se forem acrescentadas à planilha: Taxa de adesão (%) e Adesão diluída em (meses) (marcam a adesão; vazio = sem adesão), Seguro prestamista (% a.m.) (só a taxa; o especialista marca o seguro), Modalidade de parcela e Outro redutor (%), Abatimento do lance (Parcela/Prazo), Taxa estimada do índice (% a.a.), Ativo (Não = fica fora do simulador) e Código do plano. Os mesmos campos valem no JSON do CRM: `creditoMaximo`, `adesaoPct`, `adesaoMeses`, `seguroPct`, `redutorPct`, `abatimento` e `ativo`.
+- **No simulador:** o especialista escolhe a administradora e o plano; a nota abaixo do plano mostra a faixa de crédito ("Crédito de R$ 80.000,00 a R$ 300.000,00"), os lances e o índice; o crédito começa no mínimo e é o único campo que ele precisa ajustar.
+
 ## 3. Fórmulas
 
 Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = redutor; F(m) = fator de reajuste.
@@ -341,6 +351,7 @@ Notação: C = crédito contratado; N = prazo; mC = mês da contemplação; r = 
 | Lance Retido sem nenhuma parte marcada; parte marcada sem valor; embutido fora de 0–100% | Erro |
 | Lance Retido acima do crédito; lance acima do saldo devedor na contemplação | Alerta |
 | Estratégia de cartas com quantidade fora de 2–20 (split) ou 1–20 (multiplicar) | Erro |
+| Crédito abaixo do mínimo ou acima do máximo do plano cadastrado | Erro |
 | Cada carta do split abaixo do crédito mínimo do plano cadastrado | Alerta (na seção) |
 | FGTS informado com pessoa jurídica | Informação (o FGTS não entra no lance) |
 | Embutido maior que o lance | Alerta (limitado ao lance) |

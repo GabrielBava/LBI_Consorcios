@@ -66,7 +66,8 @@
     const n = (...ks) => num(pega(...ks));
     const id = pega('id', 'codigo', 'planoId');
     const administradora = pega('administradora', 'adm');
-    if (id === null || !administradora) return null;
+    if (id === null || !administradora || raw.ativo === false) return null;
+    const abat = String(pega('abatimento') || '').toLowerCase();
     const cat = String(pega('categoria', 'tipo') || '').toLowerCase();
     return {
       id: String(id),
@@ -74,18 +75,24 @@
       administradora: String(administradora).trim(),
       categoria: /ve[ií]c|auto|moto/.test(cat) ? 'veiculo' : /im[oó]v/.test(cat) ? 'imovel' : null,
       creditoMinimo: n('creditoMinimo', 'credito_minimo', 'credito'),
+      creditoMaximo: n('creditoMaximo', 'credito_maximo'),
       prazo: n('prazo', 'prazoGrupo', 'prazo_grupo'),
       taxaAdm: n('taxaAdm', 'taxaAdministrativa', 'taxa_adm', 'taxaAdministracao'),
       fundoReserva: n('fundoReserva', 'fundo_reserva'),
       embutidoPct: n('embutidoPct', 'lanceEmbutido', 'lance_embutido'),
       fixoPct: n('fixoPct', 'lanceFixo', 'lance_fixo'),
+      adesaoPct: n('adesaoPct', 'taxaAdesao', 'taxa_adesao'),
+      adesaoMeses: n('adesaoMeses', 'adesao_meses'),
+      seguroPct: n('seguroPct', 'seguroPrestamista', 'seguro_prestamista'),
+      redutorPct: n('redutorPct', 'redutor'),
+      abatimento: /praz/.test(abat) ? 'prazo' : /parc/.test(abat) ? 'parcela' : null,
       indice: normalizarIndice(pega('indice', 'indiceReajuste', 'indice_reajuste')),
       indiceTaxa: n('indiceTaxa', 'taxaIndice', 'taxa_indice'),
       exemplo: !!raw.exemplo
     };
   }
 
-  /** Aplica o plano cadastrado ao estado: dados do plano, percentuais de lance e índice. */
+  /** Aplica o plano cadastrado ao estado: dados do plano, percentuais de lance e índice (o que o plano não traz fica como está). */
   function aplicarPlanoCadastrado(s, pl) {
     const p = s.plano;
     p.planoId = pl.id;
@@ -97,11 +104,25 @@
     if (pl.indice) p.indice = pl.indice;
     if (isNum(pl.indiceTaxa)) p.indiceTaxa = pl.indiceTaxa;
     p.creditoMinimo = isNum(pl.creditoMinimo) ? pl.creditoMinimo : null;
+    p.creditoMaximo = isNum(pl.creditoMaximo) ? pl.creditoMaximo : null;
     // Crédito: parte do crédito mínimo do plano (pode ser aumentado depois)
     if (isNum(pl.creditoMinimo)) p.credito = pl.creditoMinimo;
     if (isNum(num(p.prazo)) && isNum(num(p.mesContemplacao)) && num(p.mesContemplacao) > num(p.prazo)) p.mesContemplacao = num(p.prazo);
-    if (isNum(pl.embutidoPct)) { s.lances.embutidoPct = pl.embutidoPct; s.lances.retidoEmbutidoPct = pl.embutidoPct; }
-    if (isNum(pl.fixoPct)) s.lances.fixoPct = pl.fixoPct;
+    // Lance embutido ou fixo com 0%: a administradora não oferece, e a modalidade fica desmarcada
+    if (isNum(pl.embutidoPct)) {
+      const l = s.lances;
+      Object.assign(l, { embutidoPct: pl.embutidoPct, retidoEmbutidoPct: pl.embutidoPct, embutidoAtivo: pl.embutidoPct > 0 });
+      if (pl.embutidoPct === 0) Object.assign(l, { fixoUsarEmbutido: false, livreUsarEmbutido: false });
+    }
+    if (isNum(pl.fixoPct)) { s.lances.fixoPct = pl.fixoPct; s.lances.fixoAtivo = pl.fixoPct > 0; }
+    if (isNum(pl.adesaoPct)) { p.adesaoAtiva = pl.adesaoPct > 0; p.adesaoPct = pl.adesaoPct > 0 ? pl.adesaoPct : null; p.adesaoMeses = pl.adesaoPct > 0 && isNum(pl.adesaoMeses) ? pl.adesaoMeses : null; }
+    if (isNum(pl.seguroPct)) p.seguroPct = pl.seguroPct;
+    if (isNum(pl.redutorPct)) {
+      const mod = Object.keys(MODALIDADES_PARCELA).find((k) => MODALIDADES_PARCELA[k].pct === pl.redutorPct);
+      s.parcela.modalidade = pl.redutorPct === 0 ? 'integral' : mod || 'outro';
+      s.parcela.redutorOutro = mod ? null : pl.redutorPct;
+    }
+    if (pl.abatimento) p.abatimento = pl.abatimento;
     return s;
   }
 
@@ -143,6 +164,7 @@
         administradora: '',
         planoId: '', // plano cadastrado (CRM) aplicado aos campos
         creditoMinimo: null, // crédito mínimo do plano cadastrado
+        creditoMaximo: null, // crédito máximo do plano cadastrado
         credito: CATEGORIAS.imovel.credito,
         prazo: CATEGORIAS.imovel.prazo,
         mesContemplacao: 12,
@@ -585,6 +607,7 @@
     const C = num(p.credito), N = num(p.prazo);
     if (!String(p.lead || '').trim()) add('erro', 'plano.lead', 'Campo obrigatório: nome completo.');
     if (isNum(num(p.creditoMinimo)) && isNum(C) && C < num(p.creditoMinimo)) add('erro', 'plano.credito', 'Crédito abaixo do mínimo do plano selecionado (' + fmtBRL(num(p.creditoMinimo)) + ').');
+    if (isNum(num(p.creditoMaximo)) && isNum(C) && C > num(p.creditoMaximo)) add('erro', 'plano.credito', 'Crédito acima do máximo do plano selecionado (' + fmtBRL(num(p.creditoMaximo)) + ').');
     if (!p.administradora) add('info', 'plano.administradora', 'Administradora não selecionada.');
     if (!isNum(C)) add('erro', 'plano.credito', 'Campo obrigatório: valor do crédito.');
     else if (C <= 0) add('erro', 'plano.credito', 'O valor do crédito deve ser maior que zero.');

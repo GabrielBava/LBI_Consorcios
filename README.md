@@ -18,6 +18,17 @@ As abas no topo da proposta alternam entre as páginas; o menu lateral troca os 
 
 Cada acesso começa do zero, só com as premissas base: nenhuma proposta fica gravada no navegador. **Nova proposta** limpa os campos.
 
+## Cadastro de planos (planilha)
+
+As administradoras e os planos ficam em `planos/Cadastro_de_Planos.xlsx`: uma linha por plano, com Administradora, Plano, Tipo (Imóvel ou Veículo), Prazo, Crédito mínimo e máximo, Taxa de administração, Fundo de reserva, Lance embutido, Lance fixo e Índice de reajuste. As instruções estão na aba **Instruções** da própria planilha. Depois de editar:
+
+```bash
+npm run planos                       # lê planos/Cadastro_de_Planos.xlsx e gera js/planos.js
+npm run planos -- outra-planilha.xlsx
+```
+
+O comando confere cada linha (campos obrigatórios, faixas, tipo, índice, crédito máximo menor que o mínimo, plano repetido) e só grava `js/planos.js` se não houver erro; os erros citam a linha da planilha. Em seguida, gere a nova versão (`npm run build:protegido`). No simulador, o especialista escolhe a administradora e o plano: prazo, taxas, lances e índice vêm preenchidos, e ele só ajusta o crédito, entre o mínimo e o máximo do plano. Colunas opcionais aceitas, se forem acrescentadas: Taxa de adesão (%), Adesão diluída em (meses), Seguro prestamista (% a.m.), Modalidade de parcela, Outro redutor (%), Abatimento do lance, Taxa estimada do índice (% a.a.), Ativo (Sim/Não) e Código do plano.
+
 ## Senha de acesso
 
 Toda forma de abrir o simulador (`index.html`, a versão on-line e o arquivo protegido) começa por uma tela de senha. A senha não fica gravada: `js/config.js` guarda só o resumo dela (`senhaAcessoHash`). Para trocar:
@@ -56,7 +67,9 @@ O simulador segue a identidade do **Grupo Life Brasil** (apresentação instituc
 | `index.html` | Tela: menu lateral (configuração) e área de resultados |
 | `css/tokens.css` | Tokens da identidade do Grupo Life Brasil (cores, tipografia, forma, sombras; temas escuro e claro) |
 | `css/style.css` | Componentes do simulador e layout das páginas do PDF |
-| `js/config.js` | Nome da empresa, versão e validade, site aberto depois do Finalizar venda e planos cadastrados (ou endereço do CRM) |
+| `js/config.js` | Nome da empresa, versão e validade, site aberto depois do Finalizar venda e endereço do CRM |
+| `planos/Cadastro_de_Planos.xlsx` | Planilha de administradoras e planos (editar aqui) |
+| `js/planos.js` | Planos do simulador, gerado da planilha por `npm run planos` (não editar à mão) |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
 | `js/calc.js` | Motor de cálculo puro da página 1 (sem interface), com fórmulas, validações e memórias |
 | `js/calc-contemplada.js` | Motor de cálculo puro da página 2: cartas, CET, fluxo, amortização, evolução, rendimentos e financiamento |
@@ -68,9 +81,11 @@ O simulador segue a identidade do **Grupo Life Brasil** (apresentação instituc
 | `tests/contemplada.test.js` | Testes do motor de cálculo da página 2 |
 | `scripts/build-protegido.js` | Gera o arquivo protegido por senha para a equipe (`npm run build:protegido`) |
 | `scripts/gerar-senha.js` | Troca a senha da tela de acesso (`npm run senha -- <senha>`) |
+| `scripts/importar-planos.js` | Lê a planilha de planos e gera `js/planos.js` (`npm run planos`) |
 | `scripts/build-artifact.js` | Gera a página única para publicação on-line (`npm run build:online`) |
 | `tests/adesao.test.js` | Testes das validações, máscaras, endereço e busca de CEP da ficha de fechamento |
 | `tests/acesso.test.js` | Testes do resumo da senha de acesso |
+| `tests/planos.test.js` | Testes da importação da planilha de planos e do crédito mínimo e máximo |
 | `docs/ESPECIFICACAO.md` | Especificação funcional da página 1 (campos, regras, fórmulas, pendências) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Especificação funcional da página 2 |
 

@@ -101,7 +101,7 @@
   // Menu lateral: preenchimento, leitura e visibilidade
   // ---------------------------------------------------------------------------
 
-  // Planos cadastrados: vêm do CRM (CONFIG_SIMULADOR.planosUrl) ou da lista em js/config.js
+  // Planos cadastrados: vêm do CRM (CONFIG_SIMULADOR.planosUrl) ou de js/planos.js (gerado da planilha planos/Cadastro_de_Planos.xlsx)
   let planos = [];
   function definirPlanos(lista) {
     planos = (Array.isArray(lista) ? lista : []).map(C.normalizarPlano).filter(Boolean);
@@ -151,7 +151,9 @@
     nota.hidden = !pl;
     if (!pl) return;
     const partes = [];
-    if (C.isNum(pl.creditoMinimo)) partes.push('Crédito mínimo ' + C.fmtBRL(pl.creditoMinimo));
+    if (C.isNum(pl.creditoMinimo) && C.isNum(pl.creditoMaximo)) partes.push('Crédito de ' + C.fmtBRL(pl.creditoMinimo) + ' a ' + C.fmtBRL(pl.creditoMaximo));
+    else if (C.isNum(pl.creditoMinimo)) partes.push('Crédito mínimo ' + C.fmtBRL(pl.creditoMinimo));
+    else if (C.isNum(pl.creditoMaximo)) partes.push('Crédito máximo ' + C.fmtBRL(pl.creditoMaximo));
     if (C.isNum(pl.embutidoPct)) partes.push('Embutido ' + C.fmtNum(pl.embutidoPct, Number.isInteger(pl.embutidoPct) ? 0 : 2) + '%');
     if (C.isNum(pl.fixoPct)) partes.push('Fixo ' + C.fmtNum(pl.fixoPct, Number.isInteger(pl.fixoPct) ? 0 : 2) + '%');
     if (pl.indice) partes.push(C.INDICES[pl.indice].nome);
@@ -168,14 +170,14 @@
       definirPlanos(Array.isArray(dados) ? dados : dados && dados.planos);
       return true;
     } catch (e) {
-      avisar('Não foi possível buscar os planos no CRM; usando os planos do js/config.js.');
+      avisar('Não foi possível buscar os planos no CRM; usando os planos cadastrados no simulador.');
       return false;
     }
   }
 
   function selecionarPlano(id) {
     const pl = planoPorId(id);
-    if (!pl) { estado.plano.planoId = ''; estado.plano.creditoMinimo = null; return false; }
+    if (!pl) { Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null }); return false; }
     C.aplicarPlanoCadastrado(estado, pl);
     return true;
   }
@@ -257,7 +259,7 @@
       if (el.dataset.k === 'plano.categoria') {
         // Valores fixos da categoria (crédito, prazo, taxas e índice); podem ser editados em seguida
         C.aplicarCategoria(estado.plano, estado.plano.categoria);
-        Object.assign(estado.plano, { planoId: '', creditoMinimo: null });
+        Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
         escreverCampos();
         preencherPlanos();
       } else if (el.dataset.k === 'plano.administradora') {
@@ -269,12 +271,12 @@
           if (grafia !== estado.plano.administradora && ev.type === 'change') { estado.plano.administradora = grafia; el.value = grafia; }
           // Troca de administradora: o plano cadastrado anterior deixa de valer
           const pl = planoPorId(estado.plano.planoId);
-          if (pl && chaveAdm(pl.administradora) !== chaveAdm(grafia)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null });
+          if (pl && chaveAdm(pl.administradora) !== chaveAdm(grafia)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
           preencherPlanos();
         }
       } else if (el.dataset.k === 'plano.planoId') {
         // Plano cadastrado: crédito mínimo, prazo, taxas, lances e índice preenchidos automaticamente
-        if (selecionarPlano(estado.plano.planoId)) avisar('Plano aplicado: crédito, prazo, taxas, lances e índice atualizados.');
+        if (selecionarPlano(estado.plano.planoId)) avisar('Plano aplicado: prazo, taxas, lances e índice preenchidos. Ajuste o valor do crédito.');
         escreverCampos();
         preencherPlanos();
       } else if (el.dataset.k === 'plano.tipoPessoa') {
