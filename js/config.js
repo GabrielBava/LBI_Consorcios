@@ -23,9 +23,9 @@
  */
 window.CONFIG_SIMULADOR = {
   empresa: 'Grupo Life Brasil',
-  versao: '1.2.1',
+  versao: '1.2.2',
   validadeVersao: '2026-12-31',
   siteAposVenda: 'https://www.grupolifebrasil.com.br/',
-  senhaAcessoHash: '4033d1e3ba7d7b60ae6e0e61b28e567fb20618a48f40e7c888c0b685676cc6c8',
+  senhaAcessoHash: '79304064941185e07047565050e0568f2ede3a955742d2636faa356b5d538f13',
   planosUrl: ''
 };

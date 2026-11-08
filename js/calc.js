@@ -126,7 +126,8 @@
     return s;
   }
 
-  const ADMINISTRADORAS = ['HS', 'Embracon', 'CNP', 'Itaú', 'Porto Seguro', 'Servopa', 'Banco do Brasil', 'Santander', 'Klubi'];
+  // Administradoras da lista suspensa (a primeira é a inicial); outras podem ser digitadas ou vir da planilha de planos
+  const ADMINISTRADORAS = ['Porto Seguro', 'Bradesco', 'Mapfre', 'Âncora'];
 
   const MODALIDADES_PARCELA = {
     integral: { nome: 'Parcela integral', pct: 0 },

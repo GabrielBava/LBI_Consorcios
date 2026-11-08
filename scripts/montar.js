@@ -5,6 +5,7 @@ const path = require('path');
 const raiz = path.join(__dirname, '..');
 const ler = (f) => fs.readFileSync(path.join(raiz, f), 'utf8');
 const lerBase64 = (f) => fs.readFileSync(path.join(raiz, f)).toString('base64');
+const APRESENTACAO = 'apresentacao/V1_Consorcio_Life_Brasil.html';
 
 /** Configuração (js/config.js) lida no Node, para usar a versão e a validade no build. */
 function config() {
@@ -30,7 +31,9 @@ function montar(opcoes) {
   const scripts = [];
   if (o.artifact) scripts.push('window.MODO_ARTIFACT = true;');
   if (o.pdfEmbutido) scripts.push(ler('js/vendor/html2canvas.min.js'), ler('js/vendor/jspdf.umd.min.js'));
-  ['js/config.js', 'js/planos.js', 'js/logos.js', 'js/acesso.js', 'js/calc.js', 'js/calc-contemplada.js', 'js/app-contemplada.js', 'js/adesao.js', 'js/app.js'].forEach((f) => scripts.push(ler(f)));
+  // Apresentação V1 Consórcio embutida (aberta pelo botão ao lado do tema); "<" escapado para caber num <script>
+  if (fs.existsSync(path.join(raiz, APRESENTACAO))) scripts.push('window.APRESENTACAO_V1 = ' + JSON.stringify(ler(APRESENTACAO)).replace(/</g, '\\u003c') + ';');
+  ['js/config.js', 'js/planos.js', 'js/logos.js', 'js/acesso.js', 'js/calc.js', 'js/planilha-planos.js', 'js/calc-contemplada.js', 'js/app-contemplada.js', 'js/adesao.js', 'js/app.js'].forEach((f) => scripts.push(ler(f)));
   return { titulo, fontes, icone, css, corpo, scripts };
 }
 

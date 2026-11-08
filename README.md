@@ -27,7 +27,15 @@ npm run planos                       # lê planos/Cadastro_de_Planos.xlsx e gera
 npm run planos -- outra-planilha.xlsx
 ```
 
-O comando confere cada linha (campos obrigatórios, faixas, tipo, índice, crédito máximo menor que o mínimo, plano repetido) e só grava `js/planos.js` se não houver erro; os erros citam a linha da planilha. Em seguida, gere a nova versão (`npm run build:protegido`). No simulador, o especialista escolhe a administradora e o plano: prazo, taxas, lances e índice vêm preenchidos, e ele só ajusta o crédito, entre o mínimo e o máximo do plano. Colunas opcionais aceitas, se forem acrescentadas: Taxa de adesão (%), Adesão diluída em (meses), Seguro prestamista (% a.m.), Modalidade de parcela, Outro redutor (%), Abatimento do lance, Taxa estimada do índice (% a.a.), Ativo (Sim/Não) e Código do plano.
+O comando confere cada linha (campos obrigatórios, faixas, tipo, índice, crédito máximo menor que o mínimo, plano repetido) e só grava `js/planos.js` se não houver erro; os erros citam a linha da planilha. Em seguida, gere a nova versão (`npm run build:protegido`). No simulador, o especialista escolhe o tipo (Imóvel ou Veículo), a administradora e o plano: prazo, taxas, lances e índice vêm preenchidos, e ele só ajusta o crédito, entre o mínimo e o máximo do plano. Colunas opcionais aceitas, se forem acrescentadas: Taxa de adesão (%), Adesão diluída em (meses), Seguro prestamista (% a.m.), Modalidade de parcela, Outro redutor (%), Abatimento do lance, Taxa estimada do índice (% a.a.), Ativo (Sim/Não) e Código do plano.
+
+**Planilha do mês direto no simulador:** em **Dados do plano**, o botão **Carregar planilha de planos (.xlsx)** lê o arquivo no próprio navegador (a leitura é a mesma do `npm run planos`, em `js/planilha-planos.js`). Os planos carregados substituem os da versão naquele navegador até a próxima versão do simulador (ou até clicar em **Usar os planos da versão**); linhas com erro ficam de fora e aparecem numa lista. A leitura aceita títulos de coluna com variações (Produto, Segmento, Tx. Adm., FR, Crédito...), uma aba por administradora (o nome da aba vira a administradora, quando não há a coluna) e uma aba por mês (vale a do mês atual).
+
+**Administradoras:** a lista suspensa traz Porto Seguro (a inicial), Bradesco, Mapfre e Âncora (`ADMINISTRADORAS` em `js/calc.js`), depois as que vierem da planilha e as cadastradas pela equipe em **Outra administradora…** (lembradas no navegador). Quando a administradora tem um só plano no tipo escolhido, ele já vem aplicado.
+
+## Apresentação V1 Consórcio
+
+O botão **Apresentação**, ao lado de Claro/Escuro no topo da proposta, abre a apresentação institucional V1 Consórcio (`apresentacao/V1_Consorcio_Life_Brasil.html`) em tela cheia; o botão **Voltar ao simulador** da apresentação (ou o × no canto, ou Esc) volta ao simulador no ponto em que estava. Nos arquivos únicos (protegido e on-line), a apresentação vai embutida; para trocá-la, substitua o arquivo em `apresentacao/` mantendo o nome e gere a versão de novo.
 
 ## Senha de acesso
 
@@ -70,6 +78,8 @@ O simulador segue a identidade do **Grupo Life Brasil** (apresentação instituc
 | `js/config.js` | Nome da empresa, versão e validade, site aberto depois do Finalizar venda e endereço do CRM |
 | `planos/Cadastro_de_Planos.xlsx` | Planilha de administradoras e planos (editar aqui) |
 | `js/planos.js` | Planos do simulador, gerado da planilha por `npm run planos` (não editar à mão) |
+| `js/planilha-planos.js` | Leitura da planilha de planos (.xlsx), no navegador e no `npm run planos` |
+| `apresentacao/V1_Consorcio_Life_Brasil.html` | Apresentação institucional V1 Consórcio, aberta pelo botão Apresentação |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
 | `js/calc.js` | Motor de cálculo puro da página 1 (sem interface), com fórmulas, validações e memórias |
 | `js/calc-contemplada.js` | Motor de cálculo puro da página 2: cartas, CET, fluxo, amortização, evolução, rendimentos e financiamento |
@@ -85,7 +95,8 @@ O simulador segue a identidade do **Grupo Life Brasil** (apresentação instituc
 | `scripts/build-artifact.js` | Gera a página única para publicação on-line (`npm run build:online`) |
 | `tests/adesao.test.js` | Testes das validações, máscaras, endereço e busca de CEP da ficha de fechamento |
 | `tests/acesso.test.js` | Testes do resumo da senha de acesso |
-| `tests/planos.test.js` | Testes da importação da planilha de planos e do crédito mínimo e máximo |
+| `tests/planos.test.js` | Testes da leitura da planilha de planos e do crédito mínimo e máximo |
+| `tests/build.test.js` | Teste da montagem dos arquivos únicos (ordem dos scripts e apresentação embutida) |
 | `docs/ESPECIFICACAO.md` | Especificação funcional da página 1 (campos, regras, fórmulas, pendências) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Especificação funcional da página 2 |
 

@@ -57,10 +57,17 @@
         </div>
       </fieldset>
       <label class="f"><span>Administradora</span>
-        <input type="text" id="f-administradora" data-k="plano.administradora" list="lista-administradoras" maxlength="40" placeholder="Selecione ou digite" autocomplete="off"></label>
+        <select id="f-adm-lista"></select></label>
+      <label class="f" id="campo-adm-outra" hidden><span>Nome da administradora</span>
+        <input type="text" id="f-administradora" data-k="plano.administradora" maxlength="40" placeholder="Digite o nome" autocomplete="off"></label>
       <label class="f"><span>Plano</span>
         <select id="f-plano" data-k="plano.planoId"></select></label>
       <small class="nota" id="nota-plano" hidden></small>
+      <div class="planilha-planos">
+        <button type="button" class="mini" id="botao-planilha">Carregar planilha de planos (.xlsx)</button>
+        <input type="file" id="f-planilha" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+        <small class="nota" id="nota-planilha"></small>
+      </div>
       <label class="f"><span>Valor do crédito <em class="req">*</em></span>
         <input type="text" id="f-credito" data-k="plano.credito" data-moeda inputmode="numeric" placeholder="R$ 0,00" autocomplete="off"></label>
       <div class="grid2">
@@ -519,6 +526,7 @@
 <script src="js/logos.js"></script>
 <script src="js/acesso.js"></script>
 <script src="js/calc.js"></script>
+<script src="js/planilha-planos.js"></script>
 <script src="js/calc-contemplada.js"></script>
 <script src="js/app-contemplada.js"></script>
 <script src="js/adesao.js"></script>

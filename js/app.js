@@ -83,6 +83,46 @@
   }
   const icone = (mod) => '<svg class="icone" viewBox="0 0 24 24" aria-hidden="true">' + ICONES[mod] + '</svg>';
 
+  // ---------------------------------------------------------------------------
+  // Apresentação V1 Consórcio (institucional): abre em tela cheia sobre o simulador; o botão
+  // "Voltar ao simulador" da apresentação avisa por mensagem (life-v1:voltar-simulador) e a tela fecha
+  // ---------------------------------------------------------------------------
+
+  const SVG_APRESENTACAO = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/><path d="M8 11.5 11 8.5l2.5 2.5L16.5 8"/></svg>';
+  const botaoApresentacao = () => '<button type="button" class="botao-apresentacao" data-apresentacao title="Apresentação V1 Consórcio" aria-label="Abrir a apresentação V1 Consórcio">' + SVG_APRESENTACAO + '<span>Apresentação</span></button>';
+  let urlApresentacao = '';
+
+  function abrirApresentacao() {
+    if (document.querySelector('.apresentacao-v1')) return;
+    // Nas versões em arquivo único a apresentação vem embutida (window.APRESENTACAO_V1); no index.html, ao lado
+    if (!urlApresentacao) urlApresentacao = window.APRESENTACAO_V1 ? URL.createObjectURL(new Blob([window.APRESENTACAO_V1], { type: 'text/html' })) : 'apresentacao/V1_Consorcio_Life_Brasil.html';
+    const origem = document.activeElement;
+    const tela = document.createElement('div');
+    tela.className = 'apresentacao-v1';
+    tela.setAttribute('role', 'dialog');
+    tela.setAttribute('aria-modal', 'true');
+    tela.setAttribute('aria-label', 'Apresentação V1 Consórcio');
+    tela.innerHTML = '<iframe title="Apresentação V1 Consórcio · ' + esc(EMPRESA) + '" allow="fullscreen; autoplay" allowfullscreen></iframe>' +
+      '<button type="button" class="apresentacao-fechar" title="Voltar ao simulador" aria-label="Voltar ao simulador"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>';
+    const frame = tela.querySelector('iframe');
+    const fechar = () => {
+      tela.remove();
+      document.documentElement.classList.remove('com-apresentacao');
+      window.removeEventListener('message', aoMensagem);
+      document.removeEventListener('keydown', aoTeclar);
+      if (origem && origem.focus) origem.focus();
+    };
+    const aoMensagem = (ev) => { if (ev.source === frame.contentWindow && ev.data && ev.data.type === 'life-v1:voltar-simulador') fechar(); };
+    const aoTeclar = (ev) => { if (ev.key === 'Escape') fechar(); };
+    window.addEventListener('message', aoMensagem);
+    document.addEventListener('keydown', aoTeclar);
+    tela.querySelector('.apresentacao-fechar').addEventListener('click', fechar);
+    frame.src = urlApresentacao;
+    document.body.appendChild(tela);
+    document.documentElement.classList.add('com-apresentacao');
+    frame.focus();
+  }
+
   function fmt(val, formato) {
     if (val == null || val.v == null) {
       if (val && val.tipo === 'na') return '<span class="na">' + esc(val.nota || val.formula || '—') + '</span>';
@@ -108,14 +148,113 @@
   }
   const planoPorId = (id) => planos.find((x) => x.id === String(id)) || null;
 
+  // Planilha de planos carregada no simulador (botão "Carregar planilha de planos"): substitui os planos
+  // da versão neste navegador até a próxima versão do simulador
+  const CHAVE_PLANILHA = 'simconsorcio.planilhaPlanos';
+  const VERSAO = String((window.CONFIG_SIMULADOR || {}).versao || '');
+  let planilha = null; // { arquivo, quando, planos }
+  function lerPlanilhaGuardada() {
+    try {
+      const g = JSON.parse(localStorage.getItem(CHAVE_PLANILHA));
+      if (g && g.versao === VERSAO && Array.isArray(g.planos) && g.planos.length) return g;
+      localStorage.removeItem(CHAVE_PLANILHA);
+    } catch (e) { /* sem armazenamento */ }
+    return null;
+  }
+
+  function notaPlanilha() {
+    const nota = $('#nota-planilha');
+    if (!nota) return;
+    const adms = new Set(planos.map((x) => x.administradora)).size;
+    const qtd = planos.length + ' plano' + (planos.length === 1 ? '' : 's') + ' de ' + adms + ' administradora' + (adms === 1 ? '' : 's');
+    nota.innerHTML = planilha
+      ? 'Planilha <b>' + esc(planilha.arquivo) + '</b>: ' + qtd + ', carregada em ' + esc(new Date(planilha.quando).toLocaleDateString('pt-BR')) + '. <button type="button" class="link-nota" id="botao-planilha-versao">Usar os planos da versão</button>'
+      : 'Planos da versão' + (VERSAO ? ' ' + esc(VERSAO) : '') + ': ' + qtd + '.';
+  }
+
+  /** Depois de trocar a lista de planos: refaz as listas e desfaz o plano que deixou de existir. */
+  function planosTrocados() {
+    if (!planoPorId(estado.plano.planoId)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
+    planoUnico();
+    preencherSelects();
+    escreverCampos();
+    notaPlanilha();
+    atualizar();
+  }
+
+  async function carregarPlanilha(arquivo) {
+    let res;
+    try {
+      res = await window.PlanilhaPlanos.lerPlanos(new Uint8Array(await arquivo.arrayBuffer()), null, { administradoras: C.ADMINISTRADORAS });
+    } catch (e) {
+      avisar('Não foi possível ler a planilha: ' + (e && e.message ? e.message : 'arquivo inválido') + '.');
+      return;
+    }
+    const lista = res.planos.map(C.normalizarPlano).filter(Boolean);
+    const erros = res.erros.slice(0, 12).map((e) => '<li>' + esc(e) + '</li>').join('') + (res.erros.length > 12 ? '<li>… e mais ' + (res.erros.length - 12) + '.</li>' : '');
+    if (!lista.length) {
+      janela('<h2>Planilha sem planos válidos</h2><p>Os planos atuais foram mantidos. Confira:</p><ul class="lista-erros">' + erros + '</ul>', [{ texto: 'Fechar', primario: true }]);
+      return;
+    }
+    planilha = { arquivo: arquivo.name, quando: new Date().toISOString(), planos: res.planos };
+    try { localStorage.setItem(CHAVE_PLANILHA, JSON.stringify(Object.assign({ versao: VERSAO }, planilha))); } catch (e) { /* sem armazenamento: vale até fechar */ }
+    definirPlanos(res.planos);
+    planosTrocados();
+    const adms = new Set(lista.map((x) => x.administradora)).size;
+    const resumo = lista.length + ' plano' + (lista.length === 1 ? '' : 's') + ' de ' + adms + ' administradora' + (adms === 1 ? '' : 's');
+    if (res.erros.length) janela('<h2>Planilha carregada: ' + esc(resumo) + '</h2><p>' + res.linhasComErro + ' linha(s) com erro ficaram de fora:</p><ul class="lista-erros">' + erros + '</ul>', [{ texto: 'Fechar', primario: true }]);
+    else avisar('Planilha carregada: ' + resumo + '.' + (res.avisos.length && /mês/.test(res.avisos[0]) ? ' ' + res.avisos[0] : ''));
+  }
+
+  function usarPlanosDaVersao() {
+    planilha = null;
+    try { localStorage.removeItem(CHAVE_PLANILHA); } catch (e) { /* sem armazenamento */ }
+    definirPlanos((window.CONFIG_SIMULADOR || {}).planos);
+    planosTrocados();
+    avisar('Voltaram os planos da versão do simulador.');
+  }
+
+  // Administradoras cadastradas pela equipe (opção "Outra administradora"), lembradas neste navegador
+  const CHAVE_ADMS = 'simconsorcio.administradoras';
+  let admsProprias = [];
+  try { admsProprias = (JSON.parse(localStorage.getItem(CHAVE_ADMS)) || []).filter((a) => typeof a === 'string' && a.trim()); } catch (e) { /* sem armazenamento */ }
+  const OUTRA_ADM = '__outra';
+
+  /** Lista suspensa: Porto Seguro, Bradesco, Mapfre e Âncora; depois as da planilha de planos e as cadastradas aqui. */
+  function listaAdministradoras() {
+    const lista = [];
+    C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora), admsProprias).forEach((a) => {
+      if (a && !lista.some((b) => chaveAdm(b) === chaveAdm(a))) lista.push(a);
+    });
+    return lista;
+  }
+
+  function lembrarAdministradora(nome) {
+    if (!nome || listaAdministradoras().some((a) => chaveAdm(a) === chaveAdm(nome))) return;
+    admsProprias = [nome].concat(admsProprias).slice(0, 8);
+    try { localStorage.setItem(CHAVE_ADMS, JSON.stringify(admsProprias)); } catch (e) { /* sem armazenamento */ }
+  }
+
   function preencherSelects() {
     $$('.sel-indice').forEach((s) => { s.innerHTML = Object.entries(C.INDICES).map(([k, v]) => '<option value="' + k + '">' + esc(v.nome) + '</option>').join(''); });
-    const adms = C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora).filter((a) => !C.ADMINISTRADORAS.includes(a)));
-    // Sugestões de administradora nas duas páginas (aceitam selecionar ou digitar); indexador da página 2
+    const adms = listaAdministradoras();
+    // Indexador da página 2; sugestões de administradora da página 2 (aceita selecionar ou digitar)
     $$('.sel-indice-cont').forEach((s) => { s.innerHTML = Object.entries(CC.INDICES).map(([k, v]) => '<option value="' + k + '">' + esc(v.nome) + '</option>').join(''); });
     const lista = $('#lista-administradoras');
     if (lista) lista.innerHTML = adms.map((a) => '<option value="' + esc(a) + '"></option>').join('');
+    const sel = $('#f-adm-lista');
+    if (sel) sel.innerHTML = adms.map((a) => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('') + '<option value="' + OUTRA_ADM + '">Outra administradora…</option>';
+    sincronizarAdministradora();
     preencherPlanos();
+  }
+
+  /** Lista suspensa da página 1 segue a administradora do estado; fora da lista, abre o campo para digitar. */
+  function sincronizarAdministradora() {
+    const sel = $('#f-adm-lista');
+    if (!sel || !estado) return;
+    const conhecida = listaAdministradoras().find((a) => chaveAdm(a) === chaveAdm(estado.plano.administradora));
+    sel.value = conhecida || OUTRA_ADM;
+    $('#campo-adm-outra').hidden = !!conhecida;
   }
 
   /** Compara nomes de administradora sem diferenciar maiúsculas, acentos e espaços. */
@@ -124,20 +263,27 @@
   function grafiaAdministradora(txt) {
     const k = chaveAdm(txt);
     if (!k) return '';
-    const todas = C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora));
-    return todas.find((a) => chaveAdm(a) === k) || txt;
+    if (k === 'porto') return C.ADMINISTRADORAS[0];
+    return listaAdministradoras().find((a) => chaveAdm(a) === k) || txt;
   }
 
-  /** Lista os planos da administradora informada (selecionada ou digitada). */
+  /** Planos da administradora e da categoria (Imóvel/Veículo) selecionadas. */
+  function planosFiltrados() {
+    const p = estado ? estado.plano : null;
+    if (!p || !p.administradora) return [];
+    return planos.filter((x) => chaveAdm(x.administradora) === chaveAdm(p.administradora) && (!x.categoria || x.categoria === p.categoria));
+  }
+
+  /** Lista os planos da administradora e da categoria selecionadas. */
   function preencherPlanos() {
     const sel = $('#f-plano');
     if (!sel) return;
     const adm = estado ? estado.plano.administradora : '';
-    const daAdm = adm ? planos.filter((x) => chaveAdm(x.administradora) === chaveAdm(adm)) : [];
+    const daAdm = planosFiltrados();
     let ops;
     if (!adm) ops = '<option value="">Selecione a administradora</option>';
-    else if (!daAdm.length) ops = '<option value="">Nenhum plano cadastrado</option>';
-    else ops = '<option value="">Selecione o plano</option>' + daAdm.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.nome + (x.categoria ? ' · ' + C.CATEGORIAS[x.categoria].nome : '') + (x.exemplo ? ' (exemplo)' : '')) + '</option>').join('');
+    else if (!daAdm.length) ops = '<option value="">Nenhum plano de ' + esc(C.CATEGORIAS[estado.plano.categoria].nome.toLowerCase()) + ' cadastrado</option>';
+    else ops = '<option value="">Selecione o plano</option>' + daAdm.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.nome + (x.exemplo ? ' (exemplo)' : '')) + '</option>').join('');
     sel.innerHTML = ops;
     sel.disabled = !daAdm.length;
     sel.value = estado && daAdm.some((x) => x.id === estado.plano.planoId) ? estado.plano.planoId : '';
@@ -175,6 +321,21 @@
     }
   }
 
+  /** Um único plano para a administradora e a categoria: já vem aplicado. */
+  function planoUnico() {
+    const lista = planosFiltrados();
+    if (lista.length !== 1 || estado.plano.planoId === lista[0].id) return false;
+    return selecionarPlano(lista[0].id);
+  }
+
+  /** Troca de administradora: o plano anterior deixa de valer e a lista de planos é refeita. */
+  function trocarAdministradora() {
+    const pl = planoPorId(estado.plano.planoId);
+    if (pl && chaveAdm(pl.administradora) !== chaveAdm(estado.plano.administradora)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
+    if (planoUnico()) { avisar('Plano aplicado: prazo, taxas, lances e índice preenchidos. Ajuste o valor do crédito.'); escreverCampos(); }
+    preencherPlanos();
+  }
+
   function selecionarPlano(id) {
     const pl = planoPorId(id);
     if (!pl) { Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null }); return false; }
@@ -190,6 +351,7 @@
       else if (el.hasAttribute('data-moeda')) el.value = C.isNum(v) ? C.fmtBRL(v) : '';
       else el.value = v == null ? '' : v;
     });
+    sincronizarAdministradora();
     aplicarVisibilidade();
   }
 
@@ -260,19 +422,19 @@
         // Valores fixos da categoria (crédito, prazo, taxas e índice); podem ser editados em seguida
         C.aplicarCategoria(estado.plano, estado.plano.categoria);
         Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
+        planoUnico(); // a lista de planos é filtrada pela categoria
         escreverCampos();
         preencherPlanos();
       } else if (el.dataset.k === 'plano.administradora') {
-        // Enquanto digita, plano e lista só mudam quando o texto já é uma administradora conhecida (ou ao sair do campo)
-        const grafia = grafiaAdministradora(estado.plano.administradora);
-        const conhecida = C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora)).includes(grafia);
-        if (ev.type === 'change' || conhecida) {
-          // Nome digitado igual a uma administradora da lista ganha a grafia dela (HS, Itaú...)
-          if (grafia !== estado.plano.administradora && ev.type === 'change') { estado.plano.administradora = grafia; el.value = grafia; }
-          // Troca de administradora: o plano cadastrado anterior deixa de valer
-          const pl = planoPorId(estado.plano.planoId);
-          if (pl && chaveAdm(pl.administradora) !== chaveAdm(grafia)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
-          preencherPlanos();
+        // Outra administradora (digitada): ao sair do campo, ganha a grafia da lista se já existir, ou entra na lista
+        if (ev.type === 'change') {
+          let grafia = grafiaAdministradora(estado.plano.administradora).trim();
+          if (grafia && grafia === grafia.toLowerCase()) grafia = grafia.replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+          estado.plano.administradora = grafia;
+          el.value = grafia;
+          lembrarAdministradora(grafia);
+          trocarAdministradora();
+          preencherSelects();
         }
       } else if (el.dataset.k === 'plano.planoId') {
         // Plano cadastrado: crédito mínimo, prazo, taxas, lances e índice preenchidos automaticamente
@@ -293,6 +455,25 @@
     };
     sb.addEventListener('input', aoAlterar);
     sb.addEventListener('change', aoAlterar);
+    // Planilha de planos: escolher o .xlsx e ler no próprio simulador
+    $('#botao-planilha').addEventListener('click', () => $('#f-planilha').click());
+    $('#f-planilha').addEventListener('change', (ev) => {
+      const arq = ev.target.files && ev.target.files[0];
+      ev.target.value = '';
+      if (arq) carregarPlanilha(arq);
+    });
+    $('#nota-planilha').addEventListener('click', (ev) => { if (ev.target.id === 'botao-planilha-versao') usarPlanosDaVersao(); });
+    // Lista suspensa de administradoras: "Outra administradora…" abre o campo para digitar o nome
+    $('#f-adm-lista').addEventListener('change', (ev) => {
+      const v = ev.target.value;
+      const outra = v === OUTRA_ADM;
+      estado.plano.administradora = outra ? '' : v;
+      trocarAdministradora();
+      escreverCampos();
+      $('#campo-adm-outra').hidden = !outra;
+      if (outra) $('#f-administradora').focus();
+      atualizar();
+    });
     // Campos automáticos (crédito do financiamento, período da aplicação): ao sair vazio, voltam ao valor da carta
     sb.addEventListener('focusout', (ev) => { if (ev.target.dataset && ev.target.dataset.auto) atualizar(); });
     sb.addEventListener('click', (ev) => {
@@ -314,6 +495,7 @@
     pr.addEventListener('click', (ev) => {
       const tema = ev.target.closest('[data-tema]');
       if (tema) { definirTema(tema.dataset.tema); atualizar(); return; }
+      if (ev.target.closest('[data-apresentacao]')) { abrirApresentacao(); return; }
       const recolher = ev.target.closest('[data-recolher]');
       if (recolher) {
         const id = recolher.dataset.recolher;
@@ -390,6 +572,7 @@
   function inicial() {
     const s = C.estadoPadrao();
     s.plano.indiceTaxa = 5;
+    s.plano.administradora = C.ADMINISTRADORAS[0]; // Porto Seguro
     return s;
   }
 
@@ -413,6 +596,8 @@
         } else {
           estado = inicial();
           revelados.clear();
+          planoUnico();
+          preencherPlanos();
         }
         if (TA) TA.limpar(); // o rascunho do termo de adesão era do cliente anterior
         escreverCampos(); atualizar();
@@ -975,9 +1160,10 @@
       '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + p.icone + '</svg>' + esc(p.nome) + '</a>').join('');
   }
 
-  /** Barra do topo da proposta: páginas à esquerda e tema à direita. */
+  /** Barra do topo da proposta: páginas à esquerda; apresentação e tema à direita. */
   function barraTopo() {
-    return '<div class="barra-topo"><nav class="paginas" aria-label="Páginas do simulador">' + htmlPaginas() + '</nav>' + seletorTema() + '</div>';
+    return '<div class="barra-topo"><nav class="paginas" aria-label="Páginas do simulador">' + htmlPaginas() + '</nav>' +
+      '<div class="barra-dir">' + botaoApresentacao() + seletorTema() + '</div></div>';
   }
 
   function desenhar(r) {
@@ -1497,6 +1683,8 @@
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.
   let planoCrm = '';
   definirPlanos((window.CONFIG_SIMULADOR || {}).planos);
+  planilha = lerPlanilhaGuardada();
+  if (planilha) definirPlanos(planilha.planos);
   const doCrm = (function () {
     const ler = (txt) => { try { return new URLSearchParams(String(txt || '').replace(/^[?#]/, '')); } catch (e) { return new URLSearchParams(); } };
     const fontes = [ler(location.search), ler(location.hash)];
@@ -1525,9 +1713,11 @@
   if (versao && $('#versao-simulador')) $('#versao-simulador').textContent = 'v' + versao;
   preencherSelects();
   let planoAplicado = aplicarPlanoCrm(!comUrlCrm);
+  if (!planoAplicado) planoUnico(); // um só plano da Porto na categoria: já vem aplicado
   ligarMenu();
   desenharCartas();
   preencherSelects();
+  notaPlanilha();
   escreverCampos();
   // Navegação entre as páginas pelo link (#primario / #contemplada), inclusive voltar/avançar do navegador
   const seguirUrl = () => { const m = modoDaUrl(); if (m && m !== modo) definirModo(m, true); };

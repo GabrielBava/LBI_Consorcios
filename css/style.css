@@ -906,3 +906,31 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .sem-selecao body { -webkit-user-select: none; user-select: none; }
 .sem-selecao input, .sem-selecao textarea, .sem-selecao select, .sem-selecao [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
 .sem-selecao img { -webkit-user-drag: none; }
+
+/* Planilha de planos carregada no simulador */
+.planilha-planos { display: grid; gap: 6px; justify-items: start; margin: 2px 0 10px; }
+.planilha-planos .nota { margin: 0; }
+.link-nota { padding: 0; border: 0; background: none; color: var(--primary-bright); font: inherit; text-decoration: underline; cursor: pointer; }
+.lista-erros { margin: 8px 0 0; padding-left: 18px; max-height: 40vh; overflow: auto; font-size: var(--fs-sm); }
+.lista-erros li { margin: 3px 0; }
+
+/* Apresentação V1 Consórcio: botão ao lado do tema e tela cheia sobre o simulador */
+.barra-dir { display: flex; align-items: center; gap: 8px; flex: none; }
+.botao-apresentacao {
+  display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px;
+  border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--pill-bg);
+  font-size: var(--fs-xs); color: var(--text-muted); cursor: pointer; transition: color .2s, border-color .2s;
+}
+.botao-apresentacao:hover { color: var(--text); border-color: var(--primary); }
+.botao-apresentacao:focus-visible { outline: 2px solid var(--primary-bright); outline-offset: 2px; }
+.botao-apresentacao .ic { width: 16px; height: 16px; color: var(--icon-soft, var(--primary)); }
+.com-apresentacao, .com-apresentacao body { overflow: hidden; }
+.apresentacao-v1 { position: fixed; inset: 0; z-index: 2000; background: #0B0B0C; }
+.apresentacao-v1 iframe { display: block; width: 100%; height: 100%; border: 0; }
+.apresentacao-fechar {
+  position: absolute; top: 12px; right: 12px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  border-radius: 50%; border: 1px solid rgba(255, 255, 255, .18); background: rgba(17, 17, 19, .6); color: #fff; cursor: pointer; opacity: .55;
+}
+.apresentacao-fechar:hover, .apresentacao-fechar:focus-visible { opacity: 1; }
+.apresentacao-fechar .ic { width: 16px; height: 16px; }
+@media (max-width: 560px) { .botao-apresentacao span { display: none; } .botao-apresentacao { padding: 0 11px; } }

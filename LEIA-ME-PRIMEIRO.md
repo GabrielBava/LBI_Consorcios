@@ -24,6 +24,8 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `planos/Cadastro_de_Planos.xlsx` | Planilha de administradoras e planos: prazo, crédito mínimo e máximo, taxas, lances e índice |
 | `js/planos.js` | Planos do simulador, gerado da planilha por `npm run planos` (não editar à mão) |
 | `scripts/importar-planos.js` | Lê a planilha e gera `js/planos.js`, conferindo cada linha (`npm run planos`) |
+| `js/planilha-planos.js` | Leitura da planilha (.xlsx) usada pelo botão Carregar planilha de planos e pelo `npm run planos` |
+| `apresentacao/V1_Consorcio_Life_Brasil.html` | Apresentação institucional V1 Consórcio (botão Apresentação, ao lado do tema) |
 | `js/logos.js` | Logos do Grupo Life Brasil embutidos (versão clara, escura e o coração), gerados por `npm run logos` |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
 | `css/tokens.css` | Tokens da identidade do Grupo Life Brasil (cores, fontes, raios, sombras; temas escuro e claro) |
@@ -32,8 +34,9 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `tests/contemplada.test.js` | 37 testes do motor de cálculo da página 2 |
 | `tests/adesao.test.js` | 8 testes das validações, máscaras, endereço e busca de CEP da ficha de cadastro |
 | `tests/acesso.test.js` | 2 testes do resumo da senha de acesso |
-| `tests/planos.test.js` | 6 testes da importação da planilha de planos e do crédito mínimo e máximo |
-| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.6 / versão 1.2.1) |
+| `tests/planos.test.js` | 8 testes da leitura da planilha de planos e do crédito mínimo e máximo |
+| `tests/build.test.js` | 1 teste da montagem dos arquivos únicos (apresentação embutida) |
+| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.7 / versão 1.2.2) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.2): campos, regras, fórmulas e validações |
 | `marca/` | Logos com fundo transparente (`life-logo-claro.png`, `life-logo-escuro.png`, `life-coracao.png`) e `IDENTIDADE.md` (cores, fontes e modelos da marca) |
 | `scripts/gerar-logos.js` | Gera `js/logos.js` a partir dos logos de `marca/` (`npm run logos`) |
@@ -74,7 +77,7 @@ Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 ## Pendências conhecidas
 
 - Deixar o repositório do GitHub privado (hoje é público: o código-fonte fica visível para qualquer pessoa).
-- Preencher a planilha `planos/Cadastro_de_Planos.xlsx` com os planos reais (hoje há 2 planos de exemplo) e rodar `npm run planos`.
+- Planos reais: preencher `planos/Cadastro_de_Planos.xlsx` (hoje há 2 planos de exemplo da Porto Seguro) e rodar `npm run planos`, ou carregar a planilha do mês pelo botão do simulador.
 - Fonte Klavika: comercial. Instalada no computador, ela é usada automaticamente; sem ela, vale a Titillium Web.
 - Mecanismo de Alavancagem ainda não entra no PDF.
 
