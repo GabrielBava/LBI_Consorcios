@@ -68,6 +68,13 @@
     const administradora = pega('administradora', 'adm');
     if (id === null || !administradora || raw.ativo === false) return null;
     const abat = String(pega('abatimento') || '').toLowerCase();
+    const simNao = (...ks) => {
+      const v = pega(...ks);
+      if (typeof v === 'boolean') return v;
+      const t = String(v == null ? '' : v).trim().toLowerCase();
+      return /^(sim|s|true|1)$/.test(t) ? true : /^(n[aã]o|n|false|0)$/.test(t) ? false : null;
+    };
+    const fid = Array.isArray(raw.fidelidade) ? raw.fidelidade.map((o) => ({ parcela: num(o && o.parcela), pct: num(o && o.pct) })).filter((o) => isNum(o.parcela) && isNum(o.pct)).slice(0, 3) : [];
     const cat = String(pega('categoria', 'tipo') || '').toLowerCase();
     return {
       id: String(id),
@@ -86,6 +93,11 @@
       seguroPct: n('seguroPct', 'seguroPrestamista', 'seguro_prestamista'),
       redutorPct: n('redutorPct', 'redutor'),
       abatimento: /praz/.test(abat) ? 'prazo' : /parc/.test(abat) ? 'parcela' : null,
+      tipoGrupo: String(pega('tipoGrupo', 'tipo_grupo') || '').trim(),
+      adesaoAtiva: simNao('adesaoAtiva', 'flagAdesao'),
+      seguroAtivo: simNao('seguroAtivo', 'flagSeguro'),
+      fidelidadeAtiva: simNao('fidelidadeAtiva', 'flagFidelidade'),
+      fidelidade: fid.length ? fid : null,
       indice: normalizarIndice(pega('indice', 'indiceReajuste', 'indice_reajuste')),
       indiceTaxa: n('indiceTaxa', 'taxaIndice', 'taxa_indice'),
       exemplo: !!raw.exemplo
@@ -123,6 +135,13 @@
       s.parcela.redutorOutro = mod ? null : pl.redutorPct;
     }
     if (pl.abatimento) p.abatimento = pl.abatimento;
+    // Flags do plano (Sim/Não): adesão e seguro marcados ou não; Lance Fidelidade habilitado com as opções do plano
+    if (typeof pl.adesaoAtiva === 'boolean') p.adesaoAtiva = pl.adesaoAtiva;
+    if (typeof pl.seguroAtivo === 'boolean') p.seguroAtivo = pl.seguroAtivo;
+    if (typeof pl.fidelidadeAtiva === 'boolean' || pl.fidelidade) {
+      const f = Object.assign(s.fidelidade, estadoPadrao().fidelidade, { ativo: typeof pl.fidelidadeAtiva === 'boolean' ? pl.fidelidadeAtiva : s.fidelidade.ativo });
+      (pl.fidelidade || []).forEach((o, i) => { f['p' + (i + 1) + 'Parcela'] = o.parcela; f['p' + (i + 1) + 'Pct'] = o.pct; });
+    }
     return s;
   }
 

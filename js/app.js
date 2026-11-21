@@ -141,131 +141,119 @@
   // Menu lateral: preenchimento, leitura e visibilidade
   // ---------------------------------------------------------------------------
 
-  // Planos cadastrados: vêm do CRM (CONFIG_SIMULADOR.planosUrl) ou de js/planos.js (gerado da planilha planos/Cadastro_de_Planos.xlsx)
+  // Planos: lidos em tempo real da planilha do Google Drive (CONFIG_SIMULADOR.planilhaPlanos); sem conexão, valem a
+  // última leitura deste navegador ou os planos embutidos na versão (js/planos.js). O CRM (planosUrl), quando houver, também vale.
   let planos = [];
+  /** Só os planos das administradoras da lista (Porto Seguro, Bradesco, Mapfre e Âncora), com a grafia da lista. */
   function definirPlanos(lista) {
-    planos = (Array.isArray(lista) ? lista : []).map(C.normalizarPlano).filter(Boolean);
+    planos = (Array.isArray(lista) ? lista : []).map(C.normalizarPlano).filter(Boolean).map((x) => {
+      const adm = C.ADMINISTRADORAS.find((a) => chaveAdm(a) === chaveAdm(x.administradora));
+      return adm ? Object.assign(x, { administradora: adm }) : null;
+    }).filter(Boolean);
   }
   const planoPorId = (id) => planos.find((x) => x.id === String(id)) || null;
 
-  // Planilha de planos carregada no simulador (botão "Carregar planilha de planos"): substitui os planos
-  // da versão neste navegador até a próxima versão do simulador
-  const CHAVE_PLANILHA = 'simconsorcio.planilhaPlanos';
+  const CHAVE_LEITURA = 'simconsorcio.leituraPlanos';
   const VERSAO = String((window.CONFIG_SIMULADOR || {}).versao || '');
-  let planilha = null; // { arquivo, quando, planos }
-  function lerPlanilhaGuardada() {
-    try {
-      const g = JSON.parse(localStorage.getItem(CHAVE_PLANILHA));
-      if (g && g.versao === VERSAO && Array.isArray(g.planos) && g.planos.length) return g;
-      localStorage.removeItem(CHAVE_PLANILHA);
-    } catch (e) { /* sem armazenamento */ }
-    return null;
-  }
+  const INTERVALO_LEITURA = 5 * 60 * 1000; // a planilha é relida a cada 5 minutos com a aba aberta
+  const ENDERECOS_DRIVE = window.PlanilhaPlanos ? window.PlanilhaPlanos.enderecosDrive((window.CONFIG_SIMULADOR || {}).planilhaPlanos) : [];
+  // origem: 'drive' (leitura agora), 'cache' (última leitura deste navegador) ou 'versao' (js/planos.js)
+  let leitura = { origem: 'versao', quando: null, erros: [], lendo: false, falhou: false };
+  let ultimaTentativa = 0;
 
-  function notaPlanilha() {
+  const horaCurta = (iso) => { const d = new Date(iso); return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+
+  function notaPlanos() {
     const nota = $('#nota-planilha');
     if (!nota) return;
-    const adms = new Set(planos.map((x) => x.administradora)).size;
-    const qtd = planos.length + ' plano' + (planos.length === 1 ? '' : 's') + ' de ' + adms + ' administradora' + (adms === 1 ? '' : 's');
-    nota.innerHTML = planilha
-      ? 'Planilha <b>' + esc(planilha.arquivo) + '</b>: ' + qtd + ', carregada em ' + esc(new Date(planilha.quando).toLocaleDateString('pt-BR')) + '. <button type="button" class="link-nota" id="botao-planilha-versao">Usar os planos da versão</button>'
-      : 'Planos da versão' + (VERSAO ? ' ' + esc(VERSAO) : '') + ': ' + qtd + '.';
+    const qtd = planos.length + ' plano' + (planos.length === 1 ? '' : 's');
+    const reler = ENDERECOS_DRIVE.length ? ' <button type="button" class="link-nota" data-reler-planilha>Atualizar</button>' : '';
+    const avisos = leitura.erros.length ? ' <button type="button" class="link-nota" data-erros-planilha>' + leitura.erros.length + ' aviso(s) da planilha</button>' : '';
+    let t;
+    if (leitura.origem === 'drive') t = 'Planilha de planos lida às ' + esc(new Date(leitura.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })) + ': ' + qtd + '.';
+    else if (leitura.lendo) t = 'Lendo a planilha de planos…';
+    else if (leitura.origem === 'cache') t = 'Sem acesso à planilha agora: planos da leitura de ' + esc(horaCurta(leitura.quando)) + ' (' + qtd + ').';
+    else if (leitura.falhou) t = 'Sem acesso à planilha agora: planos da versão' + (VERSAO ? ' ' + esc(VERSAO) : '') + ' (' + qtd + ').';
+    else t = 'Planos da versão' + (VERSAO ? ' ' + esc(VERSAO) : '') + ': ' + qtd + '.';
+    nota.innerHTML = t + reler + avisos;
   }
 
   /** Depois de trocar a lista de planos: refaz as listas e desfaz o plano que deixou de existir. */
-  function planosTrocados() {
-    if (!planoPorId(estado.plano.planoId)) Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
-    planoUnico();
+  function planosTrocados(aplicarUnico) {
+    const sumiu = estado.plano.planoId && !planoPorId(estado.plano.planoId);
+    if (sumiu) Object.assign(estado.plano, { planoId: '', creditoMinimo: null, creditoMaximo: null });
+    if (sumiu || aplicarUnico) planoUnico();
     preencherSelects();
     escreverCampos();
-    notaPlanilha();
+    notaPlanos();
     atualizar();
   }
 
-  async function carregarPlanilha(arquivo) {
-    let res;
-    try {
-      res = await window.PlanilhaPlanos.lerPlanos(new Uint8Array(await arquivo.arrayBuffer()), null, { administradoras: C.ADMINISTRADORAS });
-    } catch (e) {
-      avisar('Não foi possível ler a planilha: ' + (e && e.message ? e.message : 'arquivo inválido') + '.');
-      return;
+  function aplicarLeitura(lista, origem, quando, erros) {
+    const antes = JSON.stringify(planos);
+    const primeira = leitura.origem !== 'drive';
+    leitura = { origem, quando, erros: erros || [], lendo: false, falhou: false };
+    definirPlanos(lista);
+    if (JSON.stringify(planos) !== antes) planosTrocados(primeira && !estado.plano.planoId);
+    else notaPlanos();
+  }
+
+  /** Lê a planilha direto do Drive (sem baixar arquivo para o computador) e aplica os planos. */
+  async function lerPlanilhaDrive() {
+    if (!ENDERECOS_DRIVE.length || leitura.lendo || typeof fetch !== 'function') return false;
+    leitura.lendo = true;
+    ultimaTentativa = Date.now();
+    notaPlanos();
+    let erros = [];
+    for (const url of ENDERECOS_DRIVE) {
+      try {
+        const resp = await fetch(url, { cache: 'no-store', credentials: 'omit' });
+        if (!resp.ok) continue;
+        const bytes = new Uint8Array(await resp.arrayBuffer());
+        if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) continue; // não veio a planilha (página de login, por exemplo)
+        const res = await window.PlanilhaPlanos.lerPlanos(bytes, null, { administradoras: C.ADMINISTRADORAS });
+        erros = res.erros;
+        if (!res.planos.length) continue;
+        const quando = new Date().toISOString();
+        try { localStorage.setItem(CHAVE_LEITURA, JSON.stringify({ quando, planos: res.planos })); } catch (e) { /* sem armazenamento */ }
+        aplicarLeitura(res.planos, 'drive', quando, res.erros);
+        return true;
+      } catch (e) { /* sem conexão ou bloqueado: tenta o próximo endereço */ }
     }
-    const lista = res.planos.map(C.normalizarPlano).filter(Boolean);
-    const erros = res.erros.slice(0, 12).map((e) => '<li>' + esc(e) + '</li>').join('') + (res.erros.length > 12 ? '<li>… e mais ' + (res.erros.length - 12) + '.</li>' : '');
-    if (!lista.length) {
-      janela('<h2>Planilha sem planos válidos</h2><p>Os planos atuais foram mantidos. Confira:</p><ul class="lista-erros">' + erros + '</ul>', [{ texto: 'Fechar', primario: true }]);
-      return;
+    // Sem acesso: a última leitura deste navegador (se ainda não estiver valendo uma leitura de agora)
+    leitura.lendo = false;
+    leitura.falhou = true;
+    leitura.erros = erros;
+    if (leitura.origem === 'versao') {
+      let guardada = null;
+      try { guardada = JSON.parse(localStorage.getItem(CHAVE_LEITURA)); } catch (e) { /* sem armazenamento */ }
+      if (guardada && Array.isArray(guardada.planos) && guardada.planos.length) {
+        aplicarLeitura(guardada.planos, 'cache', guardada.quando, erros);
+        leitura.falhou = true;
+        notaPlanos();
+        return false;
+      }
     }
-    planilha = { arquivo: arquivo.name, quando: new Date().toISOString(), planos: res.planos };
-    try { localStorage.setItem(CHAVE_PLANILHA, JSON.stringify(Object.assign({ versao: VERSAO }, planilha))); } catch (e) { /* sem armazenamento: vale até fechar */ }
-    definirPlanos(res.planos);
-    planosTrocados();
-    const adms = new Set(lista.map((x) => x.administradora)).size;
-    const resumo = lista.length + ' plano' + (lista.length === 1 ? '' : 's') + ' de ' + adms + ' administradora' + (adms === 1 ? '' : 's');
-    if (res.erros.length) janela('<h2>Planilha carregada: ' + esc(resumo) + '</h2><p>' + res.linhasComErro + ' linha(s) com erro ficaram de fora:</p><ul class="lista-erros">' + erros + '</ul>', [{ texto: 'Fechar', primario: true }]);
-    else avisar('Planilha carregada: ' + resumo + '.' + (res.avisos.length && /mês/.test(res.avisos[0]) ? ' ' + res.avisos[0] : ''));
-  }
-
-  function usarPlanosDaVersao() {
-    planilha = null;
-    try { localStorage.removeItem(CHAVE_PLANILHA); } catch (e) { /* sem armazenamento */ }
-    definirPlanos((window.CONFIG_SIMULADOR || {}).planos);
-    planosTrocados();
-    avisar('Voltaram os planos da versão do simulador.');
-  }
-
-  // Administradoras cadastradas pela equipe (opção "Outra administradora"), lembradas neste navegador
-  const CHAVE_ADMS = 'simconsorcio.administradoras';
-  let admsProprias = [];
-  try { admsProprias = (JSON.parse(localStorage.getItem(CHAVE_ADMS)) || []).filter((a) => typeof a === 'string' && a.trim()); } catch (e) { /* sem armazenamento */ }
-  const OUTRA_ADM = '__outra';
-
-  /** Lista suspensa: Porto Seguro, Bradesco, Mapfre e Âncora; depois as da planilha de planos e as cadastradas aqui. */
-  function listaAdministradoras() {
-    const lista = [];
-    C.ADMINISTRADORAS.concat(planos.map((x) => x.administradora), admsProprias).forEach((a) => {
-      if (a && !lista.some((b) => chaveAdm(b) === chaveAdm(a))) lista.push(a);
-    });
-    return lista;
-  }
-
-  function lembrarAdministradora(nome) {
-    if (!nome || listaAdministradoras().some((a) => chaveAdm(a) === chaveAdm(nome))) return;
-    admsProprias = [nome].concat(admsProprias).slice(0, 8);
-    try { localStorage.setItem(CHAVE_ADMS, JSON.stringify(admsProprias)); } catch (e) { /* sem armazenamento */ }
+    notaPlanos();
+    return false;
   }
 
   function preencherSelects() {
     $$('.sel-indice').forEach((s) => { s.innerHTML = Object.entries(C.INDICES).map(([k, v]) => '<option value="' + k + '">' + esc(v.nome) + '</option>').join(''); });
-    const adms = listaAdministradoras();
-    // Indexador da página 2; sugestões de administradora da página 2 (aceita selecionar ou digitar)
+    // Indexador da página 2; administradoras: lista suspensa da página 1 e sugestões da página 2
     $$('.sel-indice-cont').forEach((s) => { s.innerHTML = Object.entries(CC.INDICES).map(([k, v]) => '<option value="' + k + '">' + esc(v.nome) + '</option>').join(''); });
     const lista = $('#lista-administradoras');
-    if (lista) lista.innerHTML = adms.map((a) => '<option value="' + esc(a) + '"></option>').join('');
-    const sel = $('#f-adm-lista');
-    if (sel) sel.innerHTML = adms.map((a) => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('') + '<option value="' + OUTRA_ADM + '">Outra administradora…</option>';
-    sincronizarAdministradora();
+    if (lista) lista.innerHTML = C.ADMINISTRADORAS.map((a) => '<option value="' + esc(a) + '"></option>').join('');
+    const sel = $('#f-administradora');
+    if (sel) {
+      sel.innerHTML = C.ADMINISTRADORAS.map((a) => '<option value="' + esc(a) + '">' + esc(a) + '</option>').join('');
+      if (estado) sel.value = estado.plano.administradora;
+    }
     preencherPlanos();
   }
 
-  /** Lista suspensa da página 1 segue a administradora do estado; fora da lista, abre o campo para digitar. */
-  function sincronizarAdministradora() {
-    const sel = $('#f-adm-lista');
-    if (!sel || !estado) return;
-    const conhecida = listaAdministradoras().find((a) => chaveAdm(a) === chaveAdm(estado.plano.administradora));
-    sel.value = conhecida || OUTRA_ADM;
-    $('#campo-adm-outra').hidden = !!conhecida;
-  }
-
   /** Compara nomes de administradora sem diferenciar maiúsculas, acentos e espaços. */
-  const chaveAdm = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
-  /** Nome digitado igual a uma administradora conhecida (sem diferenciar maiúsculas e acentos): usa a grafia da lista. */
-  function grafiaAdministradora(txt) {
-    const k = chaveAdm(txt);
-    if (!k) return '';
-    if (k === 'porto') return C.ADMINISTRADORAS[0];
-    return listaAdministradoras().find((a) => chaveAdm(a) === k) || txt;
-  }
+  const chaveAdm = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
   /** Planos da administradora e da categoria (Imóvel/Veículo) selecionadas. */
   function planosFiltrados() {
@@ -283,7 +271,7 @@
     let ops;
     if (!adm) ops = '<option value="">Selecione a administradora</option>';
     else if (!daAdm.length) ops = '<option value="">Nenhum plano de ' + esc(C.CATEGORIAS[estado.plano.categoria].nome.toLowerCase()) + ' cadastrado</option>';
-    else ops = '<option value="">Selecione o plano</option>' + daAdm.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.nome + (x.exemplo ? ' (exemplo)' : '')) + '</option>').join('');
+    else ops = '<option value="">Selecione o plano</option>' + daAdm.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.nome + (x.tipoGrupo ? ' · ' + x.tipoGrupo : '') + (x.exemplo ? ' (exemplo)' : '')) + '</option>').join('');
     sel.innerHTML = ops;
     sel.disabled = !daAdm.length;
     sel.value = estado && daAdm.some((x) => x.id === estado.plano.planoId) ? estado.plano.planoId : '';
@@ -297,6 +285,7 @@
     nota.hidden = !pl;
     if (!pl) return;
     const partes = [];
+    if (pl.tipoGrupo) partes.push('Grupo ' + pl.tipoGrupo.toLowerCase());
     if (C.isNum(pl.creditoMinimo) && C.isNum(pl.creditoMaximo)) partes.push('Crédito de ' + C.fmtBRL(pl.creditoMinimo) + ' a ' + C.fmtBRL(pl.creditoMaximo));
     else if (C.isNum(pl.creditoMinimo)) partes.push('Crédito mínimo ' + C.fmtBRL(pl.creditoMinimo));
     else if (C.isNum(pl.creditoMaximo)) partes.push('Crédito máximo ' + C.fmtBRL(pl.creditoMaximo));
@@ -351,7 +340,6 @@
       else if (el.hasAttribute('data-moeda')) el.value = C.isNum(v) ? C.fmtBRL(v) : '';
       else el.value = v == null ? '' : v;
     });
-    sincronizarAdministradora();
     aplicarVisibilidade();
   }
 
@@ -426,16 +414,8 @@
         escreverCampos();
         preencherPlanos();
       } else if (el.dataset.k === 'plano.administradora') {
-        // Outra administradora (digitada): ao sair do campo, ganha a grafia da lista se já existir, ou entra na lista
-        if (ev.type === 'change') {
-          let grafia = grafiaAdministradora(estado.plano.administradora).trim();
-          if (grafia && grafia === grafia.toLowerCase()) grafia = grafia.replace(/(^|\s)\S/g, (c) => c.toUpperCase());
-          estado.plano.administradora = grafia;
-          el.value = grafia;
-          lembrarAdministradora(grafia);
-          trocarAdministradora();
-          preencherSelects();
-        }
+        // Lista suspensa só com as administradoras da equipe: a troca refaz a lista de planos
+        if (ev.type === 'change') trocarAdministradora();
       } else if (el.dataset.k === 'plano.planoId') {
         // Plano cadastrado: crédito mínimo, prazo, taxas, lances e índice preenchidos automaticamente
         if (selecionarPlano(estado.plano.planoId)) avisar('Plano aplicado: prazo, taxas, lances e índice preenchidos. Ajuste o valor do crédito.');
@@ -455,24 +435,13 @@
     };
     sb.addEventListener('input', aoAlterar);
     sb.addEventListener('change', aoAlterar);
-    // Planilha de planos: escolher o .xlsx e ler no próprio simulador
-    $('#botao-planilha').addEventListener('click', () => $('#f-planilha').click());
-    $('#f-planilha').addEventListener('change', (ev) => {
-      const arq = ev.target.files && ev.target.files[0];
-      ev.target.value = '';
-      if (arq) carregarPlanilha(arq);
-    });
-    $('#nota-planilha').addEventListener('click', (ev) => { if (ev.target.id === 'botao-planilha-versao') usarPlanosDaVersao(); });
-    // Lista suspensa de administradoras: "Outra administradora…" abre o campo para digitar o nome
-    $('#f-adm-lista').addEventListener('change', (ev) => {
-      const v = ev.target.value;
-      const outra = v === OUTRA_ADM;
-      estado.plano.administradora = outra ? '' : v;
-      trocarAdministradora();
-      escreverCampos();
-      $('#campo-adm-outra').hidden = !outra;
-      if (outra) $('#f-administradora').focus();
-      atualizar();
+    // Planos da planilha do Drive: "Atualizar" relê na hora; os avisos mostram as linhas que ficaram de fora
+    $('#nota-planilha').addEventListener('click', (ev) => {
+      if (ev.target.closest('[data-reler-planilha]')) lerPlanilhaDrive().then((ok) => { if (!ok) avisar('Sem acesso à planilha de planos agora. Confira a conexão.'); });
+      else if (ev.target.closest('[data-erros-planilha]')) {
+        const itens = leitura.erros.slice(0, 15).map((e) => '<li>' + esc(e) + '</li>').join('') + (leitura.erros.length > 15 ? '<li>… e mais ' + (leitura.erros.length - 15) + '.</li>' : '');
+        janela('<h2>Avisos da planilha de planos</h2><p>Estas linhas ficaram de fora do simulador até serem corrigidas na planilha:</p><ul class="lista-erros">' + itens + '</ul>', [{ texto: 'Fechar', primario: true }]);
+      }
     });
     // Campos automáticos (crédito do financiamento, período da aplicação): ao sair vazio, voltam ao valor da carta
     sb.addEventListener('focusout', (ev) => { if (ev.target.dataset && ev.target.dataset.auto) atualizar(); });
@@ -1683,8 +1652,6 @@
   // Preenche apenas o nome completo e o contato do cliente; os demais campos continuam como estavam.
   let planoCrm = '';
   definirPlanos((window.CONFIG_SIMULADOR || {}).planos);
-  planilha = lerPlanilhaGuardada();
-  if (planilha) definirPlanos(planilha.planos);
   const doCrm = (function () {
     const ler = (txt) => { try { return new URLSearchParams(String(txt || '').replace(/^[?#]/, '')); } catch (e) { return new URLSearchParams(); } };
     const fontes = [ler(location.search), ler(location.hash)];
@@ -1717,7 +1684,11 @@
   ligarMenu();
   desenharCartas();
   preencherSelects();
-  notaPlanilha();
+  notaPlanos();
+  // Planilha do Drive: lida ao abrir, a cada 5 minutos com a aba visível e ao voltar para a aba
+  lerPlanilhaDrive();
+  setInterval(() => { if (!document.hidden) lerPlanilhaDrive(); }, INTERVALO_LEITURA);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - ultimaTentativa > 60000) lerPlanilhaDrive(); });
   escreverCampos();
   // Navegação entre as páginas pelo link (#primario / #contemplada), inclusive voltar/avançar do navegador
   const seguirUrl = () => { const m = modoDaUrl(); if (m && m !== modo) definirModo(m, true); };

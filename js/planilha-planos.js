@@ -1,6 +1,7 @@
 /*
  * Leitura da planilha de planos (.xlsx) no navegador e no Node, sem dependências.
- * Usada pelo botão "Carregar planilha de planos" do simulador e por "npm run planos" (gera js/planos.js).
+ * Usada pelo simulador, que lê a planilha direto do Google Drive (link em js/config.js), e por
+ * "npm run planos" (gera js/planos.js, os planos embutidos para quando não há conexão).
  *
  * - Lê todas as abas com cabeçalho reconhecido (as demais, como Instruções, são ignoradas).
  * - Colunas reconhecidas pelo título, em qualquer ordem e com variações usuais
@@ -20,6 +21,15 @@
   // ---------------------------------------------------------------------------
 
   const utf8 = (b) => new TextDecoder('utf-8').decode(b);
+
+  /** Endereços de leitura de um arquivo do Google Drive a partir do link de compartilhamento ("qualquer pessoa com o link"). */
+  function enderecosDrive(link) {
+    const t = String(link || '');
+    const id = (t.match(/\/d\/([\w-]{20,})/) || t.match(/[?&]id=([\w-]{20,})/) || [])[1];
+    if (!id) return [];
+    return ['https://drive.usercontent.google.com/download?id=' + id + '&export=download&confirm=t',
+      'https://docs.google.com/spreadsheets/d/' + id + '/export?format=xlsx'];
+  }
 
   /** Descompacta no navegador (DecompressionStream); no Node o importador passa o zlib. */
   async function inflarNavegador(bytes) {
@@ -126,7 +136,13 @@
   const COLUNAS = [
     ['administradora', /^(administradora|adm)\b/],
     ['nome', /^(nome do plano|plano|produto|nome)\b/],
+    ['tipoGrupo', /^(tipo de grupo|situacao do grupo|status do grupo)\b/],
     ['categoria', /^(categoria|tipo|segmento|bem)\b/],
+    ['adesaoFlag', /^flag (de )?adesao/],
+    ['seguroFlag', /^flag (de )?seguro/],
+    ['fidelidadeFlag', /^flag (de )?fidelidade/],
+    ['fidelidadeParcela', /^(a partir d|fidelidade a partir)/],
+    ['fidelidadePct', /^% (de )?(lance )?(embutido|fidelidade)/],
     ['prazo', /^prazo/],
     ['creditoMinimo', /^(credito|carta|valor)( de credito| do credito| da carta)? min/],
     ['creditoMaximo', /^(credito|carta|valor)( de credito| do credito| da carta)? max/],
@@ -148,7 +164,7 @@
     ['id', /^(codigo|id)\b/],
     ['observacoes', /^(observa|obs)\b/]
   ];
-  const TEXTOS = ['administradora', 'nome', 'categoria', 'modalidade', 'abatimento', 'indice', 'ativo', 'id', 'observacoes'];
+  const TEXTOS = ['administradora', 'nome', 'tipoGrupo', 'categoria', 'modalidade', 'abatimento', 'indice', 'ativo', 'id', 'observacoes', 'adesaoFlag', 'seguroFlag', 'fidelidadeFlag', 'fidelidadeParcela', 'fidelidadePct'];
   const OBRIGATORIAS = { administradora: 'Administradora', nome: 'Plano', categoria: 'Tipo', prazo: 'Prazo (meses)', creditoMinimo: 'Crédito mínimo (R$)', taxaAdm: 'Taxa de administração (%)', fundoReserva: 'Fundo de reserva (%)' };
   const ROTULOS = Object.assign({ creditoMaximo: 'Crédito máximo (R$)', adesaoPct: 'Taxa de adesão (%)', adesaoMeses: 'Adesão diluída em (meses)', seguroPct: 'Seguro prestamista (% a.m.)', redutorOutro: 'Outro redutor (%)', redutorPct: 'Redutor (%)', embutidoPct: 'Lance embutido (%)', fixoPct: 'Lance fixo (%)', indiceTaxa: 'Taxa estimada do índice (% a.a.)' }, OBRIGATORIAS);
   const PERCENTUAIS = ['taxaAdm', 'fundoReserva', 'adesaoPct', 'seguroPct', 'redutorOutro', 'redutorPct', 'embutidoPct', 'fixoPct', 'indiceTaxa'];
@@ -181,6 +197,14 @@
     return Number.isFinite(n) ? n : NaN;
   }
   const textoCel = (c) => (c && c.v !== null && c.v !== undefined ? String(c.v).trim() : '');
+  /** Sim/Não da planilha: true, false, null (vazio) ou undefined (valor não reconhecido). */
+  const simNao = (t) => { const k = chave(t); if (!k) return null; if (/^(sim|s|x|true|1|verdadeiro)$/.test(k)) return true; if (/^(nao|n|false|0|falso)$/.test(k)) return false; return undefined; };
+  /** Lista de números de uma célula ("6; 12; 18", "30/27/25" ou um número só). */
+  const listaNumeros = (c, percentual) => {
+    if (!c || c.v === null || c.v === undefined || c.v === '') return [];
+    if (typeof c.v === 'number') return [numero(c, percentual)];
+    return String(c.v).split(/\s*(?:;|\/|\||\se\s)\s*/).filter(Boolean).map((p) => numero({ v: p }, percentual));
+  };
   const codigoAuto = (adm, nome) => (chave(adm) + '-' + chave(nome)).toUpperCase().replace(/%/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 40);
 
   /** Linha do cabeçalho: a primeira (entre as 20 primeiras) com o nome do plano e ao menos mais duas colunas conhecidas. */
@@ -260,6 +284,7 @@
         if (adm && !grafias.has(chave(adm))) grafias.set(chave(adm), adm);
         const pl = { id: v.id || codigoAuto(adm, nome), administradora: adm, nome };
         if (exemplo) pl.exemplo = true;
+        if (v.tipoGrupo) pl.tipoGrupo = v.tipoGrupo;
         if (v.categoria) {
           pl.categoria = categoriaDoTexto(v.categoria);
           if (!pl.categoria) erro('tipo "' + v.categoria + '" inválido (use Imóvel ou Veículo).');
@@ -299,6 +324,27 @@
           if (pl.adesaoMeses !== undefined && pl.prazo !== undefined && pl.adesaoMeses > pl.prazo) erro('a adesão não pode ser diluída em mais meses que o prazo.');
         }
         if (tem('seguroPct')) faixa('seguroPct', 'Seguro prestamista', 0, 100);
+        // Flags Sim/Não: adesão e seguro já marcados (ou desmarcados) e Lance Fidelidade habilitado
+        [['adesaoFlag', 'adesaoAtiva', 'Flag Adesão'], ['seguroFlag', 'seguroAtivo', 'Flag Seguro'], ['fidelidadeFlag', 'fidelidadeAtiva', 'Flag Fidelidade']].forEach(([col, campo, rot]) => {
+          if (!tem(col)) return;
+          const b = simNao(v[col]);
+          if (b === undefined) erro(rot + ' "' + v[col] + '" inválida (use Sim ou Não).');
+          else if (b !== null) pl[campo] = b;
+        });
+        // Lance Fidelidade: "A partir de (Mês)" e "% Lance Embutido" (até 3 opções, separadas por ;)
+        if (tem('fidelidadeParcela') || tem('fidelidadePct')) {
+          const parc = listaNumeros(cel('fidelidadeParcela'), false), pcts = listaNumeros(cel('fidelidadePct'), true);
+          if (parc.length || pcts.length) {
+            if (parc.length !== pcts.length) erro('Lance Fidelidade: informe "A partir de (Mês)" e "% Lance Embutido" para cada opção.');
+            else if (parc.length > 3) erro('Lance Fidelidade: no máximo 3 opções.');
+            else {
+              const ops = parc.map((p, i) => ({ parcela: p, pct: pcts[i] }));
+              const ruim = ops.find((o) => !Number.isInteger(o.parcela) || o.parcela < 1 || (pl.prazo !== undefined && o.parcela > pl.prazo) || !(o.pct >= 0 && o.pct <= 100));
+              if (ruim) erro('Lance Fidelidade: mês entre 1 e o prazo e % de 0 a 100.');
+              else pl.fidelidade = ops;
+            }
+          }
+        }
         if (tem('modalidade')) {
           const mod = chave(v.modalidade);
           if (!mod || MODALIDADES[mod] !== undefined) pl.redutorPct = mod ? MODALIDADES[mod] : 0;
@@ -346,5 +392,5 @@
     return planosDoLivro(await lerXlsx(bytes, inflar), opcoes);
   }
 
-  return { lerXlsx, lerPlanos, planosDoLivro, planosDaPlanilha, numero, categoriaDoTexto, inflarNavegador };
+  return { lerXlsx, lerPlanos, planosDoLivro, planosDaPlanilha, numero, categoriaDoTexto, inflarNavegador, enderecosDrive };
 });

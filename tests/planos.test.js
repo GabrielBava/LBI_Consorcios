@@ -24,10 +24,41 @@ test('planilha de planos: lê o modelo e gera os planos do simulador', async () 
   assert.deepEqual(r.abas, ['Planos'], 'a aba Instruções é ignorada');
 });
 
-test('planilha de planos: js/planos.js está em dia com a planilha', async () => {
+test('planos embutidos (js/planos.js): válidos e só das administradoras da lista', () => {
   const janela = {};
   new Function('window', fs.readFileSync(path.join(__dirname, '..', 'js', 'planos.js'), 'utf8'))(janela);
-  assert.deepEqual(janela.CONFIG_SIMULADOR.planos, (await I.importar(PLANILHA)).planos, 'rode npm run planos depois de alterar a planilha');
+  const lista = janela.CONFIG_SIMULADOR.planos;
+  assert.ok(Array.isArray(lista) && lista.length > 0);
+  lista.forEach((p) => {
+    const n = Calc.normalizarPlano(p);
+    assert.ok(n, p.id);
+    assert.ok(Calc.ADMINISTRADORAS.includes(n.administradora), n.administradora);
+    assert.ok(['imovel', 'veiculo'].includes(n.categoria) && Calc.isNum(n.prazo) && Calc.isNum(n.creditoMinimo), p.id);
+  });
+});
+
+test('planilha de planos: link do Drive e colunas da planilha da equipe (tipo de grupo, flags e fidelidade)', () => {
+  assert.deepEqual(PP.enderecosDrive('https://docs.google.com/spreadsheets/d/1l-1kvMCTs2kz4N9WbKUiit1WHwuYh0Zm/edit?usp=sharing&rtpof=true'), [
+    'https://drive.usercontent.google.com/download?id=1l-1kvMCTs2kz4N9WbKUiit1WHwuYh0Zm&export=download&confirm=t',
+    'https://docs.google.com/spreadsheets/d/1l-1kvMCTs2kz4N9WbKUiit1WHwuYh0Zm/export?format=xlsx'
+  ]);
+  assert.deepEqual(PP.enderecosDrive('sem link'), []);
+  const c = ['Administradora', 'Tipo de Grupo ', 'Plano', 'Tipo', 'Prazo (meses)', 'Flag Adesão', 'Flag Seguro', 'Crédito mínimo (R$)', 'Crédito máximo (R$)', 'Taxa de administração (%)', 'Fundo de reserva (%)', 'Lance embutido (%)', 'Lance fixo (%)', 'Índice de reajuste', 'Flag Fidelidade', 'A partir de (Mês)', '% Lance Embutido'];
+  const r = PP.planosDaPlanilha([
+    linha(c),
+    linha(['Porto Seguro', 'Em Formação', 'Imóvel 200 Meses', 'Imóvel', 200, 'Não', 'Sim', 200000, 1000000, 21, 2, 30, 40, 'INCC', 'Sim', null, null]),
+    linha(['Bradesco', 'Em Andamento', 'Auto 80', 'Veículo', 80, 'Sim', 'Não', 80000, 300000, 16, 2, 30, 40, 'IPCA', 'Sim', '6; 12', '30; 27']),
+    linha(['Mapfre', 'Em Formação', 'Casa 180', 'Imóvel', 180, 'Talvez', 'Não', 100000, null, 20, 2, null, null, 'INCC', 'Sim', 6, null])
+  ], ADMS);
+  assert.deepEqual(r.erros, ['Linha 4: Flag Adesão "Talvez" inválida (use Sim ou Não).', 'Linha 4: Lance Fidelidade: informe "A partir de (Mês)" e "% Lance Embutido" para cada opção.']);
+  const [porto, auto] = r.planos;
+  assert.deepEqual([porto.tipoGrupo, porto.categoria, porto.adesaoAtiva, porto.seguroAtivo, porto.fidelidadeAtiva, porto.fidelidade], ['Em Formação', 'imovel', false, true, true, undefined]);
+  assert.deepEqual(auto.fidelidade, [{ parcela: 6, pct: 30 }, { parcela: 12, pct: 27 }]);
+  const s = Calc.estadoPadrao();
+  Calc.aplicarPlanoCadastrado(s, Calc.normalizarPlano(auto));
+  assert.deepEqual([s.plano.adesaoAtiva, s.plano.seguroAtivo, s.fidelidade.ativo, s.fidelidade.p1Parcela, s.fidelidade.p1Pct, s.fidelidade.p2Parcela, s.fidelidade.p3Parcela], [true, false, true, 6, 30, 12, 18]);
+  Calc.aplicarPlanoCadastrado(s, Calc.normalizarPlano(porto));
+  assert.deepEqual([s.plano.adesaoAtiva, s.plano.seguroAtivo, s.fidelidade.p1Parcela, s.fidelidade.p1Pct], [false, true, 6, 30], 'opções da fidelidade voltam ao padrão');
 });
 
 test('planilha de planos: percentuais, valores em texto, padrões e grafia da administradora', () => {

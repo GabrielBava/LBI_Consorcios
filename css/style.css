@@ -907,9 +907,7 @@ button.botao-whats:disabled { opacity: .7; cursor: progress; }
 .sem-selecao input, .sem-selecao textarea, .sem-selecao select, .sem-selecao [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
 .sem-selecao img { -webkit-user-drag: none; }
 
-/* Planilha de planos carregada no simulador */
-.planilha-planos { display: grid; gap: 6px; justify-items: start; margin: 2px 0 10px; }
-.planilha-planos .nota { margin: 0; }
+/* Nota da planilha de planos (Atualizar, avisos) */
 .link-nota { padding: 0; border: 0; background: none; color: var(--primary-bright); font: inherit; text-decoration: underline; cursor: pointer; }
 .lista-erros { margin: 8px 0 0; padding-left: 18px; max-height: 40vh; overflow: auto; font-size: var(--fs-sm); }
 .lista-erros li { margin: 3px 0; }

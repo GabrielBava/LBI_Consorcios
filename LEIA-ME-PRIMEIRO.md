@@ -20,11 +20,11 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `js/acesso.js` | Tela de senha na entrada e travas contra salvar, imprimir e copiar a página |
 | `js/adesao.js` | Finalizar venda: ficha de cadastro (campos em `CAMPOS_ADESAO`) e PDF do termo de cadastro |
 | `js/app.js` | Interface: abas entre as páginas, campos, desenho da proposta, PDF, mensagem do WhatsApp, temas, link do CRM |
-| `js/config.js` | Nome da empresa, versão e validade (`versao`, `validadeVersao`), site depois do Finalizar venda (`siteAposVenda`) e endereço do CRM (`planosUrl`) |
-| `planos/Cadastro_de_Planos.xlsx` | Planilha de administradoras e planos: prazo, crédito mínimo e máximo, taxas, lances e índice |
-| `js/planos.js` | Planos do simulador, gerado da planilha por `npm run planos` (não editar à mão) |
-| `scripts/importar-planos.js` | Lê a planilha e gera `js/planos.js`, conferindo cada linha (`npm run planos`) |
-| `js/planilha-planos.js` | Leitura da planilha (.xlsx) usada pelo botão Carregar planilha de planos e pelo `npm run planos` |
+| `js/config.js` | Nome da empresa, versão e validade (`versao`, `validadeVersao`), site depois do Finalizar venda (`siteAposVenda`), link da planilha de planos no Google Drive (`planilhaPlanos`) e endereço do CRM (`planosUrl`) |
+| `planos/Cadastro_de_Planos.xlsx` | Modelo de colunas da planilha de planos (a oficial fica no Google Drive e é lida em tempo real) |
+| `js/planos.js` | Planos embutidos para quando não há conexão, gerados da planilha do Drive por `npm run planos` |
+| `scripts/importar-planos.js` | Lê a planilha do Drive (ou um arquivo) e gera `js/planos.js`, conferindo cada linha (`npm run planos`) |
+| `js/planilha-planos.js` | Leitura da planilha (.xlsx) direto do Drive, usada pelo simulador e pelo `npm run planos` |
 | `apresentacao/V1_Consorcio_Life_Brasil.html` | Apresentação institucional V1 Consórcio (botão Apresentação, ao lado do tema) |
 | `js/logos.js` | Logos do Grupo Life Brasil embutidos (versão clara, escura e o coração), gerados por `npm run logos` |
 | `js/vendor/` | html2canvas e jsPDF, usados para gerar o arquivo PDF |
@@ -34,9 +34,9 @@ Pacote completo do simulador, com código, logos e o resumo da identidade visual
 | `tests/contemplada.test.js` | 37 testes do motor de cálculo da página 2 |
 | `tests/adesao.test.js` | 8 testes das validações, máscaras, endereço e busca de CEP da ficha de cadastro |
 | `tests/acesso.test.js` | 2 testes do resumo da senha de acesso |
-| `tests/planos.test.js` | 8 testes da leitura da planilha de planos e do crédito mínimo e máximo |
+| `tests/planos.test.js` | 9 testes da leitura da planilha de planos (colunas, flags, Drive) e do crédito mínimo e máximo |
 | `tests/build.test.js` | 1 teste da montagem dos arquivos únicos (apresentação embutida) |
-| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.7 / versão 1.2.2) |
+| `docs/ESPECIFICACAO.md` | Página 1: campos, regras, fórmulas e histórico de versões (até 3.8 / versão 1.2.2) |
 | `docs/ESPECIFICACAO-CONTEMPLADA.md` | Página 2 (v3.2): campos, regras, fórmulas e validações |
 | `marca/` | Logos com fundo transparente (`life-logo-claro.png`, `life-logo-escuro.png`, `life-coracao.png`) e `IDENTIDADE.md` (cores, fontes e modelos da marca) |
 | `scripts/gerar-logos.js` | Gera `js/logos.js` a partir dos logos de `marca/` (`npm run logos`) |
@@ -77,13 +77,28 @@ Os detalhes e exemplos numéricos estão em `docs/ESPECIFICACAO.md`.
 ## Pendências conhecidas
 
 - Deixar o repositório do GitHub privado (hoje é público: o código-fonte fica visível para qualquer pessoa).
-- Planos reais: preencher `planos/Cadastro_de_Planos.xlsx` (hoje há 2 planos de exemplo da Porto Seguro) e rodar `npm run planos`, ou carregar a planilha do mês pelo botão do simulador.
+- Completar a planilha de planos no Google Drive (hoje há 2 planos da Porto Seguro). O simulador lê a planilha em tempo real; antes de cada build, `npm run planos` atualiza os planos embutidos.
 - Fonte Klavika: comercial. Instalada no computador, ela é usada automaticamente; sem ela, vale a Titillium Web.
 - Mecanismo de Alavancagem ainda não entra no PDF.
 
 ## Como começar em outro chat
 
-1. Envie este arquivo zip (ou os arquivos descompactados) no novo chat.
+1. Envie o arquivo zip do projeto no novo chat (ou os arquivos descompactados).
 2. Cole uma mensagem como esta, ajustando o que for preciso:
 
-> Segue em anexo o projeto completo do Simulador de Consórcio do Grupo Life Brasil (HTML/CSS/JS, sem build). Leia primeiro `LEIA-ME-PRIMEIRO.md` e `docs/ESPECIFICACAO.md`. Quero criar uma versão de teste separada que mantenha tudo o que já existe e inclua um **modelo de carta contemplada**: [descreva aqui as regras da carta contemplada, por exemplo: crédito disponível, saldo devedor, parcelas restantes, valor de ágio/entrada, comparação com financiamento]. Siga a identidade visual de `css/tokens.css` e de `marca/IDENTIDADE.md`, use os logos de `marca/` e mantenha os testes de `tests/calc.test.js` passando.
+> Segue em anexo o projeto completo do Simulador de Consórcio (HTML/CSS/JS, sem build; Node só para testes e para gerar os arquivos). Leia primeiro `LEIA-ME-PRIMEIRO.md`, `README.md` e `docs/ESPECIFICACAO.md`. Quero replicar o simulador para outra marca: [nome da empresa]. Mantenha todas as funções e regras de cálculo e troque a identidade (logos, cores, fontes, textos e nomes de arquivo) pela da nova marca, seguindo a lista "Para replicar para outra marca" do LEIA-ME. [Anexe os logos, as cores, o link da planilha de planos, as administradoras, a senha, o site para depois do Finalizar venda e a apresentação institucional, se houver.] Rode `npm test` ao final e gere o arquivo protegido.
+
+### Para replicar para outra marca
+
+| O que trocar | Onde |
+|---|---|
+| Nome da empresa, versão e validade, site depois do Finalizar venda, link da planilha de planos | `js/config.js` (`empresa`, `versao`, `validadeVersao`, `siteAposVenda`, `planilhaPlanos`) |
+| Senha de acesso | `npm run senha -- <senha>` (grava só o resumo em `js/config.js`) e `SIMULADOR_SENHA=<senha> npm run build:protegido` |
+| Logos (fundo claro, fundo escuro e ícone) | arquivos em `marca/` e `npm run logos` (gera `js/logos.js`); o ícone da página vem de `marca/life-coracao.png` em `scripts/montar.js` |
+| Cores, fontes, cantos e sombras | `css/tokens.css` (tokens dos temas claro e escuro); cores derivadas e comentários de marca no topo de `css/style.css`; resumo em `marca/IDENTIDADE.md` |
+| Título da página e nome do arquivo protegido | `<title>` em `index.html` ("GLB - Simulador de Consórcio") e `nome` em `scripts/build-protegido.js` (`GLB_Simulador_de_Consorcio_v<versão>.html`) |
+| Administradoras da lista suspensa | `ADMINISTRADORAS` em `js/calc.js` (a primeira é a inicial) e a regra do redutor (`REDUTOR_PARCELA_TODA`) |
+| Textos do aviso da proposta (PDF) | `avisoProposta` em `js/app.js` (cita a Porto Seguro) e `AVISO` em `js/app-contemplada.js` |
+| Apresentação institucional (botão Apresentação) | `apresentacao/V1_Consorcio_Life_Brasil.html` (é da Life; troque pela da nova marca ou apague o arquivo para tirar o botão do conteúdo embutido) e o caminho em `scripts/montar.js` e `js/app.js` |
+| Planos | planilha da nova marca no Google Drive ("qualquer pessoa com o link pode ver") e `npm run planos` |
+| Documentação | `README.md`, este arquivo e `docs/` citam o Grupo Life Brasil |

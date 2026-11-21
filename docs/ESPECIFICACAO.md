@@ -1,7 +1,9 @@
 # Especificação funcional — Simulador de Cartas de Consórcio Primárias
 
-Versão 3.7 (exibida aos usuários como **versão 1.2.2**, em `js/config.js`) · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (ficha de cadastro do Finalizar venda).
+Versão 3.8 (exibida aos usuários como **versão 1.2.2**, em `js/config.js`) · Implementação de referência: `index.html`, `js/calc.js` (motor de cálculo), `js/app.js` (interface) e `js/adesao.js` (ficha de cadastro do Finalizar venda).
 
+> **v3.8 (versão 1.2.2) — planilha de planos lida em tempo real no Google Drive:** sem anexar arquivo; só as 4 administradoras; colunas Tipo de Grupo e flags de adesão, seguro e fidelidade (seção 2.18).
+>
 > **v3.7 (versão 1.2.2) — administradoras, planilha no simulador e apresentação:** lista suspensa com Porto Seguro (inicial), Bradesco, Mapfre e Âncora, mais "Outra administradora…"; planos filtrados por tipo e administradora; botão **Carregar planilha de planos (.xlsx)**; botão **Apresentação** (V1 Consórcio) ao lado do tema; nova senha de acesso (seção 2.17).
 >
 > **v3.6 — cadastro de planos em planilha:** administradoras e planos em `planos/Cadastro_de_Planos.xlsx`, importados por `npm run planos`; crédito máximo do plano (seção 2.16).
@@ -307,6 +309,16 @@ Cada cartão de lance lembra onde o lance é abatido (parcela ou prazo). No sort
 - **Leitura flexível da planilha:** todas as abas com cabeçalho reconhecido (nas 20 primeiras linhas, com a coluna do plano e ao menos mais duas); abas Instruções, Listas e Legenda são ignoradas. Títulos aceitos, além dos do modelo: Produto/Nome (plano), Segmento/Bem (tipo), Crédito (= crédito mínimo), Crédito mín./máx., Tx. Adm./Taxa administrativa, FR/Fundo reserva, Embutido, Fixo, Reajuste/Indexador (índice), Redutor (%), Obs. Sem coluna de administradora, vale o nome da aba (salvo nomes genéricos como Planos ou Planilha1). Sem coluna de tipo, o tipo vem do nome do plano ou da aba (imóvel, casa, terreno → Imóvel; auto, moto, caminhão, pesados, leves → Veículo). Várias abas com nomes de meses: vale a do mês atual (ou a última). Índices como "INCC-M" são reconhecidos pelo nome.
 - **Apresentação V1 Consórcio:** botão **Apresentação** (ícone de tela de apresentação) ao lado de Claro/Escuro, nas duas páginas. Abre a apresentação institucional (`apresentacao/V1_Consorcio_Life_Brasil.html`) em tela cheia sobre o simulador; o botão **Voltar ao simulador** da apresentação envia a mensagem `life-v1:voltar-simulador` e a tela fecha, voltando ao simulador como estava (também fecha pelo × no canto superior direito e por Esc). Nos arquivos únicos a apresentação vai embutida (`window.APRESENTACAO_V1`), por isso o arquivo protegido passa de cerca de 0,6 MB para cerca de 8,8 MB.
 - **Versão e senha:** versão **1.2.2**; nova senha de acesso (o resumo fica em `senhaAcessoHash`; a senha é passada à equipe à parte).
+
+### 2.18 Ajustes v3.8 (versão 1.2.2): planilha do Drive em tempo real
+
+Substitui, na seção 2.17, o campo "Outra administradora…" e o botão "Carregar planilha de planos".
+
+- **Administradoras:** lista suspensa só com Porto Seguro (inicial), Bradesco, Mapfre e Âncora, sem opção de digitar outra. Planos de outras administradoras na planilha são ignorados. A página 2 continua com o campo de digitar, sugerindo as 4.
+- **Leitura em tempo real:** o link de compartilhamento da planilha fica em `planilhaPlanos` (`js/config.js`). O simulador lê o arquivo direto do Google Drive (`drive.usercontent.google.com`, com `docs.google.com/.../export` como segunda opção), sem baixar arquivo para o computador e sem pedir anexo: ao abrir, a cada 5 minutos com a aba visível, ao voltar para a aba (se a última tentativa tiver mais de 1 minuto) e no link **Atualizar**. Uma releitura só refaz os campos se os planos mudaram; o plano escolhido continua aplicado, e o que mudou na planilha vale ao escolher o plano de novo (se o plano sumiu da planilha, a seleção é desfeita).
+- **Nota abaixo do plano:** "Planilha de planos lida às hh:mm: N planos"; "Lendo a planilha de planos…"; sem conexão, "Sem acesso à planilha agora: planos da leitura de dd/mm às hh:mm" (última leitura guardada no navegador) ou "...: planos da versão 1.2.2" (`js/planos.js`). Linhas com erro: link "N aviso(s) da planilha", que abre a lista.
+- **Colunas da planilha da equipe:** Tipo de Grupo (texto, mostrado após o nome do plano e na nota: "Grupo em formação"); Flag Adesão e Flag Seguro (Sim/Não: marcam ou desmarcam adesão e seguro ao aplicar o plano; adesão "Sim" sem percentual pede o percentual no campo); Flag Fidelidade (Sim/Não: habilita o Lance Fidelidade); A partir de (Mês) e % Lance Embutido (opções da fidelidade, até 3, separadas por ";"; as não informadas ficam no padrão 6/30%, 12/27%, 18/25%). Mesmos campos no JSON do CRM: `tipoGrupo`, `adesaoAtiva`, `seguroAtivo`, `fidelidadeAtiva` e `fidelidade` (`[{ parcela, pct }]`).
+- **`npm run planos`:** sem argumento, lê a planilha do Drive e gera `js/planos.js` (planos embutidos para quando não há conexão); com um arquivo, lê o arquivo.
 
 ## 3. Fórmulas
 
